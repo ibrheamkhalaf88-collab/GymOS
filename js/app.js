@@ -7,6 +7,7 @@ import { store, PLANS, planPrices, savePlanPrices } from "./store.js";
 import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
+import { sanitizeName, sanitizeAmount, sanitizePhone, clampDays } from "./validate.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
@@ -943,7 +944,23 @@ function viewLedger() {
     jumpOptions += `<option value="${o}" ${sel}>${d.getMonth() + 1} · ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}</option>`;
   }
 
+  // ---- Trainer salary reminders (current real month) ----
+  const trainers = store.all("trainers");
+  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
+  const due = trainers.filter((t) => !t.lastPaidAt || t.lastPaidAt < nowM.getTime());
+  const dueTotal = due.reduce((s, t) => s + Number(t.salary || 0), 0);
+  const dueBanner = due.length ? `
+    <div class="bg-alert/10 border border-alert/40 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0">
+        <p class="font-headline text-sm text-alert uppercase tracking-wide">⏰ Salaries due this month / رواتب مستحقة</p>
+        <p class="text-xs text-muted mt-1 truncate">${due.map((t) => `${t.name} ($${t.salary})`).join(" · ")} — الإجمالي: ${fmt.money(dueTotal)}</p>
+      </div>
+      <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">✅ Pay all / دفع الكل</button>
+    </div>` : "";
+
   screen.innerHTML = `
+  ${dueBanner}
+
   <!-- Month selector -->
   <div class="bg-surface-container cyber-border rounded-lg p-3 flex justify-between items-center gap-2 relative overflow-hidden">
     <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
@@ -990,6 +1007,13 @@ function viewLedger() {
     </button>
     <button id="addSalaryBtn" class="flex-1 min-w-[140px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
       <span class="material-symbols-outlined text-[20px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
+      ${due.length ? `<span class="bg-alert text-white text-[10px] rounded-full px-1.5 py-0.5">${due.length}</span>` : ""}
+    </button>
+    <button id="trainersBtn" title="Trainers" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
+      <span class="material-symbols-outlined">groups</span>
+    </button>
+    <button id="pricesBtn" title="Plan prices / أسعار الباقات" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
+      <span class="material-symbols-outlined">sell</span>
     </button>
     <button id="reportsBtn" title="Monthly reports" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
       <span class="material-symbols-outlined">insights</span>
@@ -1009,8 +1033,106 @@ function viewLedger() {
   $("#ledJump").onchange = (e) => { ledgerOffset = Number(e.target.value); viewLedger(); };
   $("#addTxBtn").onclick = openTxModal;
   $("#addSalaryBtn").onclick = openSalaryModal;
+  $("#trainersBtn").onclick = openTrainers;
+  $("#pricesBtn").onclick = () => openPlanPrices();
   $("#reportsBtn").onclick = () => show("reports");
+  $("#payAllBtn")?.addEventListener("click", () => {
+    due.forEach((t) => payTrainer(t, { silent: true }));
+    showToast(`✅ Paid ${due.length} salaries — ${fmt.money(dueTotal)} / تم دفع الرواتب`);
+  });
 }
+// ---- Trainers: pay / CRUD / monthly reminders ----
+function payTrainer(t, { silent = false } = {}) {
+  const amount = Number(t.salary || 0);
+  if (amount > 0) {
+    store.insert("ledger", {
+      type: "expense",
+      amount,
+      description: `Salary: ${t.name} / راتب: ${t.name}`,
+      category: "salary",
+      date: Date.now(),
+    });
+  }
+  store.update("trainers", t.id, { lastPaidAt: Date.now() });
+  if (!silent) showToast(`✅ Paid ${t.name} — ${fmt.money(amount)}`);
+}
+
+function openTrainers() {
+  const trainers = store.all("trainers");
+  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
+  const mod = openModal(`
+    <div class="flex justify-between items-center mb-1">
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg">👥 Trainers / المدربون</h3>
+      <button id="addTrainerBtn" class="bg-primary text-black font-headline font-bold uppercase text-xs tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all">➕ Add</button>
+    </div>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إدارة المدربين ورواتبهم الشهرية — الدفع بيسجل تلقائياً بالمصروفات</p>
+    <div id="trainerList" class="flex flex-col gap-2">
+      ${trainers.length ? trainers.map((t) => {
+        const paid = t.lastPaidAt && t.lastPaidAt >= nowM.getTime();
+        return `
+        <div class="bg-surface-container rounded-xl p-3 flex items-center gap-3">
+          <span class="material-symbols-outlined ${paid ? "text-primary" : "text-alert"}">${paid ? "check_circle" : "schedule"}</span>
+          <div class="flex-1 min-w-0">
+            <p class="font-headline font-bold uppercase truncate">${escapeHtml(t.name)}</p>
+            <p class="text-xs text-muted mt-0.5">${fmt.money(t.salary)} / شهر · ${paid ? "✅ مدفع هالشهر" : "⏰ مستحق"}</p>
+          </div>
+          ${paid ? "" : `<button data-pay="${t.id}" class="shrink-0 bg-primary text-black text-[10px] font-headline font-bold uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all">Pay</button>`}
+          <button data-del="${t.id}" title="Delete" class="text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+        </div>`;
+      }).join("") : `<p class="text-center text-muted py-6 text-sm">📭 ما في مدربين بعد</p>`}
+    </div>`);
+  $("#addTrainerBtn", mod.el).onclick = () => { mod.close(); openTrainerForm(); };
+  mod.el.querySelectorAll("[data-pay]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const t = store.get("trainers", b.dataset.pay);
+      mod.close(); payTrainer(t);
+    }));
+  mod.el.querySelectorAll("[data-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const ok = await confirmDialog({ titleEn: "Delete trainer?", titleAr: "حذف المدرب؟ سجلاته المالية تبقى محفوظة", confirmText: "Delete", danger: true });
+      if (ok) { store.remove("trainers", b.dataset.del); mod.close(); openTrainers(); }
+    }));
+}
+
+function openTrainerForm() {
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">➕ Add Trainer / إضافة مدرب</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">رح يذكّرك النظام كل شهر بدفع راتبه</p>
+    <form id="trainerForm" class="flex flex-col gap-3">
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Name / الاسم</label>
+        <input name="name" required maxlength="40" class="dp-field mt-1" placeholder="Coach Ahmad..." /></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Monthly salary ($)</label>
+          <input name="salary" type="number" min="0" step="10" value="300" class="dp-field mt-1" dir="ltr"/></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Pay day (1-28)</label>
+          <input name="payDay" type="number" min="1" max="28" value="1" class="dp-field mt-1" dir="ltr"/></div>
+      </div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Phone (optional)</label>
+        <input name="phone" dir="ltr" class="dp-field mt-1" /></div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#trainerForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const name = sanitizeName(fd.get("name"));
+    if (!name) { showToast("Invalid name / اسم غير صالح", "err"); return; }
+    store.insert("trainers", {
+      name,
+      salary: sanitizeAmount(fd.get("salary")),
+      phone: sanitizePhone(fd.get("phone")),
+      payDay: clampDays(fd.get("payDay"), 1, 28),
+      lastPaidAt: null,
+    });
+    mod.close();
+    showToast("👥 Trainer added — monthly reminder active / انضاف المدرب والتذكير مفعّل");
+  });
+}
+
 // Trainer salary quick-expense
 function openSalaryModal() {
   const t = i18n.t;

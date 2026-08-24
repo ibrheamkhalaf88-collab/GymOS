@@ -5,7 +5,7 @@
 // ============================================================
 
 const PREFIX = "dp_";
-const COLLECTIONS = ["members", "devices", "ledger", "checkins", "notifications"];
+const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
 
 const listeners = new Map();
 
@@ -85,6 +85,15 @@ function seedData(col) {
           repairedAt: now - day * 5, createdAt: now - day * 10, updatedAt: now - day * 5 },
         { id: "d5", name: "Rowing Machine", maintenanceStatus: "completed", cost: 90,
           repairedAt: now - day * 12, createdAt: now - day * 20, updatedAt: now - day * 12 },
+      ];
+    }
+    case "trainers": {
+      const pm = new Date(); pm.setDate(1); pm.setMonth(pm.getMonth() - 1);
+      return [
+        { id: "t1", name: "Coach Ahmad", salary: 400, phone: "+970599000111",
+          payDay: 1, lastPaidAt: pm.getTime() },
+        { id: "t2", name: "Coach Lena", salary: 300, phone: "",
+          payDay: 5, lastPaidAt: null },
       ];
     }
     case "ledger": {
