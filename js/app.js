@@ -7,7 +7,7 @@ import { store, PLANS, planPrices, savePlanPrices } from "./store.js";
 import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
-import { sanitizeName, sanitizeAmount, sanitizePhone, clampDays } from "./validate.js";
+import { sanitizeName, sanitizeAmount, sanitizePhone } from "./validate.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
