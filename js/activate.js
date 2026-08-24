@@ -85,6 +85,25 @@ function setError(text) {
   msg.style.color = "#ff3366";
 }
 
+// ---- Free 30-day trial (once per device) ----
+const TRIAL_FLAG = "dp_trial_used";
+document.getElementById("trialBtn").addEventListener("click", () => {
+  if (localStorage.getItem(TRIAL_FLAG) === "1") {
+    setError("🎁 Trial already used on this device — grab a code from us! / التجربة المجانية استُهلكت على هذا الجهاز");
+    msg.style.color = "#ff3366";
+    return;
+  }
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const pick = () => alphabet[Math.floor(Math.random() * alphabet.length)];
+  const trialCode = `TRI-${pick()}${pick()}${pick()}`;
+  license.save({ code: trialCode, tier: "trial", days: 30 });
+  localStorage.setItem(TRIAL_FLAG, "1");
+  localStorage.setItem("dp_license_mode", codesDb.mode());
+  markDigits("success");
+  showToast("🎁 30-day free trial started! / بدأت تجربتك المجانية — شهر كامل");
+  setTimeout(() => location.replace("app.html"), 900);
+});
+
 async function askSetPassword(record) {
   return new Promise((resolve) => {
     const mod = openModal(`

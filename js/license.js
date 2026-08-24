@@ -52,6 +52,7 @@ export const license = {
     const data = {
       code: record.code,
       tier: record.tier || "standard",
+      owner: String(record.owner || ""),
       activatedAt,
       expiresAt: activatedAt + (Number(record.days) || 365) * 86400000,
       deviceId: deviceId(),

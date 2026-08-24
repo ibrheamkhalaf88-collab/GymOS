@@ -6,7 +6,7 @@
 
 import { db, auth, onlineMode } from "./firebase-config.js";
 import {
-  sanitizeCode, validatePassword,
+  sanitizeCode, sanitizeText, validatePassword,
   loginLockRemaining, recordFailedAttempt, resetAttempts,
 } from "./validate.js";
 
@@ -128,13 +128,14 @@ function demoSeed() {
     },
 
   // ---------- CRUD ----------
-  async create({ tier = "standard", days = 365, note = "", custom = "" } = {}) {
+  async create({ tier = "standard", days = 365, note = "", custom = "", owner = "" } = {}) {
     const code = normalizeCode(custom) || randomCode();
     const record = {
       code,
       tier,
       days: Number(days) || 365,
       note,
+      owner: sanitizeText(owner, 40),
       createdAt: Date.now(),
       used: false,
       revoked: false,

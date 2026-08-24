@@ -6,6 +6,7 @@
 import { codesDb } from "./db.js";
 import { showToast, openModal, confirmDialog, fmt, escapeHtml } from "./ui.js";
 import { appConfig } from "./config.js";
+import { sanitizeText } from "./validate.js";
 
 const $ = (sel) => document.querySelector(sel);
 const DAY = 86400000;
@@ -84,7 +85,11 @@ $("#genForm").addEventListener("submit", async (e) => {
   const hours = Number(fd.get("hours")) || 24;
   const days = Math.max(1, Math.round(hours / 24));
   try {
-    const rec = await codesDb.create({ tier: fd.get("tier"), days });
+    const rec = await codesDb.create({
+      tier: fd.get("tier"),
+      days,
+      owner: sanitizeText(fd.get("owner"), 40) || "",
+    });
     e.target.reset();
     e.target.hours.value = 24;
     showGenerated(rec);
@@ -206,6 +211,7 @@ function viewCode(id) {
       <p class="font-headline text-4xl font-bold text-primary tracking-[0.15em]" dir="ltr">${c.code}</p>
     </div>
     <div class="grid grid-cols-2 gap-3 text-sm">
+      <div class="bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Owner / العميل</p><p class="font-headline">${c.owner ? escapeHtml(c.owner) : "—"}</p></div>
       <div class="bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Tier</p><p class="font-headline capitalize">${escapeHtml(c.tier)}</p></div>
       <div class="bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Duration</p><p class="font-headline">${c.days} days</p></div>
       <div class="bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Created</p><p class="font-headline">${fmt.date(c.createdAt)}</p></div>

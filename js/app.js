@@ -1433,6 +1433,14 @@ function viewProfile() {
             <div class="h-px bg-outline-variant w-full"></div>
             <div class="flex items-center justify-between">
               <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Registered to / <span class="font-arabic normal-case">المسجّل باسم</span></p>
+                <p class="text-primary font-headline text-sm mt-1">${escapeHtml(lic.owner || "—")}</p>
+              </div>
+              <span class="material-symbols-outlined text-primary text-lg">badge</span>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
                 <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
                 <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
                 <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${license.daysLeft()} Days / يومًا</p>
