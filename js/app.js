@@ -361,7 +361,7 @@ let rosterQuery = "";
 
 function viewRoster() {
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const dueTrainers = store.all("trainers").filter((t) => !trainerStatus(t).active).length;
+  const dueTrainers = store.all("trainers").filter((t) => !trainerStatus(t).active && !trainerStatus(t).ended).length;
 
   screen.innerHTML = `
     <!-- Mobile Search & Filters -->
@@ -485,10 +485,12 @@ function viewRoster() {
 }
 
 // Trainer cards — same visual language as member cards
-// Salary coverage: each renewal covers exactly one month
+// Salary coverage: each renewal covers exactly one month.
+// Contract ended? (endDate passed) → trainer is ENDED: grey, no reminders
 function trainerStatus(t) {
+  if (t.contractEnd && Date.now() > t.contractEnd) return { active: false, ended: true, until: t.contractEnd };
   const until = t.lastPaidAt ? (() => { const d = new Date(t.lastPaidAt); d.setMonth(d.getMonth() + 1); return d.getTime(); })() : 0;
-  return { active: Date.now() < until, until };
+  return { active: Date.now() < until, ended: false, until };
 }
 function trainerCard(t) {
   const st = trainerStatus(t);
@@ -1059,7 +1061,7 @@ function viewLedger() {
   // ---- Trainer salary reminders (current real month) ----
   const trainers = store.all("trainers");
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const due = trainers.filter((t) => !trainerStatus(t).active);
+  const due = trainers.filter((t) => !trainerStatus(t).active && !trainerStatus(t).ended);
   const dueTotal = due.reduce((s, t) => s + Number(t.salary || 0), 0);
   const dueBanner = due.length ? `
     <div class="bg-alert/10 border border-alert/40 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
@@ -1146,6 +1148,10 @@ function viewLedger() {
 }
 // ---- Trainers: pay / CRUD / monthly reminders ----
 function payTrainer(t, { silent = false } = {}) {
+  if (t.contractEnd && Date.now() > t.contractEnd) {
+    showToast("⛔ Contract ended — extend it first via Edit / انتهى عقده، عدّل تاريخ النهاية أولاً", "err");
+    return;
+  }
   const amount = Number(t.salary || 0);
   let ledgerId = null;
   if (amount > 0) {
