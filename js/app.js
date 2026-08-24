@@ -360,6 +360,10 @@ let rosterFilter = "active";
 let rosterQuery = "";
 
 function viewRoster() {
+  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
+  const dueTrainers = store.all("trainers")
+    .filter((t) => !t.lastPaidAt || t.lastPaidAt < nowM.getTime()).length;
+
   screen.innerHTML = `
     <!-- Mobile Search & Filters -->
     <div class="md:hidden flex flex-col gap-4">
@@ -377,6 +381,17 @@ function viewRoster() {
             <span class="text-[8px] opacity-70">${i18n.t.statuses[f]}</span>
           </button>`).join("")}
       </div>
+    </div>
+
+    <!-- Trainers & salary actions -->
+    <div class="flex flex-wrap gap-2">
+      <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
+        ${dueTrainers ? `<span class="bg-alert text-white text-[10px] rounded-full px-1.5 py-0.5">${dueTrainers}</span>` : ""}
+      </button>
+      <button id="rosterTrainersBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">groups</span> 👥 TRAINERS / <span class="font-arabic normal-case">المدربون</span>
+      </button>
     </div>
 
     <!-- Roster List -->
@@ -428,6 +443,8 @@ function viewRoster() {
     rosterFilter = order[(order.indexOf(rosterFilter) + 1) % order.length];
     showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
   };
+  $("#addSalaryBtn").onclick = openSalaryModal;
+  $("#rosterTrainersBtn").onclick = openTrainers;
 }
 
 const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
@@ -1018,13 +1035,6 @@ function viewLedger() {
     <button id="addTxBtn" class="flex-1 min-w-[140px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
       <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> ➕ NEW / <span class="font-arabic normal-case">حركة</span>
     </button>
-    <button id="addSalaryBtn" class="flex-1 min-w-[140px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-      <span class="material-symbols-outlined text-[20px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
-      ${due.length ? `<span class="bg-alert text-white text-[10px] rounded-full px-1.5 py-0.5">${due.length}</span>` : ""}
-    </button>
-    <button id="trainersBtn" title="Trainers" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
-      <span class="material-symbols-outlined">groups</span>
-    </button>
     <button id="pricesBtn" title="Plan prices / أسعار الباقات" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
       <span class="material-symbols-outlined">sell</span>
     </button>
@@ -1045,8 +1055,6 @@ function viewLedger() {
   $("#ledNext").onclick = () => { ledgerOffset = Math.min(0, (ledgerOffset || 0) + 1); viewLedger(); };
   $("#ledJump").onchange = (e) => { ledgerOffset = Number(e.target.value); viewLedger(); };
   $("#addTxBtn").onclick = openTxModal;
-  $("#addSalaryBtn").onclick = openSalaryModal;
-  $("#trainersBtn").onclick = openTrainers;
   $("#pricesBtn").onclick = () => openPlanPrices();
   $("#reportsBtn").onclick = () => show("reports");
   $("#payAllBtn")?.addEventListener("click", () => {
