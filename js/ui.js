@@ -13,7 +13,7 @@ export function showToast(message, type = "ok", ms = 2600) {
   el.className = `toast ${type === "err" ? "err" : "ok"}`;
   el.innerHTML = `
     <span class="material-symbols-outlined text-[18px]">${type === "err" ? "error" : "check_circle"}</span>
-    <span>${message}</span>`;
+    <span>${type === "err" ? "⚠️ " : "✅ "}${message}</span>`;
   root.appendChild(el);
   setTimeout(() => {
     el.style.opacity = "0";
@@ -32,14 +32,22 @@ export function openModal(html, { onClose } = {}) {
   return { close, el: backdrop };
 }
 
+const CONFIRM_AR = {
+  Delete: "حذف", Confirm: "تأكيد", Reset: "إعادة", Save: "حفظ",
+  Deactivate: "إلغاء التفعيل", Lockdown: "قفل النظام", Import: "استيراد",
+  Renew: "تجديد", Open: "فتح", Edit: "تعديل", Review: "مراجعة",
+  Manage: "إدارة", Copy: "نسخ", Done: "تم",
+};
+
 export function confirmDialog({ titleEn, titleAr, confirmText = "Confirm", danger = false }) {
+  const ar = CONFIRM_AR[confirmText] || "";
   return new Promise((resolve) => {
     const m = openModal(`
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${titleEn}</h3>
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">⚠️ ${titleEn}</h3>
       <p class="font-arabic text-muted text-sm mb-6" dir="rtl">${titleAr}</p>
       <div class="flex gap-3">
-        <button data-act="no" class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">Cancel</button>
-        <button data-act="yes" class="flex-1 py-3 rounded-xl font-headline font-bold uppercase text-sm pressable ${danger ? "bg-alert/20 text-alert border border-alert/40" : "bg-primary-fixed text-black"}">${confirmText}</button>
+        <button data-act="no" class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">Cancel / إلغاء</button>
+        <button data-act="yes" class="flex-1 py-3 rounded-xl font-headline font-bold uppercase text-sm pressable ${danger ? "bg-alert/20 text-alert border border-alert/40" : "bg-primary-fixed text-black"}">${confirmText}${ar ? ` / <span class="font-arabic normal-case">${ar}</span>` : ""}</button>
       </div>`);
     m.el.querySelector('[data-act="no"]').onclick = () => { resolve(false); m.close(); };
     m.el.querySelector('[data-act="yes"]').onclick = () => { resolve(true); m.close(); };

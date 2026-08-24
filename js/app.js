@@ -92,10 +92,13 @@ document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click",
     ["ledger", "account_balance_wallet", "Ledger", "المالية"],
     ["profile", "account_circle", "Profile", "حسابي"],
   ];
-  $("#sideNav").innerHTML = items.map(([tab, icon, en]) => `
+  $("#sideNav").innerHTML = items.map(([tab, icon, en, ar]) => `
     <a href="#/${tab}" data-tab="${tab}" class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-[0.98]">
       <span class="material-symbols-outlined text-[22px]">${icon}</span>
-      <span class="font-headline uppercase tracking-tight text-sm">${en}</span>
+      <span class="flex flex-col leading-tight">
+        <span class="font-headline uppercase tracking-tight text-sm">${en}</span>
+        <span class="font-arabic text-[10px] opacity-60">${ar}</span>
+      </span>
     </a>`).join("");
   document.querySelectorAll("#sideNav [data-tab]").forEach((a) =>
     a.addEventListener("click", (e) => { e.preventDefault(); show(a.dataset.tab); }));
@@ -175,7 +178,7 @@ function viewDashboard() {
     <!-- Active Members -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>Active Members</span><span dir="rtl">الأعضاء النشطين</span>
+        <span>👥 Active Members</span><span dir="rtl" class="font-arabic">الأعضاء النشطين</span>
       </p>
       <div class="flex items-end justify-between">
         <p class="font-display font-bold text-5xl tabular-nums text-white mt-2">${nf.format(s.activeMembers)}</p>
@@ -186,7 +189,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <div class="flex items-start justify-between">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-          <span>Ended Today</span><span dir="rtl">انتهت اليوم</span>
+          <span>⏳ Ended Today</span><span dir="rtl" class="font-arabic">انتهت اليوم</span>
         </p>
         <div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>
       </div>
@@ -206,7 +209,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
       <p class="font-body font-semibold text-xs text-black uppercase tracking-[1px] flex items-start gap-1 leading-tight">
         <span class="material-symbols-outlined text-[14px] mt-0.5">build</span>
-        <span class="flex flex-col gap-0.5"><span>Maint. Alert</span><span>تنبيه صيانة</span></span>
+        <span class="flex flex-col gap-0.5"><span>🔧 Maint. Alert</span><span>تنبيه صيانة</span></span>
       </p>
       <p class="font-display font-bold text-3xl tabular-nums text-black mt-1">${s.maintAlerts}</p>
     </div>
@@ -214,7 +217,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors relative overflow-hidden group col-span-2" onclick="location.hash='#/profile'">
       <div class="flex flex-col gap-0.5">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col">
-          <span>License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
+          <span>🔑 License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
         </p>
       </div>
       <div class="flex flex-col">
@@ -261,7 +264,7 @@ function viewDashboard() {
   <!-- Recent Alerts Feed -->
   <div class="mt-4 flex flex-col gap-2">
     <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-1 flex gap-1 items-center">
-      <span>System Feed</span><span>/</span><span>سجل النظام</span>
+      <span>🗂️ System Feed</span><span>/</span><span>سجل النظام</span>
     </h2>
     ${feed.slice(0, 4).map((f) => `
       <div class="rounded-lg bg-surface p-3 flex justify-between items-center text-sm fade-up" style="border-inline-start:2px solid ${f.sev === "alert" ? "#ff3366" : f.sev === "info" ? "#ccff00" : "#d1e5f3"}">
@@ -365,7 +368,7 @@ function viewRoster() {
             ${f === rosterFilter
               ? "border-primary bg-primary/10 text-primary"
               : "border-outline-variant bg-surface-container text-muted hover:text-white"}">
-            <span>${f.toUpperCase()}</span>
+            <span>${FILTER_EMOJI[f] || ""} ${f.toUpperCase()}</span>
             <span class="text-[8px] opacity-70">${i18n.t.statuses[f]}</span>
           </button>`).join("")}
       </div>
@@ -382,7 +385,7 @@ function viewRoster() {
 
     const grid = $("#rosterGrid");
     grid.innerHTML = members.length ? members.map(memberCard).join("")
-      : `<div class="col-span-full text-center text-muted py-12 text-sm">No members found / لا يوجد أعضاء</div>`;
+      : `<div class="col-span-full text-center text-muted py-12 text-sm">😴 No members found / ما في أعضاء</div>`;
 
     grid.querySelectorAll("[data-member]").forEach((card) =>
       card.addEventListener("click", () => openMemberDetail(card.dataset.member)));
@@ -424,6 +427,7 @@ function viewRoster() {
 
 const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
   elite: "ELITE TIER", standard: "STANDARD TIER", trial: "GUEST" };
+const FILTER_EMOJI = { active: "✅", expired: "⛔", trial: "🎁", frozen: "❄️" };
 
 function memberAvatar(m, st) {
   if (m.photo) {
@@ -475,7 +479,7 @@ function openMemberModal(id = null) {
     ? `<option value="${m.plan}" selected>${m.plan}</option>` : "";
 
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${m ? t.editMember : t.addMember}</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${m ? "✏️ " + t.editMember : "➕ " + t.addMember}</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${m ? "تعديل بيانات العضو" : "إضافة عضو جديد"}</p>
     <form id="memberForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.memberName}</label>
@@ -596,7 +600,7 @@ function openPlanPrices(onSaved) {
   const t = i18n.t;
   const prices = planPrices();
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">Plan Prices / أسعار الباقات</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">💲 Plan Prices / أسعار الباقات</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">حدّد السعر الافتراضي لكل باقة — يُستخدم تلقائياً عند إضافة عضو</p>
     <form id="pricesForm" class="flex flex-col gap-3">
       ${PLANS.map((p) => `
@@ -677,17 +681,17 @@ function viewHardware() {
     <!-- slim counters -->
     <div class="grid grid-cols-3 gap-3">
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">In Repair</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">🔧 In Repair</p>
         <p class="font-display font-bold text-3xl text-alert tabular-nums mt-1">${pending.length}</p>
         <p class="arabic-sub text-[10px]" dir="rtl">قيد التصليح</p>
       </div>
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">Repaired</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">✅ Repaired</p>
         <p class="font-display font-bold text-3xl text-primary tabular-nums mt-1">${done.length}</p>
         <p class="arabic-sub text-[10px]" dir="rtl">تم التصليح</p>
       </div>
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">Total Invoices</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">💵 Total Invoices</p>
         <p class="font-display font-bold text-3xl text-frost-fixed tabular-nums mt-1" dir="ltr">${fmt.money(invoiced)}</p>
       </div>
     </div>
@@ -697,7 +701,7 @@ function viewHardware() {
 
   const list = $("#deviceList");
   list.innerHTML = devices.length ? devices.map(deviceCard).join("")
-    : `<div class="text-center text-muted py-12 text-sm">No devices yet / لا توجد أجهزة</div>`;
+    : `<div class="text-center text-muted py-12 text-sm">📭 No devices yet / ما في أجهزة</div>`;
 
   list.querySelectorAll("[data-device]").forEach((c) =>
     c.addEventListener("click", () => openDeviceDetail(c.dataset.device)));
@@ -842,7 +846,7 @@ function openDeviceDetail(id) {
     </div>
     <div class="flex gap-3">
       <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
-      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">DONE ✓</button>`
+      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">✅ DONE تم</button>`
                 : `<button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable">${t.edit}</button>`}
     </div>`);
   const editBtn = mod.el.querySelector("[data-edit]");
@@ -880,21 +884,21 @@ function viewLedger() {
   <div class="grid grid-cols-3 gap-3">
     <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>Revenue</span><span dir="rtl" class="font-arabic">الإيرادات</span>
+        <span>📈 Revenue</span><span dir="rtl" class="font-arabic">الإيرادات</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-primary mt-2" dir="ltr">${fmt.money(s.revenueThisMonth)}</p>
       <span class="material-symbols-outlined text-primary opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">trending_up</span>
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>Expenses</span><span dir="rtl" class="font-arabic">المصروفات</span>
+        <span>💸 Expenses</span><span dir="rtl" class="font-arabic">المصروفات</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-alert mt-2" dir="ltr">${fmt.money(expenses)}</p>
       <span class="material-symbols-outlined text-alert opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">payments</span>
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>Profit</span><span dir="rtl" class="font-arabic">صافي الربح</span>
+        <span>🏆 Profit</span><span dir="rtl" class="font-arabic">صافي الربح</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums ${profit >= 0 ? "text-white" : "text-alert"} mt-2" dir="ltr">${fmt.money(profit)}</p>
       <span class="material-symbols-outlined text-white opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">savings</span>
@@ -904,10 +908,10 @@ function viewLedger() {
   <!-- Quick actions -->
   <div class="flex flex-wrap gap-3">
     <button id="addTxBtn" class="flex-1 min-w-[140px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
-      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> NEW / <span class="font-arabic normal-case">حركة</span>
+      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> ➕ NEW / <span class="font-arabic normal-case">حركة</span>
     </button>
     <button id="addSalaryBtn" class="flex-1 min-w-[140px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-      <span class="material-symbols-outlined text-[20px]">badge</span> SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
+      <span class="material-symbols-outlined text-[20px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
     </button>
     <button id="reportsBtn" title="Monthly reports" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
       <span class="material-symbols-outlined">insights</span>
@@ -916,9 +920,9 @@ function viewLedger() {
 
   <!-- Live Transaction Feed -->
   <section class="flex flex-col gap-2">
-    <h3 class="font-headline font-bold uppercase tracking-tight text-sm px-1">Live Ledger <br/><span class="arabic-sub text-muted inline-block">سجل الحركات — كل داخلة وخارجة</span></h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-sm px-1">🧾 Live Ledger <br/><span class="arabic-sub text-muted inline-block">سجل الحركات — كل داخلة وخارجة</span></h3>
     <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50">
-      ${ledger.length ? ledger.slice(0, 15).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">No transactions / لا توجد حركات</p>`}
+      ${ledger.length ? ledger.slice(0, 15).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">📭 No transactions / ما في حركات</p>`}
     </div>
   </section>`;
 
@@ -931,7 +935,7 @@ function viewLedger() {
 function openSalaryModal() {
   const t = i18n.t;
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">Trainer Salary / راتب مدرب</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">💼 Trainer Salary / راتب مدرب</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تسجيل راتب كأحد المصروفات</p>
     <form id="salaryForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Trainer name / اسم المدرب</label>
@@ -1091,7 +1095,7 @@ function viewReports() {
   screen.innerHTML = `
   <!-- Page Header -->
   <div class="space-y-1">
-    <h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">Monthly Reports</h2>
+    <h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">📊 Monthly Reports</h2>
     <p class="font-arabic text-sm text-muted">التقارير الشهرية</p>
   </div>
 
@@ -1114,7 +1118,7 @@ function viewReports() {
       </div>
       <div class="flex justify-between items-start mb-2">
         <div>
-          <p class="font-label text-[10px] uppercase tracking-widest text-muted">Total Revenue</p>
+          <p class="font-label text-[10px] uppercase tracking-widest text-muted">💰 Total Revenue</p>
           <p class="font-arabic text-[10px] text-muted leading-none">إجمالي الإيرادات</p>
         </div>
         <span class="material-symbols-outlined text-accent">trending_up</span>
@@ -1130,7 +1134,7 @@ function viewReports() {
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
       <div class="mb-2">
-        <p class="font-label text-[10px] uppercase tracking-widest text-muted">Net Growth</p>
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">📈 Net Growth</p>
         <p class="font-arabic text-[10px] text-muted leading-none">صافي النمو</p>
       </div>
       <div class="mt-4">
@@ -1140,7 +1144,7 @@ function viewReports() {
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
       <div class="mb-2">
-        <p class="font-label text-[10px] uppercase tracking-widest text-muted">Retention</p>
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">🔁 Retention</p>
         <p class="font-arabic text-[10px] text-muted leading-none">معدل الاحتفاظ</p>
       </div>
       <div class="mt-4">
@@ -1156,11 +1160,11 @@ function viewReports() {
   <div class="bg-surface cyber-border rounded-lg p-5">
     <div class="flex justify-between items-center mb-6">
       <div>
-        <p class="font-label text-xs uppercase tracking-widest text-on-surface">Revenue Trend</p>
+        <p class="font-label text-xs uppercase tracking-widest text-on-surface">📈 Revenue Trend</p>
         <p class="font-arabic text-[10px] text-muted">اتجاه الإيرادات</p>
       </div>
       <select class="bg-surface-container border-none text-xs text-muted rounded-md py-1 pl-2 pr-6 focus:ring-1 focus:ring-primary">
-        <option>Daily</option><option>Weekly</option>
+        <option>Daily / يومي</option><option>Weekly / أسبوعي</option>
       </select>
     </div>
     <div class="h-32 flex items-end justify-between gap-1 w-full mt-4">
@@ -1176,7 +1180,7 @@ function viewReports() {
   <!-- Subscriber Breakdown -->
   <div class="bg-surface cyber-border rounded-lg p-5">
     <div class="mb-4">
-      <p class="font-label text-xs uppercase tracking-widest text-on-surface">Plan Distribution</p>
+      <p class="font-label text-xs uppercase tracking-widest text-on-surface">🥧 Plan Distribution</p>
       <p class="font-arabic text-[10px] text-muted">توزيع الخطط</p>
     </div>
     <div class="space-y-4">
@@ -1197,7 +1201,7 @@ function viewReports() {
   <button id="repExport" class="w-full bg-primary text-black font-headline font-bold py-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wide hover:bg-white transition-colors active:scale-[0.98] neon-shadow mt-4">
     <span class="material-symbols-outlined">download</span>
     <div class="flex flex-col items-start leading-none text-left">
-      <span>Export PDF</span>
+      <span>📄 Export PDF</span>
       <span class="font-arabic text-[10px] mt-0.5 opacity-80 normal-case">تصدير PDF</span>
     </div>
   </button>`;
@@ -1241,7 +1245,7 @@ function viewProfile() {
       <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
         <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
           <div>
-            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">Account Security</h3>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🔐 Account Security</h3>
             <p class="font-arabic text-muted text-sm">أمان الحساب</p>
           </div>
           <span class="material-symbols-outlined text-muted">security</span>
@@ -1278,7 +1282,7 @@ function viewProfile() {
       <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
         <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
           <div>
-            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">App Preferences</h3>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🎛️ App Preferences</h3>
             <p class="font-arabic text-muted text-sm">تفضيلات التطبيق</p>
           </div>
           <span class="material-symbols-outlined text-muted">tune</span>
@@ -1332,7 +1336,7 @@ function viewProfile() {
         <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
           <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
             <div>
-              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">System License</h3>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">📜 System License</h3>
               <p class="font-arabic text-muted text-sm">ترخيص النظام</p>
             </div>
             <span class="material-symbols-outlined text-muted">verified_user</span>
@@ -1363,7 +1367,7 @@ function viewProfile() {
             <div class="mb-4 pb-4 border-b border-outline-variant">
               <div class="flex items-center justify-between mb-2">
                 <div>
-                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">Team Identity</h3>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">👨‍💻 Team Identity</h3>
                   <p class="font-arabic text-muted text-[10px]">هوية الفريق</p>
                 </div>
                 <span class="material-symbols-outlined text-primary text-sm">hub</span>
@@ -1381,7 +1385,7 @@ function viewProfile() {
             <div class="mb-4 pb-4 border-b border-outline-variant">
               <div class="flex items-center justify-between mb-2">
                 <div>
-                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">Team Contact</h3>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">📞 Team Contact</h3>
                   <p class="font-arabic text-muted text-[10px]">جهة اتصال الفريق</p>
                 </div>
                 <span class="material-symbols-outlined text-primary text-sm">contact_support</span>
@@ -1398,7 +1402,7 @@ function viewProfile() {
             </div>
             <div class="flex items-center justify-between border-b border-outline-variant pb-2">
               <div>
-                <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-muted">System Build</h3>
+                <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-muted">🛠️ System Build</h3>
               </div>
               <span class="material-symbols-outlined text-primary text-sm">memory</span>
             </div>
