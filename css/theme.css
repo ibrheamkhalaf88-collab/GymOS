@@ -106,11 +106,11 @@ body {
 /* ---- Forms ---- */
 .dp-field {
   width: 100%;
-  background: #171717;
+  background: #000000;
   border: 1px solid #333333;
   border-radius: 1rem;
   padding: 0.85rem 1rem;
-  color: #f5f5f5;
+  color: #ccff00;
   font-family: inherit;
   outline: none;
   transition: all 0.15s ease;
@@ -120,7 +120,13 @@ body {
   box-shadow: 0 0 0 1px rgba(204, 255, 0, 0.3);
 }
 .dp-field::placeholder { color: #666666; }
-select.dp-field option { background: #171717; }
+/* Native controls follow the dark theme (date pickers, select arrows…) */
+input, select, textarea { color-scheme: dark; }
+.dp-field::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  cursor: pointer;
+}
+select.dp-field option { background: #000000; color: #ccff00; }
 
 /* ---- Toasts ---- */
 #toast-root {
