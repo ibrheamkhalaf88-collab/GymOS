@@ -628,8 +628,13 @@ function openMemberDetail(id) {
   mod.el.querySelector("[data-edit]").onclick = () => { mod.close(); openMemberModal(id); };
   mod.el.querySelector("[data-del]").onclick = async () => {
     mod.close();
-    const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "هل أنت متأكد من الحذف؟", confirmText: "Delete", danger: true });
-    if (ok) { store.remove("members", id); showToast("Deleted / تم الحذف"); }
+    const ok = await confirmDialog({
+      titleEn: "Delete this member?",
+      titleAr: "حذف هذا العضو؟ ⚠️ حركاته المالية ستبقى محفوظة في السجل ولا تُحذف",
+      confirmText: "Delete",
+      danger: true,
+    });
+    if (ok) { store.remove("members", id); showToast("Member deleted — finance kept / انحذف العضو وحُفظت أمواله بالسجل"); }
   };
   mod.el.querySelector("[data-renew]").onclick = () => { mod.close(); openRenewModal(id); };
 }
