@@ -36,7 +36,11 @@ document.addEventListener("langchange", rerender);
 // ---------- Router ----------
 export function show(tab, keepScroll = false) {
   if (!keepScroll) window.scrollTo({ top: 0 });
+  const prevTab = currentTab;
   currentTab = tab;
+  // Finance always opens on the CURRENT month (today) unless you are
+  // already browsing inside it
+  if (tab === "ledger" && prevTab !== "ledger") ledgerOffset = 0;
   destroyCharts();
   const titles = {
     dashboard: ["DASHBOARD", "الرئيسية"],
