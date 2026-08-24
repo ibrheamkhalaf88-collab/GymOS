@@ -39,12 +39,11 @@ service cloud.firestore {
           && resource.data.used != true
           && resource.data.revoked != true
         )
-        // تعيين كلمة سر الموقع — أول مرة فقط، وبعد التفعيل
+        // تعيين أو تغيير كلمة سر الموقع — يتطلب أن يكون الكود مفعّلاً
         || (
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(["passHash", "passSalt"])
           && resource.data.used == true
-          && !("passHash" in resource.data)
           && request.resource.data.passHash is string
           && request.resource.data.passHash.size() == 64
           && request.resource.data.passSalt is string

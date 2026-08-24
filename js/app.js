@@ -1331,6 +1331,14 @@ function viewProfile() {
           <span class="material-symbols-outlined text-muted">security</span>
         </div>
         <div class="space-y-4">
+          <div class="flex items-center justify-between group cursor-pointer" id="secChangePw">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Website Password / <span class="font-arabic normal-case">كلمة سر الموقع</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">Change your login password / تغيير كلمة سر الدخول</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Edit</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secRestore">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Restore Backup</p>
@@ -1522,6 +1530,7 @@ function viewProfile() {
   };
   $("#hapticToggle")?.addEventListener("change", (e) =>
     localStorage.setItem("dp_haptic", e.target.checked ? "1" : "0"));
+  $("#secChangePw").onclick = openChangePassword;
   $("#secRestore").onclick = () => $("#importFile").click();
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
@@ -1530,6 +1539,56 @@ function viewProfile() {
   };
   $("#exportBtn").onclick = exportData;
   $("#logoutBtn").onclick = deactivateLicense;
+}
+
+// ---------- Change website password ----------
+function openChangePassword() {
+  const lic = license.get();
+  if (!lic || !lic.code) { showToast("No license found / لا يوجد ترخيص", "err"); return; }
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔑 Change Website Password</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تغيير كلمة سر حسابك — أكتب الحالية ثم الجديدة</p>
+    <form id="chpwForm" class="flex flex-col gap-3">
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Current / الحالية</label>
+        <input name="cur" type="password" required class="dp-field mt-1" dir="ltr"/></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">New / الجديدة (4+)</label>
+        <input name="n1" type="password" required minlength="4" class="dp-field mt-1" dir="ltr"/></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Repeat / تأكيد الجديدة</label>
+        <input name="n2" type="password" required minlength="4" class="dp-field mt-1" dir="ltr"/></div>
+      <p id="chpwMsg" class="text-xs min-h-[1rem]" style="color:#ff3366"></p>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${i18n.t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${i18n.t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#chpwForm", mod.el).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const msgEl = document.getElementById("chpwMsg");
+    if (fd.get("n1") !== fd.get("n2")) { msgEl.textContent = "New passwords don't match / الجديدة غير متطابقتين"; return; }
+    try {
+      const res = await codesDbChange(lic.code, fd.get("cur"), fd.get("n1"));
+      if (!res.ok) {
+        const errors = {
+          WRONG_PASSWORD: "Current password is wrong / الحالية خاطئة",
+          WEAK_PASSWORD: "Weak password (min 4) / كلمة سر ضعيفة",
+          NO_PASSWORD: "No password set yet / لا توجد كلمة سر بعد",
+        };
+        msgEl.textContent = errors[res.error] || "Failed / فشل";
+        return;
+      }
+      mod.close();
+      showToast("🔐 Password changed / تم تغيير كلمة السر");
+    } catch (err) {
+      msgEl.textContent = "Connection error / خطأ بالاتصال";
+    }
+  });
+}
+
+async function codesDbChange(code, cur, next) {
+  const { codesDb } = await import("./db.js");
+  return codesDb.changeClientPassword(code, cur, next);
 }
 
 function exportData() {

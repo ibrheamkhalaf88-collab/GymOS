@@ -286,6 +286,34 @@ function demoSeed() {
     return { ok: true, record: rec };
   },
 
+  // Change website password (requires current password)
+  async changeClientPassword(code, currentPw, newPw) {
+    const id = sanitizeCode(code);
+    if (!id) return { ok: false, error: "INVALID_FORMAT" };
+    if (!validatePassword(newPw)) return { ok: false, error: "WEAK_PASSWORD" };
+
+    // Verify the CURRENT password first
+    const rec = await this.get(id);
+    if (!rec || !rec.passHash) return { ok: false, error: "NO_PASSWORD" };
+    let ok = false;
+    if (rec.passSalt) ok = rec.passHash === await derivePasswordHash(currentPw, rec.passSalt);
+    else ok = rec.passHash === await sha256(currentPw);
+    if (!ok) return { ok: false, error: "WRONG_PASSWORD" };
+    if (currentPw === newPw) return { ok: true }; // same password — nothing to do
+
+    const passSalt = randomSalt();
+    const passHash = await derivePasswordHash(newPw, passSalt);
+    if (onlineMode()) {
+      const { doc, updateDoc } = await FS();
+      await updateDoc(doc(db, "codes", id), { passHash, passSalt });
+    } else {
+      const list = demoAll();
+      const item = list.find((c) => c.code === id);
+      if (item) { item.passHash = passHash; item.passSalt = passSalt; demoSave(list); }
+    }
+    return { ok: true };
+  },
+
   // ---------- Cloud gym data (website database) ----------
   async loadGym(code) {
     if (!onlineMode()) return null;
