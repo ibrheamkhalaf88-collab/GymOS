@@ -386,16 +386,24 @@ function viewRoster() {
     <!-- Trainers & salary actions -->
     <div class="flex flex-wrap gap-2">
       <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
-        ${dueTrainers ? `<span class="bg-alert text-white text-[10px] rounded-full px-1.5 py-0.5">${dueTrainers}</span>` : ""}
-      </button>
-      <button id="rosterTrainersBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">groups</span> 👥 TRAINERS / <span class="font-arabic normal-case">المدربون</span>
+        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
       </button>
     </div>
 
     <!-- Roster List -->
-    <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
+    <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+    <!-- Trainers section — same card style as members -->
+    <div class="flex items-center justify-between mt-2">
+      <h2 class="font-headline font-bold text-sm uppercase text-muted flex gap-2 items-center">
+        👥 Trainers <span class="opacity-40">/</span> <span class="font-arabic opacity-70">المدربون</span>
+        <span id="trainersCount" class="text-[10px] bg-surface-container-high border border-outline-variant rounded-full px-2 py-0.5"></span>
+      </h2>
+      <button id="addTrainerInlineBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
+        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW
+      </button>
+    </div>
+    <div id="trainerGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
 
   const renderList = () => {
     const q = rosterQuery.trim().toLowerCase();
@@ -444,7 +452,59 @@ function viewRoster() {
     showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
   };
   $("#addSalaryBtn").onclick = openSalaryModal;
-  $("#rosterTrainersBtn").onclick = openTrainers;
+  renderTrainerCards();
+}
+
+// Trainer cards — same visual language as member cards
+function renderTrainerCards() {
+  const grid = document.getElementById("trainerGrid");
+  if (!grid) return;
+  const trainers = store.all("trainers");
+  const countEl = document.getElementById("trainersCount");
+  if (countEl) countEl.textContent = `${trainers.length}`;
+  grid.innerHTML = trainers.length ? trainers.map(trainerCard).join("")
+    : `<div class="col-span-full text-center text-muted py-10 text-sm">📭 ما في مدربين — ضيف أول مدرب من NEW فوق</div>`;
+
+  grid.querySelectorAll("[data-trainer]").forEach((c) =>
+    c.addEventListener("click", () => openTrainerDetails(c.dataset.trainer)));
+  grid.querySelectorAll("[data-pay]").forEach((b) =>
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      payTrainer(store.get("trainers", b.dataset.pay));
+    }));
+  grid.querySelectorAll("[data-edit-t]").forEach((b) =>
+    b.addEventListener("click", (e) => { e.stopPropagation(); openTrainerForm(b.dataset.editT); }));
+}
+
+function trainerCard(t) {
+  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
+  const paid = t.lastPaidAt && t.lastPaidAt >= nowM.getTime();
+  return `
+  <div data-trainer="${t.id}" class="bg-surface cyber-border ${paid ? "" : "border-s-2 !border-s-alert"} rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer group active:scale-[0.98]">
+    <div class="relative shrink-0">
+      <div class="w-14 h-14 rounded-full bg-surface-container-high border ${paid ? "border-primary/50" : "border-alert/50"} flex items-center justify-center font-headline text-lg ${paid ? "text-primary" : "text-alert"}">${initials(t.name)}</div>
+      <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${paid ? "bg-primary shadow-neon" : "bg-alert"}"></div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex justify-between items-start gap-2">
+        <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
+        <span class="font-label text-xs tracking-widest ${paid ? "text-primary" : "text-alert"} shrink-0" dir="ltr">${fmt.money(t.salary)}/mo</span>
+      </div>
+      <p class="font-body text-xs mt-0.5 ${paid ? "text-primary" : "text-alert"}">
+        ${paid ? `✅ آخر تجديد: ${fmt.date(t.lastPaidAt, currentLang())}` : "⏰ مستحق — لم يُجدد هذا الشهر"}
+      </p>
+      <div class="flex gap-2 mt-2 flex-wrap">
+        <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">📅 بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
+        <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">💵 يوم الدفع: ${t.payDay || 1}</span>
+        ${t.phone ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant" dir="ltr">📞 ${escapeHtml(t.phone)}</span>` : ""}
+      </div>
+    </div>
+    <div class="shrink-0 flex flex-col gap-1">
+      <button data-info-btn title="File / الملف" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
+      ${paid ? `<button data-edit-t="${t.id}" title="Edit" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>`
+             : `<button data-pay="${t.id}" title="Renew / تجديد" class="bg-primary text-black rounded-xl p-1.5 hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>`}
+    </div>
+  </div>`;
 }
 
 const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
@@ -1081,53 +1141,6 @@ function payTrainer(t, { silent = false } = {}) {
   if (!silent) showToast(`🔁 Renewed ${t.name} — ${fmt.money(amount)} deducted to Ledger / تم تجديد الراتب وخصمه بالمالية`);
 }
 
-function openTrainers() {
-  const trainers = store.all("trainers");
-  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const mod = openModal(`
-    <div class="flex justify-between items-center mb-1">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg">👥 Trainers / المدربون</h3>
-      <button id="addTrainerBtn" class="bg-primary text-black font-headline font-bold uppercase text-xs tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all">➕ Add</button>
-    </div>
-    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إدارة المدربين ورواتبهم الشهرية — الدفع بيسجل تلقائياً بالمصروفات</p>
-    <div id="trainerList" class="flex flex-col gap-2">
-      ${trainers.length ? trainers.map((t) => {
-        const paid = t.lastPaidAt && t.lastPaidAt >= nowM.getTime();
-        return `
-        <div class="bg-surface-container rounded-xl p-3 flex items-center gap-3">
-          <span class="material-symbols-outlined ${paid ? "text-primary" : "text-alert"}">${paid ? "check_circle" : "schedule"}</span>
-          <button data-info="${t.id}" class="flex-1 min-w-0 text-start" title="Full file / الملف الكامل">
-            <p class="font-headline font-bold uppercase truncate hover:text-primary transition-colors">${escapeHtml(t.name)}</p>
-            <p class="text-xs text-muted mt-0.5 truncate">
-              ${fmt.money(t.salary)}/شهر · بدأ العمل: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}
-              · ${paid ? `آخر تجديد: ${fmt.date(t.lastPaidAt, currentLang())}` : "⏰ لم يُجدد هالشهر"}
-            </p>
-          </button>
-          <button data-info="${t.id}" title="Payment history / سجل الدفعات" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
-          ${paid ? "" : `<button data-pay="${t.id}" class="shrink-0 bg-primary text-black text-[10px] font-headline font-bold uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 1;">autorenew</span> تجديد / Renew
-          </button>`}
-          <button data-edit="${t.id}" title="Edit" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
-          <button data-del="${t.id}" title="Delete" class="text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
-        </div>`;
-      }).join("") : `<p class="text-center text-muted py-6 text-sm">📭 ما في مدربين بعد</p>`}
-    </div>`);
-  $("#addTrainerBtn", mod.el).onclick = () => { mod.close(); openTrainerForm(); };
-  mod.el.querySelectorAll("[data-pay]").forEach((b) =>
-    b.addEventListener("click", () => {
-      const t = store.get("trainers", b.dataset.pay);
-      mod.close(); payTrainer(t);
-    }));
-  mod.el.querySelectorAll("[data-info]").forEach((b) =>
-    b.addEventListener("click", () => { mod.close(); openTrainerDetails(b.dataset.info); }));
-  mod.el.querySelectorAll("[data-edit]").forEach((b) =>
-    b.addEventListener("click", () => { mod.close(); openTrainerForm(b.dataset.edit); }));
-  mod.el.querySelectorAll("[data-del]").forEach((b) =>
-    b.addEventListener("click", async () => {
-      const ok = await confirmDialog({ titleEn: "Delete trainer?", titleAr: "حذف المدرب؟ سجلاته المالية تبقى محفوظة", confirmText: "Delete", danger: true });
-      if (ok) { store.remove("trainers", b.dataset.del); mod.close(); openTrainers(); }
-    }));
-}
 
 // Full trainer file: work dates + dedicated payment history
 function openTrainerDetails(id) {
