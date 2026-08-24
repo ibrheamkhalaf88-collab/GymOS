@@ -416,6 +416,21 @@ function viewRoster() {
           e.stopPropagation();
           payTrainer(store.get("trainers", b.dataset.pay));
         }));
+      grid.querySelectorAll("[data-edit-t]").forEach((b) =>
+        b.addEventListener("click", (e) => { e.stopPropagation(); openTrainerForm(b.dataset.editT); }));
+      grid.querySelectorAll("[data-del-t]").forEach((b) =>
+        b.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const t = store.get("trainers", b.dataset.delT);
+          if (!t) return;
+          const ok = await confirmDialog({
+            titleEn: `Delete ${t.name}?`,
+            titleAr: "حذف المدرب؟ سجلاته المالية ستبقى محفوظة في السجل",
+            confirmText: "Delete",
+            danger: true,
+          });
+          if (ok) { store.remove("trainers", t.id); showToast("Trainer deleted — finance kept / انحذف المدرب وحُفظت رواتبها بالسجل"); }
+        }));
       return;
     }
 
@@ -478,32 +493,37 @@ function trainerStatus(t) {
 function trainerCard(t) {
   const st = trainerStatus(t);
   const paid = st.active;
+  const contractOver = t.contractEnd && Date.now() > t.contractEnd;
   return `
-  <div data-trainer="${t.id}" class="bg-surface cyber-border ${paid ? "" : "border-s-2 !border-s-alert"} rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer group active:scale-[0.98]">
+  <div data-trainer="${t.id}" class="bg-surface cyber-border ${(!paid || contractOver) ? "border-s-2 !border-s-alert" : ""} rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer group active:scale-[0.98]">
     <div class="relative shrink-0">
-      <div class="w-14 h-14 rounded-full bg-surface-container-high border ${paid ? "border-primary/50" : "border-alert/50"} flex items-center justify-center font-headline text-lg ${paid ? "text-primary" : "text-alert"}">${initials(t.name)}</div>
-      <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${paid ? "bg-primary shadow-neon" : "bg-alert"}"></div>
+      <div class="w-14 h-14 rounded-full bg-surface-container-high border ${(paid && !contractOver) ? "border-primary/50" : "border-alert/50"} flex items-center justify-center font-headline text-lg ${(paid && !contractOver) ? "text-primary" : "text-alert"}">${initials(t.name)}</div>
+      <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${(paid && !contractOver) ? "bg-primary shadow-neon" : "bg-alert"}"></div>
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex justify-between items-start gap-2">
         <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
-        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded ${paid ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"} border font-bold">${paid ? "🟢 فعّال ACTIVE" : "🔴 منتهي EXPIRED"}</span>
+        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "🟢 فعّال ACTIVE" : contractOver ? "📄 انتهى العقد" : "🔴 منتهي EXPIRED"}</span>
       </div>
-      <p class="font-body text-xs mt-1 ${paid ? "text-primary" : "text-alert"}">
-        ${st.active
-          ? `🟢 الاشتراك فعّال — التجديد القادم: ${fmt.date(st.until, currentLang())}`
-          : `🔴 انتهت باقة الراتب${st.until ? ` بتاريخ ${fmt.date(st.until, currentLang())}` : ""} — يتطلب تجديد`}
+      <p class="font-body text-xs mt-1 ${(paid && !contractOver) ? "text-primary" : "text-alert"}">
+        ${contractOver
+          ? `📄 انتهى العقد بتاريخ ${fmt.date(t.contractEnd, currentLang())}`
+          : st.active
+            ? `🟢 الاشتراك فعّال — التجديد القادم: ${fmt.date(st.until, currentLang())}`
+            : `🔴 انتهت باقة الراتب${st.until ? ` بتاريخ ${fmt.date(st.until, currentLang())}` : ""} — يتطلب تجديد`}
       </p>
       <p class="font-body text-[11px] text-muted mt-0.5" dir="ltr">${fmt.money(t.salary)}/mo</p>
       <div class="flex gap-2 mt-2 flex-wrap">
         <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">📅 بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
+        ${t.contractEnd ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest ${contractOver ? "text-alert border-alert/30" : "text-muted"} text-[10px] font-label tracking-wider uppercase border border-outline-variant">⏳ ينتهي: ${fmt.date(t.contractEnd, currentLang())}</span>` : ""}
         <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">💵 يوم الدفع: ${t.payDay || 1}</span>
         ${t.phone ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant" dir="ltr">📞 ${escapeHtml(t.phone)}</span>` : ""}
       </div>
     </div>
     <div class="shrink-0 flex flex-col gap-1">
       <button data-info-btn title="File / الملف" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
-      <button data-edit-t="${t.id}" title="Edit" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+      <button data-edit-t="${t.id}" title="Edit / تعديل" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+      <button data-del-t="${t.id}" title="Delete / حذف" class="text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
       <button data-pay="${t.id}" title="Renew / تجديد" class="${paid ? "hidden" : ""} bg-primary text-black rounded-xl p-1.5 hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>
     </div>
   </div>`;
@@ -1174,6 +1194,11 @@ function openTrainerDetails(id) {
         <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Pay day / يوم الدفع</p>
         <p class="font-headline">${t.payDay || 1}</p>
       </div>
+      ${t.contractEnd ? `
+      <div class="bg-surface-container rounded-xl p-3 col-span-2">
+        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Contract end / انتهاء العقد</p>
+        <p class="font-headline ${(Date.now() > t.contractEnd) ? "text-alert" : ""}">${fmt.date(t.contractEnd, currentLang())}${(Date.now() > t.contractEnd) ? " — منتهي" : ""}</p>
+      </div>` : ""}
       <div class="bg-surface-container rounded-xl p-3">
         <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Total paid / إجمالي المدفوع</p>
         <p class="font-headline text-alert" dir="ltr">${fmt.money(totalPaid)}</p>
@@ -1216,6 +1241,8 @@ function openTrainerForm(id = null) {
       </div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Started working / تاريخ بدء العمل</label>
         <input name="startedAt" type="date" value="${iso(cur?.startedAt)}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1"/></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Contract end / تاريخ انتهاء العقد (اختياري)</label>
+        <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : ""}" class="dp-field mt-1"/></div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Phone (optional)</label>
         <input name="phone" dir="ltr" value="${cur ? escapeHtml(cur.phone || "") : ""}" class="dp-field mt-1" /></div>
       <div class="flex gap-3 pt-2">
@@ -1237,6 +1264,8 @@ function openTrainerForm(id = null) {
     };
     const sd = fd.get("startedAt");
     if (sd) data.startedAt = new Date(`${sd}T00:00:00`).getTime();
+    const ce = fd.get("contractEnd");
+    data.contractEnd = ce ? new Date(`${ce}T23:59:59`).getTime() : null;
     if (cur) {
       store.update("trainers", id, data);
       mod.close();
