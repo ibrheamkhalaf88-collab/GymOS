@@ -480,12 +480,14 @@ function openMemberModal(id = null) {
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Locker</label>
           <input name="locker" class="dp-field mt-1" value="${m ? escapeHtml(m.locker || "") : ""}" /></div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid ${m ? "grid-cols-2" : ""} gap-3">
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.plan}</label>
           <select name="plan" class="dp-field mt-1">${["trial", "standard", "pro", "elite"].map((p) => `<option value="${p}" ${m?.plan === p ? "selected" : ""}>${t.plans[p]}</option>`).join("")}</select></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / الأيام</label>
-          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>
+        ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / الأيام</label>
+          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>`}
       </div>
+      ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Start Date / تاريخ البداية</label>
+        <input name="startDate" type="date" value="${new Date().toLocaleDateString("en-CA")}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1" /></div>`}
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paidAmount} ($)</label>
         <input name="paidAmount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
       <div class="flex gap-3 pt-2">
@@ -511,13 +513,15 @@ function openMemberModal(id = null) {
       delete patch.paidAmount;
       store.update("members", id, patch);
     } else {
+      const startVal = fd.get("startDate");
+      const joinTs = startVal ? new Date(`${startVal}T00:00:00`).getTime() : Date.now();
       store.insert("members", {
         ...data,
         photo: "",
         tag: "",
         status: data.plan === "trial" ? "trial" : "active",
-        joinDate: Date.now(),
-        expiresAt: Date.now() + days * DAY,
+        joinDate: joinTs,
+        expiresAt: joinTs + days * DAY,
         checkins: 0,
       });
     }
