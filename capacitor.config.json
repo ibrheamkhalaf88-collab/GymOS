@@ -1,0 +1,12 @@
+{
+  "appId": "com.digitalpulse.gym",
+  "appName": "Digital Pulse",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

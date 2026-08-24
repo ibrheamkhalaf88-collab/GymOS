@@ -1,82 +1,103 @@
-# IB2040 — تطبيق احترافي متكامل
+# ⚡ Digital Pulse — Cyber Athletic Gym Manager
 
-موقع وتطبيق ويب كامل باللغة العربية (RTL) مع:
-- **4 شاشات Onboarding** مع رسوم SVG متحركة
-- **شاشة تفعيل** بكود `IB-XXXXXX`
-- **تطبيق محمي** لا يدخل إلا بعد التفعيل
-- **صفحة إدارة أكواد محمية** بكلمة مرور `ib2040`
+> Professional membership, device & finance management for modern gyms —
+> bilingual (EN/AR · RTL), license-activated, installable as an Android app.
 
-## هيكل المشروع
-```
-├── index.html          # الصفحة الرئيسية (Onboarding + Activation + App)
-├── admin-codes.html    # لوحة إدارة الأكواد (محمية)
-├── css/
-│   └── style.css       # جميع الأنماط
-├── js/
-│   ├── app.js          # منطق التطبيق الرئيسي
-│   └── admin.js        # منطق لوحة الإدارة
-└── package.json
-```
+A full-stack-flavored **portfolio project**: vanilla JS SPA with a Firebase-powered
+activation-code licensing system, local-first data, PWA support and a CI-built Android APK.
 
-## التشغيل
-```bash
-# أي خادم Static (لا يحتاج build)
-npx serve .
-# أو
-python3 -m http.server 8000
-```
-
-## الميزات الرئيسية
-
-### 1. شاشات الـ Onboarding (4 شاشات)
-- انتقال سلس بين الشاشات
-- نقاط تنقل أسفل
-- زر "تخطّي" و "التالي"
-- دعم لوحة المفاتيح (← → Space)
-
-### 2. التفعيل بالكود
-- صيغة: `IB-XXXXXX` (6 أحرف/أرقام)
-- تخزين في `localStorage`
-- تحقق فوري مع رسالة نجاح/خطأ
-
-### 3. التطبيق الرئيسي
-- محمي: لا يفتح إلا بعد تفعيل صحيح
-- يعرض كود المستخدم وتاريخ التفعيل
-- زر "لوحة الأكواد" → ينتقل للصفحة المحمية
-- زر "خروج" يمسح التفعيل ويعيد للـ Onboarding
-
-### 4. لوحة إدارة الأكواد (`admin-codes.html`)
-**محمية بكلمة مرور `ib2040`** — لا يمكن الدخول بدونها
-
-المميزات:
-- ➕ **إضافة أكواد** (يدوي أو تلقائي `IB-ABC123`)
-- 📋 **قائمة الأكواد** مع حالة (متاح/مستخدم) وتاريخ
-- 👥 **قائمة المستخدمين** المفعلين
-- 📤 **تصدير/استيراد** بيانات JSON
-- ✨ زر "إضافة 5 أكواد تجريبية"
-- زر "الرجوع للتطبيق"
-
-### 5. اختصارات لوحة المفاتيح
-- في التطبيق: اضغط `Ctrl+Shift+A` → يطلب الباسورد → يفتح لوحة الأكواد
-
-## التخزين المحلي (localStorage)
-| المفتاح | المحتوى |
-|----------|---------|
-| `ib2040_user` | كود المستخدم المفعّل + تاريخ |
-| `ib2040_codes` | مصفوفة الأكواد المسجلة (إدارة) |
-| `ib2040_users` | مصفوفة المستخدمين المفعلين |
-| `sessionStorage.ib2040_admin_auth` | جلسة المدير (تنتهي عند إغلاق التبويب) |
-
-## الأمان
-- صفحة الإدارة تتطلب كلمة مرور `ib2040` في كل زيارة
-- الجلسة تنتهي عند إغلاق التبويب
-- الأكواد بصيغة `IB-` + 6 أحرف مميزة (استبعاد O, 0, I, 1)
-
-## التخصيص
-- الألوان في `:root` داخل `css/style.css`
-- كلمة مرور المدير في `js/app.js` و `js/admin.js`
-- عدد شاشات الـ onboarding في HTML
+<p align="center">
+  <img alt="stack" src="https://img.shields.io/badge/JS-vanilla-f7df1e?logo=javascript&logoColor=black" />
+  <img alt="design" src="https://img.shields.io/badge/design-cyber--athletic-ccff00" />
+  <img alt="db" src="https://img.shields.io/badge/codes%20DB-Firebase-orange?logo=firebase" />
+  <img alt="mobile" src="https://img.shields.io/badge/APK-Capacitor-blue?logo=android" />
+</p>
 
 ---
 
-**جاهز للاستخدام مباشرة** — لا توجد تبعيات خارجية إلا خط Cairo من Google Fonts.
+## ✨ Features
+
+| Area | Details |
+|------|---------|
+| 🧭 **Onboarding** | 4 bilingual slides (pure-black cyber style), auto-skip for returning users |
+| 🔑 **License system** | Online activation codes (`XXX-XXX`) stored in Firestore; one device per code; revoke/restore; validity days per tier |
+| 🛡️ **Admin console** | Email-gated (`admin.html`): generate keys, live registry table, stats, JSON export/import, WhatsApp share |
+| 👥 **Member roster** | Search, status filters (active/expired/trial/frozen), member cards, renewals with auto ledger entries |
+| 🖥️ **Hardware** | Device health board: pending / in-repair / completed + cost vs paid tracking |
+| 💰 **Ledger** | MRR hero metric, bento KPIs, cashflow bars (in/out), transaction feed |
+| 📊 **Analytics** | Check-ins chart (Chart.js), plan distribution, monthly cashflow |
+| 🌐 **Bilingual i18n** | EN primary + AR secondary everywhere; one-tap RTL switch |
+| 📱 **PWA + APK** | Manifest, offline-capable service worker, Capacitor Android build via GitHub Actions |
+| 🔒 **Security rules** | Clients can only flip a single unused code to "used"; only the admin account can create/delete/list |
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────── Client device ───────────────────────────┐
+│  index.html → activate.html → app.html (SPA)                        │
+│  Facility data (members/devices/ledger) → localStorage  [local-first]│
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │ activation only
+                     ┌─────────▼─────────┐
+                     │  Firebase Auth     │ admin email sign-in
+                     │  Firestore `codes` │ XXX-XXX registry
+                     └───────────────────┘
+```
+
+- **Client data never leaves the device** (privacy by design).
+- Only the *license handshake* touches the cloud.
+- Works fully in **DEMO MODE** (localStorage codes) when Firebase isn't configured — perfect for GitHub Pages demos.
+
+## 🚀 Quick start
+
+```bash
+npx serve .          # any static server works
+```
+
+Demo admin login: `admin@example.com` / `admin2040` — demo code: `7Q2-K9D`
+
+Full setup (Firebase, rules, deploy, APK): see **[SETUP.md](SETUP.md)** (عربي).
+
+## 📁 Project structure
+
+```
+├── index.html            # Onboarding (4 slides)
+├── activate.html         # License activation (digit inputs)
+├── app.html              # Main SPA shell
+├── admin.html            # Codes admin console
+├── js/
+│   ├── config.js         # App + Firebase + admin settings
+│   ├── firebase-config.js# FB init (CDN ES modules)
+│   ├── db.js             # Codes API (Firestore ⇄ demo fallback)
+│   ├── store.js          # Local-first facility data
+│   ├── license.js        # Per-device license state
+│   ├── app.js            # SPA screens & routing
+│   ├── admin.js          # Admin console logic
+│   ├── i18n.js           # EN/AR + RTL
+│   └── ui.js             # Toasts/modals/helpers
+├── css/theme.css         # Design tokens & components
+├── vendor/               # Local Tailwind CDN build + Chart.js
+├── docs/design/          # Stitch design source (screens + DESIGN.md)
+├── firestore.rules       # Security rules
+└── .github/workflows/    # Pages deploy + Android APK CI
+```
+
+## 🎨 Design system
+
+**Digital Pulse — Cyber Athletic** (see [`docs/design/digital_pulse_cyber_athletic/DESIGN.md`](docs/design/digital_pulse_cyber_athletic/DESIGN.md)):
+pure-black surfaces (#000/#171717), volt neon accents (#CCFF00), neon-alert pink (#FF3366),
+frost blue for secondary data, Space Grotesk × Manrope × Tajawal typography,
+pill-modern radii and LED-style glow states.
+
+## 🔐 Security model
+
+| Actor | Can | Cannot |
+|-------|-----|--------|
+| Client (anonymous) | Read one code by exact ID, mark it used once | List/create/delete codes, reuse or edit used codes |
+| Admin (email auth) | Full control of the codes collection | — |
+
+Rules are enforced server-side in [`firestore.rules`](firestore.rules).
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).

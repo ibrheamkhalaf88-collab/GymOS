@@ -1,39 +1,1536 @@
-// app.js - منطق التطبيق الرئيسي
-const MASTER_PASSWORD = "ib2040";
+// ============================================================
+// Digital Pulse — main SPA logic (pixel-faithful to Stitch designs)
+// Screens: dashboard / roster / hardware / ledger / reports / profile
+// ============================================================
 
-const $ = id => document.getElementById(id);
+import { store } from "./store.js";
+import { license } from "./license.js";
+import { i18n, currentLang } from "./i18n.js";
+import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
 
-// التحقق من التفعيل
-(function init() {
-  const user = localStorage.getItem('ib2040_user');
-  if (!user) { window.location.href = 'onboarding-1.html'; return; }
-  try {
-    const data = JSON.parse(user);
-    if (!data.active) { window.location.href = 'onboarding-1.html'; return; }
-    $('statCode').textContent = data.code;
-    $('statDate').textContent = new Date(data.date).toLocaleDateString('ar-SA');
-  } catch { window.location.href = 'onboarding-1.html'; }
+const $ = (sel, root = document) => root.querySelector(sel);
+const screen = document.getElementById("screen");
+let currentTab = "dashboard";
+let charts = [];
+
+// ---------- Guards ----------
+if (!license.isActive()) location.replace("activate.html");
+
+// ---------- Helpers ----------
+const DAY = 86400000;
+function effStatus(m) {
+  if (Date.now() > m.expiresAt) return "expired";
+  return m.status === "frozen" ? "frozen" : (m.status === "trial" && Date.now() <= m.expiresAt ? "trial" : "active");
+}
+const nf = new Intl.NumberFormat("en-US");
+
+function destroyCharts() { charts.forEach((c) => c.destroy()); charts = []; }
+function trackChart(c) { charts.push(c); return c; }
+function rerender() { show(currentTab, true); }
+
+store.subscribe("members", () => rerender());
+store.subscribe("devices", () => rerender());
+store.subscribe("ledger", () => rerender());
+document.addEventListener("langchange", rerender);
+
+// ---------- Router ----------
+export function show(tab, keepScroll = false) {
+  if (!keepScroll) window.scrollTo({ top: 0 });
+  currentTab = tab;
+  destroyCharts();
+  const titles = {
+    dashboard: ["DASHBOARD", "الرئيسية"],
+    roster: ["MEMBER ROSTER", "قائمة الأعضاء"],
+    hardware: ["HARDWARE STATUS", "حالة الأجهزة"],
+    ledger: ["LEDGER", "المالية"],
+    reports: ["MONTHLY REPORTS", "التقارير الشهرية"],
+    profile: ["PROFILE", "حسابي"],
+  };
+  $("#pageTitleEn").textContent = titles[tab][0];
+  $("#pageTitleAr").textContent = titles[tab][1];
+
+  // Bottom nav (mobile) — active tab per design: filled pill + volt text
+  document.querySelectorAll(".nav-tab").forEach((btn) => {
+    const active = btn.dataset.tab === tab;
+    btn.classList.toggle("text-primary-fixed", active);
+    btn.classList.toggle("bg-surface-container-highest", active);
+    btn.classList.toggle("rounded-xl", active);
+    btn.classList.toggle("px-3", active);
+    btn.classList.toggle("py-1", active);
+    btn.classList.toggle("drop-shadow-[0_0_8px_rgba(204,255,0,0.4)]", active);
+    btn.classList.toggle("text-on-surface-variant", !active);
+    const icon = btn.querySelector(".material-symbols-outlined");
+    icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+  });
+
+  // Desktop drawer — active item per roster design
+  document.querySelectorAll("#sideNav [data-tab]").forEach((a) => {
+    const active = a.dataset.tab === tab;
+    a.classList.toggle("bg-primary-fixed", active);
+    a.classList.toggle("text-black", active);
+    a.classList.toggle("font-bold", active);
+    a.classList.toggle("text-on-surface-variant", !active);
+    a.classList.toggle("hover:bg-surface-container-high", !active);
+    const icon = a.querySelector(".material-symbols-outlined");
+    if (icon) icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
+  });
+
+  $("#pageActions").innerHTML = "";
+  screen.innerHTML = "";
+  ({ dashboard: viewDashboard, roster: viewRoster, hardware: viewHardware,
+     ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab])();
+}
+
+document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
+
+// Sidebar nav built here (shared markup for all tabs)
+(function buildSidebar() {
+  const items = [
+    ["dashboard", "dashboard", "Dashboard", "الرئيسية"],
+    ["roster", "group", "Roster", "الأعضاء"],
+    ["hardware", "settings_input_component", "Hardware", "الأجهزة"],
+    ["ledger", "account_balance_wallet", "Ledger", "المالية"],
+    ["profile", "account_circle", "Profile", "حسابي"],
+  ];
+  $("#sideNav").innerHTML = items.map(([tab, icon, en]) => `
+    <a href="#/${tab}" data-tab="${tab}" class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-[0.98]">
+      <span class="material-symbols-outlined text-[22px]">${icon}</span>
+      <span class="font-headline uppercase tracking-tight text-sm">${en}</span>
+    </a>`).join("");
+  document.querySelectorAll("#sideNav [data-tab]").forEach((a) =>
+    a.addEventListener("click", (e) => { e.preventDefault(); show(a.dataset.tab); }));
 })();
 
-// تسجيل الخروج
-$('logoutBtn').addEventListener('click', () => {
-  if (confirm('تسجيل الخروج؟ ستحتاج لإعادة إدخال الكود.')) {
-    localStorage.removeItem('ib2040_user');
-    window.location.href = 'onboarding-1.html';
+// ---------- Notifications dropdown ----------
+$("#mNotifBtn").addEventListener("click", () => {
+  const t = i18n.t;
+  const list = store.all("notifications");
+  const m = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight mb-4">${t.systemFeed}</h3>
+    <div class="flex flex-col gap-2">
+      ${list.map((n) => `
+        <div class="rounded-2xl bg-surface-container p-3 flex justify-between items-center gap-2"
+             style="border-inline-start:2px solid ${n.severity === "alert" ? "#ff3366" : n.severity === "info" ? "#ccff00" : "#d1e5f3"}">
+          <div>
+            <p class="font-headline font-bold text-sm">${currentLang() === "ar" ? n.titleAr : n.titleEn}</p>
+            <p class="text-xs text-muted mt-0.5">${currentLang() === "ar" ? n.subAr : n.subEn}</p>
+          </div>
+          <span class="text-[10px] text-muted whitespace-nowrap font-mono">${fmt.timeAgo(n.time, currentLang())}</span>
+        </div>`).join("")}
+    </div>`);
+});
+
+if (store.all("notifications").length) $("#notifDot").classList.remove("hidden");
+
+$("#mProfileBtn").addEventListener("click", () => show("profile"));
+$("#logoutBtnSide").addEventListener("click", deactivateLicense);
+
+async function deactivateLicense() {
+  const ok = await confirmDialog({
+    titleEn: "Deactivate this device?",
+    titleAr: "إلغاء تفعيل هذا الجهاز؟",
+    confirmText: "Deactivate",
+    danger: true,
+  });
+  if (ok) {
+    license.clear();
+    location.replace("activate.html");
   }
+}
+
+// ---------- FAB ----------
+document.getElementById("fab").addEventListener("click", () => {
+  if (currentTab === "roster") openMemberModal();
+  else if (currentTab === "hardware") openDeviceModal();
+  else if (currentTab === "ledger") openTxModal();
+  else openMemberModal();
 });
 
-// زر لوحة الأكواد
-$('adminBtn').addEventListener('click', () => {
-  window.location.href = 'admin-codes.html';
-});
+/* ============================================================
+   DASHBOARD  (docs/design/dashboard_unified)
+   ============================================================ */
+function viewDashboard() {
+  const s = store.stats();
+  const lic = license.get();
 
-// اختصار: Ctrl+Shift+A
-document.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+  // System feed derived from real data + notifications
+  const feed = [];
+  store.all("devices").filter((d) => d.maintenanceStatus === "in-repair").slice(0, 1).forEach((d) =>
+    feed.push({ sev: "alert",
+      en: `${d.code} Offline`, ar: `${d.name} متوقف`,
+      subEn: d.issue || "Maintenance required", subAr: "يتطلب صيانة",
+      time: d.updatedAt || Date.now() }));
+  feed.push({ sev: "info", en: "Capacity Alert", ar: "تنبيه السعة",
+    subEn: `Floor utilization at ${Math.min(95, 40 + s.activeMembers * 5)}%`,
+    subAr: `استخدام الصالة بنسبة ٪${Math.min(95, 40 + s.activeMembers * 5)}`,
+    time: Date.now() - 3600000 });
+  store.all("notifications").slice(0, 1).forEach((n) =>
+    feed.push({ sev: n.severity, en: n.titleEn, ar: n.titleAr, subEn: n.subEn, subAr: n.subAr, time: n.time }));
+
+  const absTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  screen.innerHTML = `
+  <!-- Metrics Grid -->
+  <div class="grid grid-cols-2 gap-4">
+    <!-- Active Members -->
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
+      <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>Active Members</span><span dir="rtl">الأعضاء النشطين</span>
+      </p>
+      <div class="flex items-end justify-between">
+        <p class="font-display font-bold text-5xl tabular-nums text-white mt-2">${nf.format(s.activeMembers)}</p>
+        <span class="material-symbols-outlined text-white opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">group</span>
+      </div>
+    </div>
+    <!-- Ended Today -->
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
+      <div class="flex items-start justify-between">
+        <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+          <span>Ended Today</span><span dir="rtl">انتهت اليوم</span>
+        </p>
+        <div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>
+      </div>
+      <div class="flex items-end justify-between">
+        <p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">${s.endedToday}</p>
+        <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">event_busy</span>
+      </div>
+    </div>
+    <!-- Total Expired -->
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
+      <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>&nbsp;</span><span>اجمالي الارباح&nbsp;</span>
+      </p>
+      <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1">${s.totalExpired}</p>
+    </div>
+    <!-- Maintenance Alert -->
+    <div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
+      <p class="font-body font-semibold text-xs text-black uppercase tracking-[1px] flex items-start gap-1 leading-tight">
+        <span class="material-symbols-outlined text-[14px] mt-0.5">build</span>
+        <span class="flex flex-col gap-0.5"><span>Maint. Alert</span><span>تنبيه صيانة</span></span>
+      </p>
+      <p class="font-display font-bold text-3xl tabular-nums text-black mt-1">${s.maintAlerts}</p>
+    </div>
+    <!-- License Status -->
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors relative overflow-hidden group col-span-2" onclick="location.hash='#/profile'">
+      <div class="flex flex-col gap-0.5">
+        <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col">
+          <span>License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
+        </p>
+      </div>
+      <div class="flex flex-col">
+        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)}</p>
+        <p class="font-display font-bold text-xs text-white mt-1 uppercase">
+          <span>${license.daysLeft()} Days Left</span><span class="ml-1 opacity-70">يوم متبقي</span>
+        </p>
+      </div>
+      <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
+    </div>
+  </div>
+
+  <!-- Growth Chart Section -->
+  <div class="mt-4 flex-1 flex flex-col">
+    <div class="flex items-start justify-between mb-2">
+      <h2 class="font-display font-bold text-lg tracking-[-0.05em] uppercase leading-tight flex flex-col">
+        <span>Check-ins (7D)</span>
+        <span class="text-sm opacity-70">تسجيلات الدخول (٧ أيام)</span>
+      </h2>
+      <div class="flex gap-2" id="rangeBtns">
+        <button data-range="7" class="chart-range rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 bg-surface-hover border border-outline-variant text-white flex flex-col items-center">
+          <span>7D</span><span>٧أ</span>
+        </button>
+        <button data-range="30" class="chart-range rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 border border-outline-variant text-muted flex flex-col items-center">
+          <span>30D</span><span>٣٠أ</span>
+        </button>
+      </div>
+    </div>
+    <div class="rounded-lg overflow-hidden bg-surface border border-outline-variant p-4 flex-1 min-h-[220px] relative">
+      <canvas id="growthChart" class="absolute inset-0 p-4"></canvas>
+      <div class="absolute inset-x-4 bottom-4 top-4 pointer-events-none flex items-end">
+        <div class="w-full h-full bg-gradient-to-t from-[rgba(204,255,0,0.1)] to-transparent border-b border-primary relative">
+          <div class="absolute inset-0 flex flex-col justify-between opacity-10">
+            <div class="border-t border-white w-full"></div>
+            <div class="border-t border-white w-full"></div>
+            <div class="border-t border-white w-full"></div>
+            <div class="border-t border-white w-full"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Alerts Feed -->
+  <div class="mt-4 flex flex-col gap-2">
+    <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-1 flex gap-1 items-center">
+      <span>System Feed</span><span>/</span><span>سجل النظام</span>
+    </h2>
+    ${feed.slice(0, 4).map((f) => `
+      <div class="rounded-lg bg-surface p-3 flex justify-between items-center text-sm fade-up" style="border-inline-start:2px solid ${f.sev === "alert" ? "#ff3366" : f.sev === "info" ? "#ccff00" : "#d1e5f3"}">
+        <div class="flex flex-col gap-1">
+          <div class="flex flex-col leading-tight">
+            <span class="font-display font-bold text-text-main">${escapeHtml(f.en)}</span>
+            <span class="font-display font-bold text-text-main text-xs opacity-80">${escapeHtml(f.ar)}</span>
+          </div>
+          <div class="flex flex-col leading-tight mt-1">
+            <span class="text-muted text-xs font-display">${escapeHtml(f.subEn)}</span>
+            <span class="text-muted text-[10px] font-display">${escapeHtml(f.subAr)}</span>
+          </div>
+        </div>
+        <span class="text-muted text-xs font-mono">${absTime(f.time)}</span>
+      </div>`).join("")}
+  </div>`;
+
+  drawCheckinsChart(7);
+  document.querySelectorAll(".chart-range").forEach((b) =>
+    b.addEventListener("click", () => drawCheckinsChart(Number(b.dataset.range))));
+}
+
+function drawCheckinsChart(days) {
+  const canvas = $("#growthChart");
+  if (!canvas || !window.Chart) return;
+  const data = days === 7 ? store.stats().checkins7 : store.stats().checkins30;
+
+  document.querySelectorAll(".chart-range").forEach((b) => {
+    const active = Number(b.dataset.range) === days;
+    b.classList.toggle("bg-surface-hover", active);
+    b.classList.toggle("border-outline-variant", !active);
+    b.classList.toggle("text-white", active);
+    b.classList.toggle("text-muted", !active);
+  });
+
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+  gradient.addColorStop(0, "rgba(204, 255, 0, 0.4)");
+  gradient.addColorStop(1, "rgba(204, 255, 0, 0.0)");
+
+  trackChart(new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map((_, i) => String(i + 1)),
+      datasets: [{
+        data,
+        borderColor: "#CCFF00",
+        backgroundColor: gradient,
+        borderWidth: 2,
+        pointBackgroundColor: "#0A0A0A",
+        pointBorderColor: "#CCFF00",
+        pointBorderWidth: 2,
+        pointRadius: days === 7 ? 4 : 0,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.3,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#171717",
+          titleFont: { family: "Space Grotesk", size: 14 },
+          bodyFont: { family: "Space Grotesk", size: 16, weight: "bold" },
+          padding: 10,
+          borderColor: "#333333",
+          borderWidth: 1,
+          displayColors: false,
+          callbacks: { label: (c) => c.parsed.y + " check-ins" },
+        },
+      },
+      scales: {
+        x: { display: false },
+        y: { display: false, min: Math.max(0, Math.min(...data) - 20) },
+      },
+      interaction: { intersect: false, mode: "index" },
+    },
+  }));
+}
+
+/* ============================================================
+   ROSTER  (docs/design/roster_v2)
+   ============================================================ */
+let rosterFilter = "active";
+let rosterQuery = "";
+
+function viewRoster() {
+  screen.innerHTML = `
+    <!-- Mobile Search & Filters -->
+    <div class="md:hidden flex flex-col gap-4">
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted">search</span>
+        <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
+      </div>
+      <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
+        ${["active", "expired", "trial", "frozen"].map((f) => `
+          <button data-filter="${f}" class="roster-filter whitespace-nowrap px-4 py-1.5 rounded-full border font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center
+            ${f === rosterFilter
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-outline-variant bg-surface-container text-muted hover:text-white"}">
+            <span>${f.toUpperCase()}</span>
+            <span class="text-[8px] opacity-70">${i18n.t.statuses[f]}</span>
+          </button>`).join("")}
+      </div>
+    </div>
+
+    <!-- Roster List -->
+    <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
+
+  const renderList = () => {
+    const q = rosterQuery.trim().toLowerCase();
+    let members = store.all("members");
+    if (rosterFilter) members = members.filter((m) => effStatus(m) === rosterFilter);
+    if (q) members = members.filter((m) => m.name.toLowerCase().includes(q) || String(m.phone).includes(q));
+
+    const grid = $("#rosterGrid");
+    grid.innerHTML = members.length ? members.map(memberCard).join("")
+      : `<div class="col-span-full text-center text-muted py-12 text-sm">No members found / لا يوجد أعضاء</div>`;
+
+    grid.querySelectorAll("[data-member]").forEach((card) =>
+      card.addEventListener("click", () => openMemberDetail(card.dataset.member)));
+  };
+
+  const searchEl = $("#rosterSearch");
+  if (searchEl) {
+    searchEl.value = rosterQuery;
+    searchEl.addEventListener("input", (e) => { rosterQuery = e.target.value; renderList(); });
+  }
+  document.querySelectorAll(".roster-filter").forEach((b) =>
+    b.addEventListener("click", () => {
+      rosterFilter = rosterFilter === b.dataset.filter ? "" : b.dataset.filter;
+      viewRoster();
+    }));
+
+  renderList();
+
+  // Desktop header actions (search + filter + add)
+  $("#pageActions").innerHTML = `
+    <div class="relative">
+      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted">search</span>
+      <input id="deskSearch" placeholder="SEARCH ID OR NAME..." class="bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-2 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all w-64 placeholder:text-muted/50"/>
+    </div>
+    <button id="deskFilter" class="bg-surface-container border border-outline-variant p-2 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 text-white">
+      <span class="material-symbols-outlined">filter_list</span>
+    </button>
+    <button id="addMemberBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white transition-colors active:scale-95 flex items-center gap-2">
+      <span class="material-symbols-outlined text-[20px]">person_add</span> ADD MEMBER
+    </button>`;
+  $("#addMemberBtn").onclick = openMemberModal;
+  $("#deskSearch").addEventListener("input", (e) => { rosterQuery = e.target.value; renderList(); });
+  $("#deskFilter").onclick = () => {
+    const order = ["active", "expired", "trial", "frozen", ""];
+    rosterFilter = order[(order.indexOf(rosterFilter) + 1) % order.length];
+    showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
+  };
+}
+
+const TIER_LABEL = { elite: "ELITE TIER", pro: "PRO TIER", standard: "STANDARD TIER", trial: "GUEST" };
+
+function memberAvatar(m, st) {
+  if (m.photo) {
+    return `<img class="w-14 h-14 rounded-full object-cover border ${st === "expired" ? "border-error/50 grayscale" : st === "trial" ? "border-frost-fixed" : "border-primary/50"}" src="${m.photo}" alt=""/>`;
+  }
+  return `<div class="w-14 h-14 rounded-full bg-surface-container-high border ${st === "expired" ? "border-error/50 grayscale" : st === "trial" ? "border-frost-fixed" : "border-primary/50"} flex items-center justify-center font-headline text-lg ${st === "trial" ? "text-frost-fixed" : st === "expired" ? "text-error" : "text-primary"}">${initials(m.name)}</div>`;
+}
+
+function memberCard(m) {
+  const st = effStatus(m);
+  const daysLeft = Math.ceil((m.expiresAt - Date.now()) / DAY);
+
+  let statusLine = "";
+  if (st === "expired") statusLine = `<p class="font-body text-xs text-error mt-0.5">EXPIRED - ${Math.abs(daysLeft)} DAYS</p>`;
+  else if (st === "trial") statusLine = `<p class="font-body text-xs text-frost-fixed mt-0.5">TRIAL PASS - DAY ${daysLeft}</p>`;
+  else if (st === "frozen") statusLine = `<p class="font-body text-xs text-muted mt-0.5">FROZEN / مجمد</p>`;
+  else statusLine = `<p class="font-body text-xs text-muted mt-0.5">${TIER_LABEL[m.plan] || "MEMBER"}</p>`;
+
+  const idColor = st === "expired" ? "text-error opacity-90" : "text-muted opacity-70";
+
+  return `
+  <div data-member="${m.id}" class="bg-surface cyber-border ${st === "expired" ? "border-s-2 !border-s-error" : ""} rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer group active:scale-[0.98]">
+    <div class="relative shrink-0">
+      ${memberAvatar(m, st)}
+      <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${st === "expired" ? "bg-error shadow-neon-alert" : st === "trial" ? "bg-frost-fixed" : "bg-primary shadow-neon"}"></div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex justify-between items-start">
+        <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(m.name)}</h3>
+        <span class="font-label text-xs tracking-widest ${idColor}">ID: ${m.id.slice(-4)}</span>
+      </div>
+      ${statusLine}
+      <div class="flex gap-2 mt-2 flex-wrap">
+        ${m.locker ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">Locker ${escapeHtml(m.locker)}</span>` : ""}
+        ${m.tag ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">${escapeHtml(m.tag)}</span>` : ""}
+      </div>
+    </div>
+    <span class="material-symbols-outlined text-muted group-hover:text-primary transition-colors ltr:block rtl:hidden">chevron_right</span>
+    <span class="material-symbols-outlined text-muted group-hover:text-primary transition-colors hidden rtl:block">chevron_left</span>
+  </div>`;
+}
+
+function openMemberModal(id = null) {
+  const t = i18n.t;
+  const m = id ? store.get("members", id) : null;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${m ? t.editMember : t.addMember}</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${m ? "تعديل بيانات العضو" : "إضافة عضو جديد"}</p>
+    <form id="memberForm" class="flex flex-col gap-3">
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.memberName}</label>
+        <input name="name" required class="dp-field mt-1" value="${m ? escapeHtml(m.name) : ""}" /></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.phone}</label>
+          <input name="phone" dir="ltr" class="dp-field mt-1" value="${m ? escapeHtml(m.phone || "") : ""}" /></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Locker</label>
+          <input name="locker" class="dp-field mt-1" value="${m ? escapeHtml(m.locker || "") : ""}" /></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.plan}</label>
+          <select name="plan" class="dp-field mt-1">${["trial", "standard", "pro", "elite"].map((p) => `<option value="${p}" ${m?.plan === p ? "selected" : ""}>${t.plans[p]}</option>`).join("")}</select></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / الأيام</label>
+          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>
+      </div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paidAmount} ($)</label>
+        <input name="paidAmount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">${t.save}</button>
+      </div>
+    </form>`);
+
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#memberForm", mod.el).addEventListener("submit", (e) => {
     e.preventDefault();
-    const pass = prompt('🔐 أدخل الباسورد للوصول لصفحة إدارة الأكواد:');
-    if (pass === MASTER_PASSWORD) window.location.href = 'admin-codes.html';
-    else if (pass !== null) alert('❌ باسورد خاطئ');
+    const fd = new FormData(e.target);
+    const days = Number(fd.get("days")) || 30;
+    const data = {
+      name: fd.get("name").trim(),
+      phone: fd.get("phone").trim(),
+      locker: fd.get("locker").trim(),
+      plan: fd.get("plan"),
+      paidAmount: Number(fd.get("paidAmount")) || 0,
+    };
+    if (m) {
+      const patch = { ...data };
+      delete patch.paidAmount;
+      store.update("members", id, patch);
+    } else {
+      store.insert("members", {
+        ...data,
+        photo: "",
+        tag: "",
+        status: data.plan === "trial" ? "trial" : "active",
+        joinDate: Date.now(),
+        expiresAt: Date.now() + days * DAY,
+        checkins: 0,
+      });
+    }
+    mod.close();
+    showToast(m ? "Saved / تم الحفظ" : "Member added / تمت إضافة العضو");
+  });
+}
+
+function openMemberDetail(id) {
+  const m = store.get("members", id);
+  const t = i18n.t;
+  const st = effStatus(m);
+  const mod = openModal(`
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-16 h-16 rounded-full bg-surface-container-high border border-primary/50 flex items-center justify-center font-headline text-xl text-primary">${initials(m.name)}</div>
+      <div>
+        <h3 class="font-headline font-bold uppercase text-lg">${escapeHtml(m.name)}</h3>
+        <p class="text-sm ${st === "expired" ? "text-error" : st === "trial" ? "text-frost-fixed" : "text-primary"} font-headline uppercase tracking-wide">${t.statuses[st]}</p>
+        <p class="text-xs text-muted mt-0.5" dir="ltr">${escapeHtml(m.phone || "")}</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 text-sm mb-6">
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.joinDate}</p><p class="font-headline">${fmt.date(m.joinDate)}</p></div>
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.expiresOn}</p><p class="font-headline ${st === "expired" ? "text-error" : ""}">${fmt.date(m.expiresAt)}</p></div>
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.plan}</p><p class="font-headline uppercase">${t.plans[m.plan]}</p></div>
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.checkins}</p><p class="font-headline">${m.checkins || 0}</p></div>
+    </div>
+    <div class="flex gap-3">
+      <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
+      <button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable">${t.edit}</button>
+      <button data-renew class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew}</button>
+    </div>`);
+
+  mod.el.querySelector("[data-edit]").onclick = () => { mod.close(); openMemberModal(id); };
+  mod.el.querySelector("[data-del]").onclick = async () => {
+    mod.close();
+    const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "هل أنت متأكد من الحذف؟", confirmText: "Delete", danger: true });
+    if (ok) { store.remove("members", id); showToast("Deleted / تم الحذف"); }
+  };
+  mod.el.querySelector("[data-renew]").onclick = () => { mod.close(); openRenewModal(id); };
+}
+
+function openRenewModal(id) {
+  const m = store.get("members", id);
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.renew} — ${escapeHtml(m.name)}</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تجديد اشتراك العضو</p>
+    <form id="renewForm" class="flex flex-col gap-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / أيام</label>
+          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.amount} ($)</label>
+          <input name="amount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#renewForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const days = Number(fd.get("days")) || 30;
+    const amount = Number(fd.get("amount")) || 0;
+    const base = Math.max(Date.now(), m.expiresAt);
+    store.update("members", id, { expiresAt: base + days * DAY, status: m.plan === "trial" ? "trial" : "active" });
+    if (amount > 0) {
+      store.insert("ledger", { type: "revenue", amount, description: `Renewal: ${m.name}`, category: "subscriptions", date: Date.now() });
+    }
+    mod.close();
+    showToast("Renewed / تم التجديد");
+  });
+}
+
+/* ============================================================
+   HARDWARE  (docs/design/hardware_v2)
+   ============================================================ */
+const DEV_ICONS = { directions_run: "directions_run", fitness_center: "fitness_center", pedal_bike: "pedal_bike", hot_tub: "hot_tub" };
+
+let hwTab = "cardio";
+function viewHardware() {
+  const devices = store.all("devices");
+  const online = devices.filter((d) => d.health === "online").length;
+  const offlineCount = devices.length - online;
+  const pct = devices.length ? Math.round((online / devices.length) * 100) : 100;
+
+  const attention = [
+    ...devices.filter((d) => d.maintenanceStatus === "in-repair"),
+    ...devices.filter((d) => d.maintenanceStatus === "pending"),
+  ].slice(0, 3);
+
+  const tabs = [
+    ["cardio", "Cardio Matrix", "مصفوفة القلب"],
+    ["strength", "Strength / Free", "القوة / الحر"],
+    ["amenities", "Amenities", "وسائل الراحة"],
+  ];
+  if (!tabs.some(([k]) => k === hwTab)) hwTab = "cardio";
+  const listDevices = devices.filter((d) => (d.category || "cardio") === hwTab);
+
+  screen.innerHTML = `
+    <!-- Page Title & Overall Health -->
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <h1 class="font-headline text-3xl tracking-tighter text-on-surface uppercase mb-1">Hardware Status</h1>
+        <p class="arabic-sub text-muted text-sm" dir="rtl">حالة الأجهزة</p>
+      </div>
+      <!-- Health Donut -->
+      <div class="bg-surface-container rounded-2xl p-4 border border-outline-variant flex items-center gap-4 w-full md:w-auto">
+        <div class="relative w-16 h-16 flex items-center justify-center shrink-0">
+          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+            <path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+            <path class="text-primary drop-shadow-[0_0_4px_rgba(195,244,0,0.5)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="${pct}, 100" stroke-width="3"></path>
+          </svg>
+          <div class="absolute flex flex-col items-center">
+            <span class="font-headline font-bold text-lg leading-none text-primary">${pct}%</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-label uppercase tracking-widest text-xs text-muted">Facility Health</h3>
+          <p class="arabic-sub text-[10px] text-muted mb-1" dir="rtl">صحة المنشأة</p>
+          <div class="flex gap-2 text-xs">
+            <span class="text-primary flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> ${online} Active</span>
+            <span class="text-error flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error"></span> ${offlineCount} Offline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Critical Alerts (Bento style) -->
+    ${attention.length ? `
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      ${attention.map((d, i) => {
+        const sched = d.maintenanceStatus === "pending";
+        const accentCls = sched ? "border-l-frost-fixed" : "border-l-alert";
+        const dotCls = sched ? "bg-frost-fixed" : "bg-error animate-pulse shadow-neon-alert";
+        const labelTxt = sched ? "Scheduled maint" : (i === 0 ? "Critical Failure" : "Maintenance Req");
+        const labelCls = sched ? "text-frost-fixed" : "text-error";
+        const iconName = sched ? "update" : "build";
+        const iconCls = sched ? "text-frost-fixed" : "text-error";
+        const wmIcon = d.type && DEV_ICONS[d.type] ? DEV_ICONS[d.type] : "settings_input_component";
+        const wmCls = sched ? "text-frost-fixed" : "";
+        const actionLabel = sched ? "Mark Complete" : (i === 0 ? "Dispatch Tech" : "Log Repair");
+        return `
+        <div data-alert="${d.id}" class="bg-surface rounded-lg border-l-2 ${accentCls} border border-outline-variant p-4 relative overflow-hidden group hover:bg-surface-hover transition-all active:scale-95 cursor-pointer">
+          <div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity ${wmCls}">
+            <span class="material-symbols-outlined" style="font-size:8rem;font-variation-settings:'FILL' 1;">${wmIcon}</span>
+          </div>
+          <div class="flex justify-between items-start mb-4 relative z-10">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-2 h-2 rounded-full ${dotCls}"></span>
+                <span class="font-label text-[10px] ${labelCls} uppercase tracking-widest">${labelTxt}</span>
+              </div>
+              <h3 class="font-headline font-bold text-xl uppercase">${escapeHtml(d.code)}</h3>
+              <p class="arabic-sub text-xs text-muted" dir="rtl">${escapeHtml(d.name)}</p>
+            </div>
+            <span class="material-symbols-outlined ${iconCls}">${iconName}</span>
+          </div>
+          <div class="relative z-10 mt-6">
+            <p class="text-sm text-muted mb-2">${escapeHtml(d.issue || "Requires inspection")}</p>
+            <button data-act="${d.id}" class="w-full bg-surface-container-high text-on-surface py-2 rounded-md font-label text-xs uppercase tracking-widest border border-outline-variant hover:bg-outline-variant transition-colors ${sched ? "text-frost-fixed" : ""}">${actionLabel}</button>
+          </div>
+        </div>`;
+      }).join("")}
+    </section>` : ""}
+
+    <!-- Category Tabs -->
+    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-outline-variant">
+      ${tabs.map(([k, en, ar]) => `
+        <button data-hwtab="${k}" class="px-4 py-2 rounded-t-lg font-headline uppercase tracking-tight shrink-0 transition-colors
+          ${k === hwTab
+            ? "bg-surface-container-highest border-b-2 border-primary text-primary font-bold"
+            : "text-muted hover:bg-surface-container hover:text-white"}">
+          <div class="flex flex-col items-start">
+            <span>${en}</span>
+            <span class="arabic-sub text-[10px] normal-case" dir="rtl">${ar}</span>
+          </div>
+        </button>`).join("")}
+    </div>
+
+    <!-- Machine List (Table/Grid) -->
+    <div class="bg-surface-container rounded-2xl border border-outline-variant overflow-hidden">
+      <div class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant bg-surface font-label text-xs uppercase tracking-widest text-muted">
+        <div class="col-span-5 md:col-span-4">Unit / ID</div>
+        <div class="col-span-4 md:col-span-3">Status</div>
+        <div class="col-span-3 md:col-span-3 hidden md:block">Last Service</div>
+        <div class="col-span-3 md:col-span-2 text-right">Action</div>
+      </div>
+      ${listDevices.length ? listDevices.map(deviceRow).join("")
+        : `<div class="p-8 text-center text-muted text-sm">No units in this category / لا توجد أجهزة</div>`}
+    </div>`;
+
+  screen.querySelectorAll("[data-hwtab]").forEach((b) =>
+    b.addEventListener("click", () => { hwTab = b.dataset.hwtab; viewHardware(); }));
+  screen.querySelectorAll("[data-device], [data-alert]").forEach((r) =>
+    r.addEventListener("click", () => openDeviceDetail(r.dataset.device || r.dataset.alert)));
+  screen.querySelectorAll("[data-act]").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const d = store.get("devices", btn.dataset.act);
+      if (d.maintenanceStatus === "pending") {
+        store.update("devices", d.id, { maintenanceStatus: "completed", health: "online", lastServiceAt: Date.now(), issue: "" });
+        showToast("Marked complete / تم إنجاز الصيانة");
+      } else openDeviceDetail(d.id);
+    }));
+
+  $("#pageActions").innerHTML = `
+    <button id="addDeviceBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
+      <span class="material-symbols-outlined text-[20px]">add</span> ADD DEVICE
+    </button>`;
+  $("#addDeviceBtn").onclick = openDeviceModal;
+}
+
+function deviceRow(d) {
+  const degraded = d.health === "degraded";
+  const offline = d.health === "offline";
+  const lastSvc = d.lastServiceAt ? fmt.timeAgo(d.lastServiceAt, currentLang()) : "—";
+  return `
+  <div data-device="${d.id}" class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant items-center cursor-pointer transition-colors
+    ${degraded ? "bg-[#1a1710] hover:bg-[#221e15]" : "hover:bg-surface-container-high"}">
+    <div class="col-span-5 md:col-span-4 flex items-center gap-3 min-w-0">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0
+        ${degraded ? "bg-[#332b1a] border border-[#4d4026]" : "bg-surface"}">
+        <span class="material-symbols-outlined ${degraded ? "text-yellow-500" : "text-on-surface"}">${DEV_ICONS[d.type] || "settings_input_component"}</span>
+      </div>
+      <div class="min-w-0">
+        <div class="font-headline font-bold truncate">${escapeHtml(d.code || "—")}</div>
+        <div class="text-xs text-muted truncate">${escapeHtml(d.name)}</div>
+      </div>
+    </div>
+    <div class="col-span-4 md:col-span-3 flex items-center gap-2">
+      ${degraded
+        ? `<span class="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)] animate-pulse"></span><span class="font-body text-sm text-yellow-500">Degraded</span>`
+        : offline
+          ? `<span class="w-2 h-2 rounded-full bg-error shadow-neon-alert"></span><span class="font-body text-sm text-error">Offline</span>`
+          : `<span class="w-2 h-2 rounded-full bg-primary shadow-neon"></span><span class="font-body text-sm">Online</span>`}
+    </div>
+    <div class="col-span-3 md:col-span-3 hidden md:block text-sm ${degraded ? "text-yellow-500/70" : "text-muted"}">
+      ${lastSvc}
+    </div>
+    <div class="col-span-3 md:col-span-2 text-right">
+      <button class="p-2 rounded-md hover:bg-surface transition-colors active:scale-95">
+        <span class="material-symbols-outlined text-muted">more_vert</span>
+      </button>
+    </div>
+  </div>`;
+}
+
+function deviceFormHtml(d) {
+  const t = i18n.t;
+  return `
+    <form id="deviceForm" class="flex flex-col gap-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Unit Code</label>
+          <input name="code" placeholder="TRD-05" value="${d ? escapeHtml(d.code || "") : ""}" class="dp-field mt-1" /></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.deviceName}</label>
+          <input name="name" required value="${d ? escapeHtml(d.name) : ""}" class="dp-field mt-1" /></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Category</label>
+          <select name="category" class="dp-field mt-1">
+            <option value="cardio" ${d?.category === "cardio" ? "selected" : ""}>Cardio Matrix</option>
+            <option value="strength" ${d?.category === "strength" ? "selected" : ""}>Strength / Free</option>
+            <option value="amenities" ${d?.category === "amenities" ? "selected" : ""}>Amenities</option>
+          </select></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Icon</label>
+          <select name="type" class="dp-field mt-1">
+            <option value="directions_run" ${d?.type === "directions_run" ? "selected" : ""}>Treadmill</option>
+            <option value="fitness_center" ${d?.type === "fitness_center" ? "selected" : ""}>Strength</option>
+            <option value="pedal_bike" ${d?.type === "pedal_bike" ? "selected" : ""}>Bike</option>
+            <option value="hot_tub" ${d?.type === "hot_tub" ? "selected" : ""}>Other</option>
+          </select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Health</label>
+          <select name="health" class="dp-field mt-1">
+            <option value="online" ${!d || d.health === "online" ? "selected" : ""}>Online</option>
+            <option value="degraded" ${d?.health === "degraded" ? "selected" : ""}>Degraded</option>
+            <option value="offline" ${d?.health === "offline" ? "selected" : ""}>Offline</option>
+          </select></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.maintenanceStatus}</label>
+          <select name="maintenanceStatus" class="dp-field mt-1">
+            ${Object.entries(t.maintStates).map(([k, v]) => `<option value="${k}" ${(d?.maintenanceStatus || "completed") === k ? "selected" : ""}>${v}</option>`).join("")}
+          </select></div>
+      </div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.issue}</label>
+        <textarea name="issue" rows="2" class="dp-field mt-1">${d ? escapeHtml(d.issue || "") : ""}</textarea></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.cost} ($)</label>
+          <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" /></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paid} ($)</label>
+          <input name="paid" type="number" min="0" step="0.5" value="${d ? d.paid || 0 : 0}" class="dp-field mt-1" /></div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`;
+}
+
+function readDeviceForm(mod, d, id) {
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#deviceForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = Object.fromEntries(fd.entries());
+    data.cost = Number(data.cost) || 0;
+    data.paid = Number(data.paid) || 0;
+    data.updatedAt = Date.now();
+    if (!data.code) {
+      const prefix = { directions_run: "TRD", fitness_center: "STR", pedal_bike: "BIK", hot_tub: "AMN" }[data.type] || "DEV";
+      const siblings = store.all("devices").filter((x) => (x.type || "") === data.type).length + 1;
+      data.code = `${prefix}-${String(siblings).padStart(2, "0")}`;
+    }
+    if (d) store.update("devices", id, data);
+    else store.insert("devices", { ...data, lastServiceAt: Date.now() });
+
+    const prev = d ? Number(d.cost) : 0;
+    if (data.cost > prev && data.cost > 0) {
+      store.insert("ledger", { type: "expense", amount: data.cost - prev, description: `Maintenance: ${data.name}`, category: "maintenance", date: Date.now() });
+    }
+    mod.close();
+    showToast(d ? "Saved / تم الحفظ" : "Device added / تمت إضافة الجهاز");
+  });
+}
+
+function openDeviceModal() {
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.addDevice}</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إضافة جهاز جديد للمتابعة</p>
+    ${deviceFormHtml(null)}`);
+  readDeviceForm(mod, null, null);
+}
+
+function openDeviceDetail(id) {
+  const t = i18n.t;
+  const d = store.get("devices", id);
+  const paidAll = Number(d.paid || 0) >= Number(d.cost || 0) && Number(d.cost) > 0;
+  const mod = openModal(`
+    <div class="flex justify-between items-start mb-5">
+      <div>
+        <h3 class="font-headline font-bold uppercase text-lg">${escapeHtml(d.code)} · ${escapeHtml(d.name)}</h3>
+        <p class="text-sm text-muted">${t.maintStates[d.maintenanceStatus]} · Health: ${d.health}</p>
+      </div>
+      <span class="material-symbols-outlined text-primary text-3xl">${DEV_ICONS[d.type] || "settings_input_component"}</span>
+    </div>
+    ${d.issue ? `<p class="text-sm text-muted mb-4">${escapeHtml(d.issue)}</p>` : ""}
+    ${Number(d.cost) > 0 ? `
+    <div class="flex justify-around bg-surface-container rounded-xl p-3 mb-5 text-center text-sm">
+      <div><p class="text-[10px] uppercase tracking-widest text-muted">${t.cost}</p><p class="font-headline font-bold" dir="ltr">${fmt.money(d.cost)}</p></div>
+      <div><p class="text-[10px] uppercase tracking-widest text-muted">${t.paid}</p><p class="font-headline font-bold ${paidAll ? "text-primary" : "text-alert"}" dir="ltr">${fmt.money(d.paid)}</p></div>
+    </div>` : ""}
+    <div class="flex gap-3">
+      <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
+      <button data-edit class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.edit}</button>
+    </div>`);
+  mod.el.querySelector("[data-edit]").onclick = () => {
+    mod.close();
+    const m2 = openModal(`
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-5">${t.edit} — ${escapeHtml(d.code)}</h3>
+      ${deviceFormHtml(d)}`);
+    readDeviceForm(m2, d, id);
+  };
+  mod.el.querySelector("[data-del]").onclick = async () => {
+    mod.close();
+    const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "سيتم حذف الجهاز نهائياً", confirmText: "Delete", danger: true });
+    if (ok) { store.remove("devices", id); showToast("Deleted / تم الحذف"); }
+  };
+}
+
+/* ============================================================
+   LEDGER  (docs/design/ledger_v2)
+   ============================================================ */
+function viewLedger() {
+  const s = store.stats();
+  const ledger = store.all("ledger");
+
+  const dom = new Date().getDate();
+  const dim = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+  const eom = Math.round((s.revenueThisMonth / dom) * dim);
+  const arpu = s.activeMembers ? s.revenueThisMonth / s.activeMembers : 0;
+
+  screen.innerHTML = `
+  <!-- Massive MRR Display -->
+  <section id="mrrHero" class="glass-card rounded-lg p-6 flex flex-col items-center justify-center relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer" title="Open Monthly Reports">
+    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+    <div class="text-center z-10">
+      <h2 class="font-label uppercase tracking-widest text-muted mb-2 text-xs">Monthly Recurring Revenue <br/><span class="arabic-sub">الإيرادات الشهرية المتكررة</span></h2>
+      <div class="font-headline text-5xl md:text-[72px] text-primary neon-text tracking-tighter flex items-center gap-2 tabular-nums" dir="ltr">
+        <span>$</span><span>${nf.format(Math.round(s.revenueThisMonth))}</span>
+        <span class="material-symbols-outlined ${s.revenueGrowthPct >= 0 ? "text-primary" : "text-alert"} text-3xl md:text-4xl" style="font-variation-settings:'FILL' 1;">trending_${s.revenueGrowthPct >= 0 ? "up" : "down"}</span>
+      </div>
+      <p class="text-frost-fixed-dim text-sm mt-2 flex items-center justify-center gap-1" dir="ltr">
+        <span class="material-symbols-outlined text-[16px]">${s.revenueGrowthPct >= 0 ? "arrow_upward" : "arrow_downward"}</span>
+        ${s.revenueGrowthPct >= 0 ? "+" : "-"}${Math.abs(s.revenueGrowthPct)}% vs Last Month
+      </p>
+    </div>
+    <span class="material-symbols-outlined absolute -bottom-4 -right-4 text-[120px] text-primary/5 pointer-events-none">account_balance</span>
+  </section>
+
+  <!-- Bento Grid for Metrics -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden">
+      <span class="font-label uppercase tracking-widest text-muted text-[10px]">Active Members<br/><span class="arabic-sub">أعضاء نشطون</span></span>
+      <div class="font-headline font-bold text-2xl text-white tabular-nums mt-4">${nf.format(s.activeMembers)}</div>
+      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-white/10">group</span>
+    </div>
+    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden border-error/30">
+      <span class="font-label uppercase tracking-widest text-error text-[10px]">Failed Payments<br/><span class="arabic-sub">مدفوعات فاشلة</span></span>
+      <div class="font-headline font-bold text-2xl text-error tabular-nums mt-4">${s.failedPayments}</div>
+      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-error/10">warning</span>
+    </div>
+    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1">
+      <span class="font-label uppercase tracking-widest text-muted text-[10px]">ARPU<br/><span class="arabic-sub">متوسط الإيراد للمستخدم</span></span>
+      <div class="font-headline font-bold text-2xl text-white tabular-nums mt-4" dir="ltr">$${arpu.toFixed(2)}</div>
+      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-white/10">payments</span>
+    </div>
+    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1 bg-surface-container-high border-primary/50 neon-shadow">
+      <span class="font-label uppercase tracking-widest text-primary text-[10px]">EOM Projection<br/><span class="arabic-sub">توقعات نهاية الشهر</span></span>
+      <div class="font-headline font-bold text-2xl text-primary tabular-nums mt-4" dir="ltr">$${Math.round(eom / 1000)}K</div>
+      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-primary/10">insights</span>
+    </div>
+  </div>
+
+  <!-- Cashflow Comparison Chart -->
+  <section class="glass-card rounded-lg p-6">
+    <div class="flex justify-between items-end mb-6">
+      <h3 class="font-headline font-bold uppercase tracking-tight text-sm">Cashflow <span class="text-muted">Vs Prev</span><br/><span class="arabic-sub text-muted">التدفق النقدي مقابل السابق</span></h3>
+      <div class="flex gap-4 text-[10px] font-label uppercase tracking-widest text-muted">
+        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary neon-shadow"></span> Current</div>
+        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-surface-variant border border-outline"></span> Previous</div>
+      </div>
+    </div>
+    <div class="h-48 flex items-end justify-between gap-2 pt-4 relative" dir="ltr">
+      <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+        <div class="border-b border-outline-variant w-full h-0"></div>
+        <div class="border-b border-outline-variant w-full h-0"></div>
+        <div class="border-b border-outline-variant w-full h-0"></div>
+        <div class="border-b border-outline-variant w-full h-0"></div>
+      </div>
+      ${cashflowBars()}
+    </div>
+    <div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-muted mt-2" dir="ltr">
+      <span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span>
+    </div>
+  </section>
+
+  <!-- Live Transaction Feed -->
+  <section class="flex flex-col gap-2">
+    <div class="flex justify-between items-center px-2">
+      <h3 class="font-headline font-bold uppercase tracking-tight text-sm">Live Ledger <br/><span class="arabic-sub text-muted inline-block">سجل حي</span></h3>
+      <button id="addTxBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
+        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW
+      </button>
+    </div>
+    <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50">
+      ${ledger.length ? ledger.slice(0, 12).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">No transactions / لا توجد حركات</p>`}
+    </div>
+  </section>`;
+
+  $("#addTxBtn").onclick = openTxModal;
+  $("#mrrHero").onclick = () => show("reports");
+}
+
+function weekBuckets(n) {
+  const buckets = [];
+  const nowWeekStart = (() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d.getTime();
+  })();
+  for (let i = n - 1; i >= 0; i--) buckets.push({ start: nowWeekStart - i * 7 * DAY, end: nowWeekStart - (i - 1) * 7 * DAY });
+  return buckets;
+}
+
+function cashflowBars() {
+  const weeks = weekBuckets(5);
+  const ledger = store.all("ledger");
+  const data = weeks.map(({ start, end }) => ({
+    cur: ledger.filter((l) => l.type === "revenue" && l.date >= start && l.date < end).reduce((s, l) => s + Number(l.amount || 0), 0),
+    prev: ledger.filter((l) => l.type === "expense" && l.date >= start && l.date < end).reduce((s, l) => s + Number(l.amount || 0), 0),
+  }));
+  const max = Math.max(...data.flatMap((d) => [d.cur, d.prev]), 1);
+  return data.map(({ cur, prev }) => `
+    <div class="flex-1 flex items-end gap-1 h-full z-10">
+      <div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm" style="height:${Math.max(4, (prev / max) * 100)}%"></div>
+      <div class="w-1/2 bg-primary neon-shadow rounded-t-sm bar-animate" style="--target-height:${Math.max(4, (cur / max) * 100)}%; height:${Math.max(4, (cur / max) * 100)}%"></div>
+    </div>`).join("");
+}
+
+function txRow(l) {
+  const isIn = l.type === "revenue";
+  const isPOS = isIn && (l.category === "pos" || l.category === "other-income");
+  const failed = !isIn && l.category === "failed";
+
+  let circle, amountCls, rowBorder = "";
+  if (isPOS) {
+    circle = `bg-white/10 text-frost-fixed-dim border border-outline`;
+    amountCls = "text-white";
+  } else if (isIn) {
+    circle = `bg-primary/20 text-primary border border-primary/30`;
+    amountCls = "text-primary";
+  } else {
+    circle = `bg-error/20 text-error border border-error/30`;
+    amountCls = "text-error";
+    if (failed) rowBorder = "border-l-2 !border-l-error";
   }
-});
+  const icon = isIn ? (isPOS ? "storefront" : "check_circle") : "credit_card_off";
+
+  return `
+  <div class="p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors active:scale-[0.98] ${rowBorder}">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${circle}">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">${icon}</span>
+      </div>
+      <div class="min-w-0">
+        <p class="font-headline text-sm text-on-surface uppercase tracking-wide truncate">${escapeHtml(l.description)}</p>
+        <p class="font-body text-xs text-muted">TXN-${String(l.id).slice(-4)} • ${fmt.timeAgo(l.date, currentLang())}</p>
+      </div>
+    </div>
+    <p class="font-headline text-lg tabular-nums shrink-0 ${amountCls}" dir="ltr">${isIn ? "+" : "-"}$${nf.format(Math.abs(l.amount))}</p>
+  </div>`;
+}
+
+function openTxModal() {
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.addTransaction}</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تسجيل إيراد أو مصروف</p>
+    <form id="txForm" class="flex flex-col gap-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.type}</label>
+          <select name="type" class="dp-field mt-1">
+            <option value="revenue">${t.revenue}</option>
+            <option value="expense">${t.expense}</option>
+          </select></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.amount} ($)</label>
+          <input name="amount" type="number" min="0.5" step="0.5" required class="dp-field mt-1" /></div>
+      </div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.description}</label>
+        <input name="description" required class="dp-field mt-1" placeholder="Supplements POS..." /></div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#txForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    store.insert("ledger", {
+      type: fd.get("type"),
+      amount: Number(fd.get("amount")),
+      description: fd.get("description").trim(),
+      category: fd.get("type") === "revenue" ? "other-income" : "other-expense",
+      date: Date.now(),
+    });
+    mod.close();
+    showToast("Saved / تم الحفظ");
+  });
+}
+
+/* ============================================================
+   REPORTS  (docs/design/reports_unified)
+   ============================================================ */
+let reportOffset = 0;
+
+function reportMonth(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return d;
+}
+
+function viewReports() {
+  const base = reportMonth(reportOffset);
+  const mStart = base.getTime();
+  const next = new Date(base); next.setMonth(base.getMonth() + 1);
+  const mEnd = next.getTime();
+  const prevStart = (() => { const p = new Date(base); p.setMonth(base.getMonth() - 1); return p.getTime(); })();
+
+  const ledger = store.all("ledger");
+  const members = store.all("members");
+  const inRange = (l) => l.date >= mStart && l.date < mEnd;
+
+  const rev = ledger.filter((l) => l.type === "revenue" && inRange(l)).reduce((s, l) => s + Number(l.amount || 0), 0);
+  const prevRev = ledger.filter((l) => l.type === "revenue" && l.date >= prevStart && l.date < mStart).reduce((s, l) => s + Number(l.amount || 0), 0);
+  const growth = prevRev > 0 ? ((rev - prevRev) / prevRev) * 100 : (rev > 0 ? 12.4 : 0);
+  const netGrowth = members.filter((m) => m.joinDate >= mStart && m.joinDate < mEnd).length;
+  const expiredInMonth = members.filter((m) => m.status === "expired" && m.expiresAt >= mStart && m.expiresAt < mEnd).length;
+  const activeNow = members.filter((m) => effStatus(m) !== "expired").length;
+  const retention = activeNow + expiredInMonth > 0 ? Math.round((activeNow / (activeNow + expiredInMonth)) * 100) : 92;
+
+  // Weekly revenue trend within the month (7 bars like the design)
+  const daysInMonth = Math.round((mEnd - mStart) / DAY);
+  const weekCount = 7;
+  const per = Math.ceil(daysInMonth / weekCount);
+  const weekly = [];
+  for (let i = 0; i < weekCount; i++) {
+    const ws = mStart + i * per * DAY;
+    const we = Math.min(ws + per * DAY, mEnd);
+    weekly.push(ledger.filter((l) => l.type === "revenue" && l.date >= ws && l.date < we).reduce((s, l) => s + Number(l.amount || 0), 0));
+  }
+  const wkMax = Math.max(...weekly, 1);
+  const hotIdx = weekly.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 2).map(([, i]) => i);
+
+  // Plan distribution
+  const PLAN_BI = { standard: ["Monthly", "شهري"], pro: ["3-Month", "٣ أشهر"], elite: ["Annual", "سنوي"], trial: ["Guest", "تجربة"] };
+  const planCounts = {};
+  members.forEach((m) => { if (effStatus(m) !== "expired") planCounts[m.plan] = (planCounts[m.plan] || 0) + 1; });
+  const totalPlans = Object.values(planCounts).reduce((a, b) => a + b, 0) || 1;
+  const planOrder = ["standard", "pro", "elite", "trial"];
+  const dist = planOrder.filter((p) => planCounts[p]).slice(0, 3)
+    .map((p, i) => ({ p, pct: Math.round((planCounts[p] / totalPlans) * 100), cls: ["bg-primary", "bg-accent", "bg-muted"][i], txtCls: ["text-primary", "text-accent", "text-muted"][i] }));
+
+  const MONTHS_EN = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+  const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const arDigits = (n) => String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
+
+  screen.innerHTML = `
+  <!-- Page Header -->
+  <div class="space-y-1">
+    <h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">Monthly Reports</h2>
+    <p class="font-arabic text-sm text-muted">التقارير الشهرية</p>
+  </div>
+
+  <!-- Date Selector -->
+  <div class="bg-surface-container cyber-border rounded-lg p-3 flex justify-between items-center relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
+    <button id="repPrev" class="p-2 text-muted hover:text-primary transition-colors relative z-10"><span class="material-symbols-outlined">chevron_left</span></button>
+    <div class="text-center relative z-10">
+      <div class="font-headline font-bold text-primary tracking-widest neon-text">${MONTHS_EN[base.getMonth()]} ${base.getFullYear()}</div>
+      <div class="font-arabic text-xs text-muted mt-0.5">${MONTHS_AR[base.getMonth()]} ${arDigits(base.getFullYear())}</div>
+    </div>
+    <button id="repNext" class="p-2 text-muted hover:text-primary transition-colors relative z-10 ${reportOffset >= 0 ? "invisible" : ""}"><span class="material-symbols-outlined">chevron_right</span></button>
+  </div>
+
+  <!-- Key Metrics Grid -->
+  <div class="grid grid-cols-2 gap-4">
+    <div class="col-span-2 bg-surface cyber-border rounded-lg p-5 relative overflow-hidden active:scale-[0.98] transition-transform">
+      <div class="absolute bottom-[-10px] right-[-10px] opacity-10 text-primary">
+        <span class="material-symbols-outlined text-[100px]" style="font-variation-settings:'FILL' 1;">account_balance_wallet</span>
+      </div>
+      <div class="flex justify-between items-start mb-2">
+        <div>
+          <p class="font-label text-[10px] uppercase tracking-widest text-muted">Total Revenue</p>
+          <p class="font-arabic text-[10px] text-muted leading-none">إجمالي الإيرادات</p>
+        </div>
+        <span class="material-symbols-outlined text-accent">trending_up</span>
+      </div>
+      <div class="mt-4 flex items-baseline gap-2">
+        <span class="font-display text-4xl font-bold text-on-surface tabular-nums">${nf.format(Math.round(rev))}</span>
+        <span class="font-headline text-sm text-primary font-bold">ILS</span>
+      </div>
+      <div class="mt-2 flex items-center gap-1 text-xs text-accent">
+        <span class="material-symbols-outlined text-[14px]">${growth >= 0 ? "arrow_upward" : "arrow_downward"}</span>
+        <span>${Math.abs(growth).toFixed(1)}% vs last month</span>
+      </div>
+    </div>
+    <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
+      <div class="mb-2">
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">Net Growth</p>
+        <p class="font-arabic text-[10px] text-muted leading-none">صافي النمو</p>
+      </div>
+      <div class="mt-4">
+        <span class="font-display text-3xl font-bold text-accent tabular-nums neon-text-pink">${netGrowth >= 0 ? "+" : ""}${netGrowth}</span>
+      </div>
+      <div class="mt-1 text-xs text-muted font-headline">New Members</div>
+    </div>
+    <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
+      <div class="mb-2">
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">Retention</p>
+        <p class="font-arabic text-[10px] text-muted leading-none">معدل الاحتفاظ</p>
+      </div>
+      <div class="mt-4">
+        <span class="font-display text-3xl font-bold text-on-surface tabular-nums">${retention}<span class="text-lg">%</span></span>
+      </div>
+      <div class="w-full bg-surface-container-highest h-1.5 rounded-full mt-2 overflow-hidden">
+        <div class="bg-frost-fixed h-full rounded-full" style="width:${retention}%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financial Chart -->
+  <div class="bg-surface cyber-border rounded-lg p-5">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <p class="font-label text-xs uppercase tracking-widest text-on-surface">Revenue Trend</p>
+        <p class="font-arabic text-[10px] text-muted">اتجاه الإيرادات</p>
+      </div>
+      <select class="bg-surface-container border-none text-xs text-muted rounded-md py-1 pl-2 pr-6 focus:ring-1 focus:ring-primary">
+        <option>Daily</option><option>Weekly</option>
+      </select>
+    </div>
+    <div class="h-32 flex items-end justify-between gap-1 w-full mt-4">
+      ${weekly.map((v, i) => `
+        <div class="w-full ${hotIdx.includes(i) ? "bar-chart-fill-pink" : "bar-chart-fill"} rounded-t-sm transition-all duration-500"
+             style="height:${Math.max(6, Math.round((v / wkMax) * 100))}%"></div>`).join("")}
+    </div>
+    <div class="flex justify-between mt-2 text-[10px] text-muted font-headline">
+      <span>W1</span><span>W2</span><span>W3</span><span>W4</span>
+    </div>
+  </div>
+
+  <!-- Subscriber Breakdown -->
+  <div class="bg-surface cyber-border rounded-lg p-5">
+    <div class="mb-4">
+      <p class="font-label text-xs uppercase tracking-widest text-on-surface">Plan Distribution</p>
+      <p class="font-arabic text-[10px] text-muted">توزيع الخطط</p>
+    </div>
+    <div class="space-y-4">
+      ${dist.map(({ p, pct, cls, txtCls }) => `
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-headline font-bold text-on-surface">${PLAN_BI[p][0]} / ${PLAN_BI[p][1]}</span>
+            <span class="${txtCls} font-headline font-bold tabular-nums">${pct}%</span>
+          </div>
+          <div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+            <div class="${cls} h-full rounded-full" style="width:${pct}%"></div>
+          </div>
+        </div>`).join("")}
+    </div>
+  </div>
+
+  <!-- Export Action -->
+  <button id="repExport" class="w-full bg-primary text-black font-headline font-bold py-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wide hover:bg-white transition-colors active:scale-[0.98] neon-shadow mt-4">
+    <span class="material-symbols-outlined">download</span>
+    <div class="flex flex-col items-start leading-none text-left">
+      <span>Export PDF</span>
+      <span class="font-arabic text-[10px] mt-0.5 opacity-80 normal-case">تصدير PDF</span>
+    </div>
+  </button>`;
+
+  $("#repPrev").onclick = () => { reportOffset--; viewReports(); };
+  $("#repNext").onclick = () => { reportOffset++; viewReports(); };
+  $("#repExport").onclick = exportData;
+}
+
+/* ============================================================
+   PROFILE  (docs/design/profile_unified)
+   ============================================================ */
+function viewProfile() {
+  const lic = license.get();
+  const isOnline = codesDbMode();
+
+  screen.innerHTML = `
+  <div class="grid-bg -mx-4 -my-5 md:-mx-8 md:-my-8 px-4 py-6 md:px-8 md:py-8 space-y-6 md:space-y-8">
+
+    <!-- Mobile Header Profile -->
+    <div class="md:hidden flex flex-col items-center justify-center mb-8 cyber-card p-6 rounded-lg">
+      <div class="w-24 h-24 rounded-full overflow-hidden neon-border neon-shadow mb-4 relative group cursor-pointer transition-transform active:scale-95">
+        <img class="w-full h-full object-cover" src="assets/img/commander.jpg" alt="Commander"/>
+        <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <span class="material-symbols-outlined text-primary">edit</span>
+        </div>
+      </div>
+      <h2 class="text-white font-headline text-2xl font-bold tracking-tighter uppercase">COMMANDER</h2>
+      <div class="flex flex-col items-center mt-1">
+        <span class="text-muted font-body text-sm">Shift Alpha</span>
+        <span class="font-arabic text-muted text-xs mt-0.5">القائد - المناوبة ألفا</span>
+      </div>
+      <div class="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm border ${isOnline ? "bg-primary/10 border-primary/30" : "bg-alert/10 border-alert/30"}">
+        <span class="w-2 h-2 rounded-full ${isOnline ? "bg-primary animate-pulse" : "bg-alert"}"></span>
+        <span class="text-[10px] font-label tracking-widest uppercase ${isOnline ? "text-primary" : "text-alert"}">${isOnline ? "SYSTEM ACTIVE" : "DEMO MODE"}</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Account Security -->
+      <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
+        <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
+          <div>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">Account Security</h3>
+            <p class="font-arabic text-muted text-sm">أمان الحساب</p>
+          </div>
+          <span class="material-symbols-outlined text-muted">security</span>
+        </div>
+        <div class="space-y-4">
+          <div class="flex items-center justify-between group cursor-pointer" id="secPassword">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Admin Console</p>
+              <p class="text-muted text-xs mt-1 font-headline">Generate activation codes / إدارة الأكواد</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Open</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secRestore">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Restore Backup</p>
+              <p class="text-muted text-xs mt-1 font-headline">Import facility data JSON</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Import</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secReset">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Reset Data</p>
+              <p class="text-muted text-xs mt-1 font-headline">Restore demo dataset / بيانات تجريبية</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Reset</button>
+          </div>
+          <input type="file" id="importFile" accept=".json" class="hidden" />
+        </div>
+      </section>
+
+      <!-- App Preferences -->
+      <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
+        <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
+          <div>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">App Preferences</h3>
+            <p class="font-arabic text-muted text-sm">تفضيلات التطبيق</p>
+          </div>
+          <span class="material-symbols-outlined text-muted">tune</span>
+        </div>
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Language / اللغة</p>
+              <p class="text-muted text-xs mt-1 font-headline">English (Default)</p>
+            </div>
+            <div class="bg-surface-container-highest rounded-full p-1 flex">
+              <button data-lang="en" class="lang-btn px-4 py-1.5 rounded-full font-label text-[10px] tracking-widest uppercase transition-colors">ENG</button>
+              <button data-lang="ar" class="lang-btn px-4 py-1.5 rounded-full font-arabic text-sm hover:text-white transition-colors">عربي</button>
+            </div>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Theme Mode</p>
+              <p class="text-muted text-xs mt-1 font-headline">Dark Mode (Forced)</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-not-allowed">
+              <input checked class="sr-only peer" disabled type="checkbox"/>
+              <div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:bg-primary opacity-70"></div>
+            </label>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Haptic Feedback</p>
+              <p class="text-muted text-xs mt-1 font-headline">Tactile responses</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="hapticToggle" class="sr-only peer" type="checkbox" ${localStorage.getItem("dp_haptic") !== "0" ? "checked" : ""}/>
+              <div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-checked:after:border-white peer-checked:bg-primary"></div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- System Info & Logout -->
+      <section class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
+          <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
+            <div>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">System License</h3>
+              <p class="font-arabic text-muted text-sm">ترخيص النظام</p>
+            </div>
+            <span class="material-symbols-outlined text-muted">verified_user</span>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">License Key</p>
+                <p class="font-arabic text-muted text-[10px] mt-0.5">مفتاح الترخيص</p>
+                <p class="text-muted font-headline text-xs mt-1" dir="ltr">DP-${escapeHtml(lic.code)}</p>
+              </div>
+              <button id="copyKey" class="text-primary text-sm font-label uppercase tracking-widest hover:underline">Copy</button>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
+                <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${license.daysLeft()} Days / يومًا</p>
+              </div>
+              <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="cyber-card p-6 flex flex-col justify-between rounded-lg">
+          <div>
+            <div class="mb-4 pb-4 border-b border-outline-variant">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">Team Identity</h3>
+                  <p class="font-arabic text-muted text-[10px]">هوية الفريق</p>
+                </div>
+                <span class="material-symbols-outlined text-primary text-sm">hub</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-surface-container-highest border border-primary/30 flex items-center justify-center neon-shadow">
+                  <span class="material-symbols-outlined text-primary text-xs">terminal</span>
+                </div>
+                <div>
+                  <p class="font-headline text-lg font-bold tracking-tighter text-on-surface uppercase">hitik</p>
+                  <p class="text-muted text-[10px] font-body tracking-wider">Built by hitik / <span class="font-arabic">صُنع بواسطة hitik</span></p>
+                </div>
+              </div>
+            </div>
+            <div class="mb-4 pb-4 border-b border-outline-variant">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">Team Contact</h3>
+                  <p class="font-arabic text-muted text-[10px]">جهة اتصال الفريق</p>
+                </div>
+                <span class="material-symbols-outlined text-primary text-sm">contact_support</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-surface-container-highest border border-primary/30 flex items-center justify-center neon-shadow">
+                  <span class="material-symbols-outlined text-primary text-xs">call</span>
+                </div>
+                <div>
+                  <p class="font-headline text-lg font-bold tracking-tighter text-on-surface" dir="ltr">+972568802803</p>
+                  <p class="text-muted text-[10px] font-body tracking-wider uppercase">WhatsApp / Signal</p>
+                </div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between border-b border-outline-variant pb-2">
+              <div>
+                <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-muted">System Build</h3>
+              </div>
+              <span class="material-symbols-outlined text-primary text-sm">memory</span>
+            </div>
+            <p class="text-center text-[10px] text-muted tracking-widest uppercase font-headline mt-4">DIGITAL PULSE v1.0 · CYBER ATHLETIC EDITION</p>
+          </div>
+
+          <div class="flex flex-col gap-4 mt-4">
+            <button id="exportBtn" class="w-full border border-primary text-primary font-headline uppercase font-bold tracking-widest text-lg py-4 rounded-lg flex flex-col items-center justify-center hover:bg-primary/10 transition-all active:scale-95">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">download</span>
+                <span>EXPORT DATA</span>
+              </div>
+              <span class="font-arabic text-xs mt-1 opacity-70 normal-case">تصدير البيانات</span>
+            </button>
+            <button id="logoutBtn" class="w-full bg-alert text-white font-headline uppercase font-bold tracking-widest text-lg py-4 rounded-lg flex flex-col items-center justify-center hover:bg-[#e62e5c] transition-all active:scale-95 alert-glow border border-alert">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">logout</span>
+                <span>LOGOUT</span>
+              </div>
+              <span class="font-arabic text-xs mt-1 opacity-90 normal-case">تسجيل الخروج</span>
+            </button>
+          </div>
+        </section>
+      </section>
+    </div>
+  </div>`;
+
+  // language pill state
+  const paintLang = () => {
+    document.querySelectorAll(".lang-btn").forEach((b) => {
+      const active = b.dataset.lang === currentLang();
+      b.classList.toggle("bg-primary", active);
+      b.classList.toggle("text-black", active);
+      b.classList.toggle("text-muted", !active);
+    });
+  };
+  paintLang();
+  document.querySelectorAll(".lang-btn").forEach((b) =>
+    b.addEventListener("click", () => { i18n.setLang(b.dataset.lang); paintLang(); }));
+
+  $("#copyKey").onclick = async () => {
+    try { await navigator.clipboard.writeText(`DP-${lic.code}`); showToast("Copied / تم النسخ"); }
+    catch { showToast("Copy failed / فشل النسخ", "err"); }
+  };
+  $("#hapticToggle")?.addEventListener("change", (e) =>
+    localStorage.setItem("dp_haptic", e.target.checked ? "1" : "0"));
+  $("#secPassword").onclick = () => location.href = "admin.html";
+  $("#secRestore").onclick = () => $("#importFile").click();
+  $("#importFile").addEventListener("change", importData);
+  $("#secReset").onclick = async () => {
+    const ok = await confirmDialog({ titleEn: "Reset all data to demo?", titleAr: "إعادة تعيين كل البيانات للبيانات التجريبية؟", confirmText: "Reset", danger: true });
+    if (ok) { store.resetAll(); showToast("Data reset / تمت إعادة التعيين"); }
+  };
+  $("#exportBtn").onclick = exportData;
+  $("#logoutBtn").onclick = deactivateLicense;
+}
+
+function exportData() {
+  const dump = store.exportAll();
+  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `digital-pulse-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("Backup downloaded / تم تنزيل النسخة الاحتياطية");
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      store.importAll(JSON.parse(ev.target.result));
+      showToast("Imported successfully / تم الاستيراد بنجاح");
+    } catch {
+      showToast("Invalid backup file / ملف غير صالح", "err");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+}
+
+function codesDbMode() {
+  return localStorage.getItem("dp_license_mode") === "online";
+}
+
+// ---------- Boot ----------
+show("dashboard");

@@ -1,39 +1,98 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IB2040 — التطبيق</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Digital Pulse — App</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
 </head>
-<body>
-<section class="app">
-  <header class="app-header">
-    <div class="app-brand">IB<i>2040</i></div>
-    <div style="display:flex;gap:8px">
-      <button class="icon-btn" id="adminBtn" title="لوحة إدارة الأكواد">🔐 الأكواد</button>
-      <button class="icon-btn" id="logoutBtn" title="تسجيل الخروج">خروج</button>
-    </div>
+<body class="bg-background text-text-main antialiased overflow-x-hidden min-h-screen flex flex-col md:flex-row pb-[85px] md:pb-0">
+
+  <!-- Mobile TopAppBar -->
+  <header class="md:hidden sticky top-0 w-full z-50 bg-black border-b border-outline-variant flex justify-between items-center h-16 px-4">
+    <button id="mProfileBtn" aria-label="Menu" class="text-on-surface-variant hover:text-primary transition-colors active:scale-95 transition-transform p-2 rounded-full">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <span class="font-headline font-black tracking-tighter text-primary-fixed uppercase text-sm">DIGITAL PULSE</span>
+    <button id="mNotifBtn" aria-label="Notifications" class="relative text-primary-fixed active:scale-95 transition-transform p-2 rounded-full">
+      <span class="material-symbols-outlined">notifications</span>
+      <span id="notifDot" class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full shadow-neon-alert hidden"></span>
+    </button>
   </header>
-  <main class="app-main">
-    <div class="welcome-box">
-      <h2>أهلاً بك 👋</h2>
-      <p>تم تفعيل حسابك بنجاح. استمتع بتجربة IB2040.</p>
-      <div class="stat-row">
-        <div class="stat"><span id="statCode">—</span><label>كودك</label></div>
-        <div class="stat"><span id="statDate">—</span><label>تاريخ التفعيل</label></div>
+
+  <!-- Desktop Sidebar -->
+  <aside class="hidden md:flex flex-col h-screen w-72 bg-surface border-r border-outline-variant p-4 sticky top-0 z-40 shrink-0">
+    <div class="flex items-center gap-4 mb-8 pt-2 px-2">
+      <img class="w-12 h-12 rounded-full object-cover border border-outline-variant" src="assets/img/commander.jpg" alt="Commander"/>
+      <div>
+        <div class="font-headline font-bold text-primary-fixed uppercase tracking-tight">COMMANDER</div>
+        <div class="text-xs text-muted font-body">System Admin</div>
+        <div class="text-[10px] text-primary-dim font-label tracking-widest uppercase mt-1">ACTIVE</div>
       </div>
     </div>
-    <div class="features">
-      <div class="feature"><div class="f-ic">⚡</div><h3>سريع</h3><p>أداء عالٍ وتنقل سلس.</p></div>
-      <div class="feature"><div class="f-ic">🔒</div><h3>آمن</h3><p>حماية كاملة لبياناتك.</p></div>
-      <div class="feature"><div class="f-ic">🎯</div><h3>دقيق</h3><p>إدارة احترافية للأكواد.</p></div>
+    <nav id="sideNav" class="flex-1 flex flex-col gap-2"></nav>
+    <div class="pt-3 border-t border-outline-variant flex flex-col gap-1">
+      <a href="admin.html" class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-white transition-all text-sm font-headline uppercase tracking-tight">
+        <span class="material-symbols-outlined text-[20px]">vpn_key</span><span>Codes Admin</span>
+      </a>
+      <button id="logoutBtnSide" class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-alert hover:bg-surface-container-high transition-all text-sm font-headline uppercase tracking-tight">
+        <span class="material-symbols-outlined text-[20px]">logout</span><span>Deactivate</span>
+      </button>
     </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 flex flex-col min-h-screen relative">
+    <!-- Desktop page header -->
+    <div class="hidden md:flex items-center justify-between p-8 border-b border-outline-variant bg-black/60">
+      <div>
+        <h1 id="pageTitleEn" class="font-headline text-3xl font-bold text-primary tracking-tighter uppercase mb-0.5">DASHBOARD</h1>
+        <p id="pageTitleAr" class="font-arabic text-sm text-muted" dir="rtl">الرئيسية</p>
+      </div>
+      <div id="pageActions" class="flex items-center gap-3"></div>
+    </div>
+    <div id="screen" class="p-4 md:p-8 flex-1 flex flex-col gap-5"></div>
   </main>
-</section>
-<script src="js/app.js"></script>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-[85px] bg-surface rounded-t-lg border-t border-outline-variant shadow-[0_-4px_12px_rgba(204,255,0,0.1)]">
+    <button data-tab="dashboard" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16">
+      <span class="material-symbols-outlined mb-1">dashboard</span>
+      <span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+    </button>
+    <button data-tab="roster" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16">
+      <span class="material-symbols-outlined mb-1">group</span>
+      <span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+    </button>
+    <button data-tab="hardware" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16">
+      <span class="material-symbols-outlined mb-1">settings_input_component</span>
+      <span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+    </button>
+    <button data-tab="ledger" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16">
+      <span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+      <span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span>
+    </button>
+    <button data-tab="profile" class="nav-tab flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16">
+      <span class="material-symbols-outlined mb-1">account_circle</span>
+      <span class="font-label uppercase tracking-widest text-[10px]">PROFILE</span>
+    </button>
+  </nav>
+
+  <!-- Floating action button -->
+  <button id="fab" class="fixed z-40 bottom-[100px] right-4 md:right-auto md:left-[calc(100%-4.5rem)] md:hidden w-14 h-14 rounded-full bg-primary text-black shadow-neon-lg flex items-center justify-center active:scale-90 transition-transform">
+    <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
+  </button>
+
+  <script src="vendor/chart.umd.min.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Digital Pulse</string>
+    <string name="title_activity_main">Digital Pulse</string>
+    <string name="package_name">com.digitalpulse.gym</string>
+    <string name="custom_url_scheme">com.digitalpulse.gym</string>
+</resources>

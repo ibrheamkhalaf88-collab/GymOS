@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Pulse - Activation Code</title>
+<script src="vendor/tailwind.js"></script>
+<script src="js/tailwind-config.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="css/theme.css" rel="stylesheet"/>
+<style>
+  body { min-height: max(884px, 100dvh); }
+  /* Olive-tinted grid exactly as the activation design */
+  .cyber-grid {
+    background-image:
+      linear-gradient(to right, rgba(68, 73, 51, 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(68, 73, 51, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .neon-shadow { box-shadow: 0 0 12px rgba(195, 244, 0, 0.4); }
+  .bilingual-block { display: flex; flex-direction: column; gap: 0.25rem; }
+  .arabic-text { font-family: 'Manrope', sans-serif; opacity: 0.8; font-size: 0.85em; }
+  .digit-input {
+    width: 3rem; height: 4rem; text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 2rem; font-weight: 700;
+    background-color: #282b1d; border: 1px solid #444933; color: #e2e4cf;
+    border-radius: 1rem; transition: all 0.2s ease;
+  }
+  .digit-input:focus {
+    outline: none; border-color: #C3F400;
+    box-shadow: 0 0 8px rgba(195, 244, 0, 0.3);
+    background-color: #333627;
+  }
+  .digit-input.success {
+    background-color: #ccff00 !important; color: #000000 !important;
+    border-color: #ccff00 !important; box-shadow: 0 0 15px rgba(204, 255, 0, 0.6);
+  }
+  .digit-input.error {
+    background-color: #ff3366 !important; color: #ffffff !important;
+    border-color: #ff3366 !important; box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+  }
+</style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+<header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
+  <div class="flex flex-col items-center text-center">
+    <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Enter Activation Code</span>
+    <span class="arabic-text text-xs opacity-60" dir="rtl">أدخل رمز التفعيل</span>
+  </div>
+</header>
+
+<main class="flex-grow flex items-center justify-center p-4 sm:p-8">
+  <div class="w-full max-w-md border border-[#444933] rounded-lg p-8 shadow-2xl relative overflow-hidden" style="background-color: rgb(0, 0, 0);">
+    <!-- Decorative Accent -->
+    <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
+
+    <div class="flex flex-col items-center text-center mb-10">
+      <div class="w-16 h-16 rounded-full border border-[#8e9379] flex items-center justify-center mb-6" style="background-color:#333627;"></div>
+      <div class="bilingual-block mb-4">
+        <h2 class="font-headline uppercase tracking-tighter">ACTIVATE SYSTEM</h2>
+        <h2 class="font-headline text-xl uppercase tracking-tighter arabic-text" dir="rtl" style="color:#c4c9ac;">تفعيل النظام</h2>
+      </div>
+      <div class="bilingual-block max-w-sm" style="color:#c4c9ac;">
+        <p class="font-medium">Enter the unique 6-digit license key provided to your facility.</p>
+        <p class="arabic-text mt-2" dir="rtl">أدخل مفتاح الترخيص المكون من 6 أرقام والمزود لمنشأتك.</p>
+        <div class="mt-6 p-3 border border-[#444933] rounded bg-[#333627]/30">
+          <p class="text-xs uppercase tracking-widest opacity-60 mb-1">Support / الدعم</p>
+          <a id="supportLink" href="#" class="font-headline" style="color:#C3F400;">+972 568 802 803</a>
+        </div>
+      </div>
+    </div>
+
+    <form class="space-y-10" id="activationForm" autocomplete="off">
+      <div class="flex justify-center gap-2 sm:gap-3" dir="ltr">
+        <input aria-label="Digit 1" autofocus class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+        <input aria-label="Digit 2" class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+        <input aria-label="Digit 3" class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+        <span class="text-3xl font-light self-center" style="color:#444933;">-</span>
+        <input aria-label="Digit 4" class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+        <input aria-label="Digit 5" class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+        <input aria-label="Digit 6" class="digit-input" maxlength="1" style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" type="text"/>
+      </div>
+
+      <div class="flex flex-col gap-2 mb-6">
+        <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Manual Activation / التنشيط اليدوي</label>
+        <input id="manualCode" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="Enter Code Manually / أدخل الرمز يدوياً" style="color: #CCFF00;" type="text"/>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <button id="verifyBtn" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);" type="submit">
+          <div class="flex flex-col items-center">
+            <span class="">VERIFY</span>
+            <span class="text-xs opacity-80" dir="rtl">تحقق</span>
+          </div>
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </button>
+        <a id="requestBtn" href="#" class="w-full py-3 bg-transparent font-body font-medium text-sm rounded-lg border border-transparent hover:border-[#444933] transition-colors duration-150 flex items-center justify-center" style="color:#c7c6c6;" onmouseover="this.style.color='#e2e4cf'" onmouseout="this.style.color='#c7c6c6'">
+          <div class="flex flex-col items-center">
+            <span class="">Request New Code</span>
+            <span class="arabic-text mt-1" dir="rtl">طلب كود جديد</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="h-0 overflow-visible"><p id="actMsg" class="text-sm text-center"></p></div>
+    </form>
+  </div>
+</main>
+
+<!-- Subtle Background Image Element -->
+<div class="fixed inset-0 pointer-events-none z-[-1] opacity-10">
+  <div class="bg-cover bg-center w-full h-full" style='background-image: url("assets/img/activation-bg.jpg");'></div>
+</div>
+
+<script src="js/activate.js" type="module"></script>
+</body>
+</html>

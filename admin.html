@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Digital Pulse — Codes Admin</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="robots" content="noindex" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+</head>
+<body class="bg-surface text-on-surface font-body h-screen overflow-hidden flex selection:bg-primary-fixed selection:text-black">
+
+  <!-- ============ AUTH GATE ============ -->
+  <section id="authGate" class="flex-1 flex items-center justify-center p-4 cyber-grid bg-background">
+    <div class="w-full max-w-sm border border-outline-variant rounded-lg p-8 relative overflow-hidden bg-surface fade-up">
+      <div class="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+      <div class="text-center mb-8">
+        <span class="material-symbols-outlined text-5xl text-primary" style="font-variation-settings:'FILL' 1;">admin_panel_settings</span>
+        <h2 class="font-headline text-2xl font-extrabold uppercase tracking-tighter mt-3">PULSE CORE</h2>
+        <p class="font-arabic text-muted text-sm" dir="rtl">دخول المدير — سجل الأكواد</p>
+        <p id="modeHint" class="text-[10px] tracking-widest uppercase text-muted mt-3 font-headline">—</p>
+      </div>
+      <form id="loginForm" class="flex flex-col gap-3">
+        <input id="emailInput" type="email" placeholder="Admin email / بريد المدير" autocomplete="username" class="dp-field" dir="ltr" />
+        <input id="passInput" type="password" placeholder="Password / كلمة المرور" autocomplete="current-password" class="dp-field" dir="ltr" />
+        <p id="loginMsg" class="text-xs text-alert min-h-[1rem]"></p>
+        <button type="submit" class="w-full py-3.5 bg-primary text-black font-headline font-bold uppercase tracking-widest rounded-xl neon-shadow hover:bg-white active:scale-95 transition-all">
+          SIGN IN / <span class="font-arabic normal-case">دخول</span>
+        </button>
+      </form>
+      <a href="app.html" class="block text-center text-xs text-muted hover:text-white transition-colors mt-6 uppercase tracking-widest font-headline">← Back to app</a>
+    </div>
+  </section>
+
+  <!-- ============ ADMIN PANEL ============ -->
+  <div id="adminPanel" class="hidden flex-1 flex h-screen overflow-hidden relative">
+    <div class="absolute inset-0 cyber-grid opacity-20 pointer-events-none"></div>
+
+    <!-- Sidebar -->
+    <nav class="h-screen w-60 border-e border-outline-variant bg-surface-container-low hidden md:flex flex-col shrink-0">
+      <div class="p-5 border-b border-outline-variant flex items-center gap-3">
+        <div class="w-11 h-11 rounded-full border border-primary bg-black flex items-center justify-center font-headline font-bold text-primary">R</div>
+        <div>
+          <h2 id="adminName" class="font-headline text-primary font-bold tracking-tight">ADM_ROOT</h2>
+          <p class="font-label tracking-widest text-muted text-[10px] uppercase">Level 4 Clearance</p>
+        </div>
+      </div>
+      <div class="p-4 space-y-2 text-[11px] font-headline uppercase tracking-widest text-muted">
+        <div class="px-4 py-3 rounded-lg bg-surface-container-highest text-primary border-s-4 border-primary flex items-center gap-3">
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">vpn_key</span> Code Registry
+        </div>
+      </div>
+      <div class="mt-auto p-4 border-t border-outline-variant flex flex-col gap-1">
+        <button id="logoutBtn" class="flex items-center gap-3 px-4 py-2 rounded text-on-surface-variant hover:text-alert transition-colors text-sm">
+          <span class="material-symbols-outlined text-[18px]">logout</span><span>Sign Out / خروج</span>
+        </button>
+        <a href="app.html" class="flex items-center gap-3 px-4 py-2 rounded text-on-surface-variant hover:text-primary transition-colors text-sm">
+          <span class="material-symbols-outlined text-[18px]">arrow_forward</span><span>Back to app / التطبيق</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="flex-1 flex flex-col overflow-hidden relative z-10">
+      <!-- Top bar -->
+      <header class="sticky top-0 z-40 bg-black/80 backdrop-blur flex justify-between items-center px-4 md:px-7 h-16 shrink-0 border-b border-outline-variant">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-primary text-2xl">radar</span>
+          <span class="font-headline font-bold text-primary tracking-tighter text-xl">PULSE CORE</span>
+          <span id="mobileModeBadge" class="md:hidden text-[9px] font-headline tracking-widest uppercase border border-outline-variant rounded-full px-2 py-0.5 text-muted">—</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="hidden md:flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-full border border-outline-variant">
+            <div class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse-fast"></div>
+            <span class="font-label tracking-widest text-primary uppercase text-[10px]">SECURE</span>
+          </div>
+          <button id="genBtnTop" class="bg-surface-container-highest text-primary border border-primary font-headline uppercase px-4 py-1.5 rounded-lg hover:bg-primary hover:text-black transition-all active:scale-95 text-xs font-bold tracking-wide">
+            + Generate / <span class="font-arabic normal-case">كود</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content -->
+      <main class="flex-1 overflow-y-auto p-4 md:p-7">
+        <!-- Page header -->
+        <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-3 border-b border-outline-variant pb-4 mb-6">
+          <div>
+            <h1 class="font-headline text-3xl font-bold text-primary uppercase tracking-tighter">CODE REGISTRY</h1>
+            <p class="font-arabic text-on-surface-variant opacity-80">سجل أكواد التفعيل</p>
+          </div>
+          <div id="dbBadge" class="bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant flex items-center gap-2 self-start">
+            <span class="w-2.5 h-2.5 rounded-full bg-alert animate-pulse-fast"></span>
+            <span class="font-label tracking-widest text-alert uppercase text-[10px]">DEMO DB</span>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7">
+          <div class="bg-surface-container-high rounded-lg p-5 border border-outline-variant relative overflow-hidden group hover:border-primary/60 transition-colors">
+            <span class="material-symbols-outlined absolute -bottom-3 -right-3 text-7xl text-primary opacity-10 group-hover:opacity-25 transition-opacity">qr_code_2</span>
+            <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-3">Available Codes / <span class="font-arabic normal-case">متاحة للبيع</span></p>
+            <p class="font-headline text-4xl font-bold text-primary tabular-nums" id="statAvailable">—</p>
+          </div>
+          <div class="bg-surface-container-high rounded-lg p-5 border border-outline-variant relative overflow-hidden group hover:border-frost-fixed/60 transition-colors">
+            <span class="material-symbols-outlined absolute -bottom-3 -right-3 text-7xl text-frost-fixed opacity-10 group-hover:opacity-25 transition-opacity">how_to_reg</span>
+            <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-3">Activated / <span class="font-arabic normal-case">مفعّلة</span></p>
+            <p class="font-headline text-4xl font-bold text-frost-fixed tabular-nums" id="statUsed">—</p>
+          </div>
+          <div class="bg-surface-container-high rounded-lg p-5 border border-outline-variant relative overflow-hidden group hover:border-error/60 transition-colors">
+            <span class="material-symbols-outlined absolute -bottom-3 -right-3 text-7xl text-error opacity-10 group-hover:opacity-25 transition-opacity">block</span>
+            <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-3">Revoked / <span class="font-arabic normal-case">موقوفة</span></p>
+            <p class="font-headline text-4xl font-bold text-error tabular-nums" id="statRevoked">—</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <!-- Generate -->
+          <div class="xl:col-span-1">
+            <div class="bg-surface-container-highest rounded-lg p-6 border border-outline-variant h-full flex flex-col justify-center text-center relative overflow-hidden">
+              <div class="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+              <span class="material-symbols-outlined text-5xl text-primary my-4" style="font-variation-settings:'FILL' 1;">lock_open</span>
+              <h3 class="font-headline text-xl font-bold uppercase tracking-tight">Generate Key</h3>
+              <p class="font-arabic text-muted mb-6">إنشاء كود تفعيل جديد</p>
+              <form id="genForm" class="w-full space-y-3 text-left">
+                <div>
+                  <label class="font-label tracking-widest text-muted uppercase text-[10px] block mb-1">Tier / الباقة</label>
+                  <select name="tier" class="dp-field !py-3">
+                    <option value="standard">Standard Access — عادية</option>
+                    <option value="vip">VIP Clearance — مميزة</option>
+                    <option value="guest">Guest Node — زائر</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="font-label tracking-widest text-muted uppercase text-[10px] block mb-1">Duration (days) / المدة بأيام</label>
+                  <input name="days" type="number" min="1" max="1825" value="365" class="dp-field !py-3 tabular-nums" />
+                </div>
+                <div>
+                  <label class="font-label tracking-widest text-muted uppercase text-[10px] block mb-1">Custom code (optional) / كود مخصص</label>
+                  <input name="custom" maxlength="9" placeholder="XXX-XXX" dir="ltr" class="dp-field !py-3 font-headline tracking-widest" />
+                </div>
+                <button type="submit" class="w-full bg-primary text-black font-headline font-bold uppercase tracking-widest py-3.5 rounded-xl neon-shadow hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2 mt-2">
+                  <span class="material-symbols-outlined">bolt</span> EXECUTE INIT
+                </button>
+              </form>
+              <div id="lastGenerated" class="hidden mt-5 p-4 border border-primary/50 rounded-xl bg-primary/5 fade-up">
+                <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-1">New code — share it:</p>
+                <p id="lastCodeText" class="font-headline text-3xl font-bold text-primary tracking-[0.15em]" dir="ltr">—</p>
+                <div class="flex gap-2 justify-center mt-3">
+                  <button id="copyCodeBtn" class="px-4 py-2 rounded-lg border border-outline-variant text-xs font-headline uppercase tracking-widest hover:border-primary hover:text-primary transition-colors pressable">Copy</button>
+                  <a id="waShareBtn" href="#" target="_blank" rel="noopener" class="px-4 py-2 rounded-lg bg-primary/10 border border-primary/40 text-primary text-xs font-headline uppercase tracking-widest pressable">WhatsApp</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="xl:col-span-2">
+            <div class="bg-surface-container rounded-lg border border-outline-variant flex flex-col h-full overflow-hidden min-h-[420px]">
+              <div class="p-4 border-b border-outline-variant flex justify-between items-center gap-2 bg-surface-container-high flex-wrap">
+                <h3 class="font-headline font-bold uppercase tracking-tight text-sm">Codes Log / <span class="font-arabic normal-case opacity-70">كل الأكواد</span></h3>
+                <div class="flex items-center gap-2">
+                  <input id="tableSearch" placeholder="SEARCH..." class="dp-field !py-1.5 !px-3 !w-36 text-xs uppercase tracking-wider" />
+                  <button id="exportBtn" title="Export JSON" class="p-2 border border-outline-variant rounded text-muted hover:text-primary hover:border-primary transition-colors">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                  </button>
+                  <label title="Import JSON" class="p-2 border border-outline-variant rounded text-muted hover:text-primary hover:border-primary transition-colors cursor-pointer">
+                    <span class="material-symbols-outlined text-sm">upload</span>
+                    <input type="file" id="importFile" accept=".json" class="hidden" />
+                  </label>
+                </div>
+              </div>
+              <div class="overflow-x-auto flex-1">
+                <table class="w-full text-left whitespace-nowrap">
+                  <thead class="bg-black/40 border-b border-outline-variant">
+                    <tr>
+                      <th class="p-3.5 font-label tracking-widest text-muted uppercase text-[10px]">Access Code</th>
+                      <th class="p-3.5 font-label tracking-widest text-muted uppercase text-[10px]">Status</th>
+                      <th class="p-3.5 font-label tracking-widest text-muted uppercase text-[10px]">Tier</th>
+                      <th class="p-3.5 font-label tracking-widest text-muted uppercase text-[10px]">Device</th>
+                      <th class="p-3.5 font-label tracking-widest text-muted uppercase text-[10px] text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="codesTable" class="text-sm divide-y divide-outline-variant/40"></tbody>
+                </table>
+              </div>
+              <div id="tableEmpty" class="hidden text-center text-muted py-12 text-sm">No codes yet — generate your first key / لا توجد أكواد بعد</div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

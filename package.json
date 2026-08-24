@@ -1,10 +1,28 @@
 {
-  "name": "ib2040-app",
+  "name": "digital-pulse",
   "version": "1.0.0",
-  "description": "تطبيق IB2040 الاحترافي",
+  "description": "Digital Pulse — Gym & Facility Management App (Web + Android)",
   "main": "index.html",
   "scripts": {
-    "dev": "npx serve .",
-    "build": "echo 'Static site - no build needed'"
+    "dev": "npx serve -l 5173 .",
+    "sync": "node scripts/sync-www.js",
+    "cap:init": "npx cap init",
+    "cap:add:android": "npx cap add android",
+    "apk": "npm run sync && npx cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "keywords": [
+    "gym",
+    "management",
+    "pwa",
+    "android",
+    "firebase"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.1"
   }
 }

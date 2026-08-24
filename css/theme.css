@@ -1,0 +1,198 @@
+/* ============================================================
+   Digital Pulse — Cyber Athletic theme
+   Shared tokens & component classes on top of Tailwind
+   ============================================================ */
+
+:root {
+  --bg: #000000;
+  --surface: #171717;
+  --border: #333333;
+  --volt: #ccff00;
+  --alert: #ff3366;
+  --frost: #9bafbc;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg);
+  color: #f5f5f5;
+  font-family: "Manrope", "Tajawal", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[dir="rtl"] body,
+[dir="rtl"] .font-body,
+[dir="rtl"] .font-headline,
+[dir="rtl"] .font-display {
+  font-family: "Tajawal", "Manrope", sans-serif;
+}
+
+.font-arabic { font-family: "Tajawal", sans-serif; }
+
+/* ---- Cyber grid backdrop ---- */
+.cyber-grid {
+  background-image:
+    linear-gradient(to right, rgba(51, 51, 51, 0.14) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(51, 51, 51, 0.14) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ---- Neon helpers ---- */
+.neon-text { text-shadow: 0 0 8px rgba(204, 255, 0, 0.6); }
+.neon-shadow { box-shadow: 0 0 12px rgba(204, 255, 0, 0.4); }
+.neon-shadow-alert { box-shadow: 0 0 12px rgba(255, 51, 102, 0.4); }
+.glass-card {
+  background: rgba(23, 23, 23, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+}
+.cyber-border { border: 1px solid var(--border); }
+.border-grid { border-color: var(--border); }
+
+/* ---- Animations ---- */
+@keyframes pulse-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-pulse-fast { animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+@keyframes growUp {
+  from { height: 0; }
+  to { height: var(--target-height); }
+}
+.bar-animate { animation: growUp 0.9s ease-out forwards; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.35s ease-out both; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.slide-in { animation: slideIn 0.2s ease-out both; }
+
+/* Tactile feedback on touch (per DESIGN.md) */
+.pressable { transition: transform 0.12s ease; }
+.pressable:active { transform: scale(0.95); }
+
+/* ---- Scrollbars ---- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #111111; }
+::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #555555; }
+
+/* ---- Digit inputs (activation) ----
+   Base styles live in activate.html (page-scoped, matches Stitch design).
+   success / error states are shared: */
+.digit-input.success {
+  background-color: #ccff00 !important;
+  color: #000 !important;
+  border-color: #ccff00 !important;
+  box-shadow: 0 0 15px rgba(204, 255, 0, 0.6);
+}
+.digit-input.error {
+  background-color: #ff3366 !important;
+  color: #fff !important;
+  border-color: #ff3366 !important;
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+}
+
+/* ---- Forms ---- */
+.dp-field {
+  width: 100%;
+  background: #171717;
+  border: 1px solid #333333;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  color: #f5f5f5;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.dp-field:focus {
+  border-color: #ccff00;
+  box-shadow: 0 0 0 1px rgba(204, 255, 0, 0.3);
+}
+.dp-field::placeholder { color: #666666; }
+select.dp-field option { background: #171717; }
+
+/* ---- Toasts ---- */
+#toast-root {
+  position: fixed;
+  top: 1rem; left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  width: min(92vw, 420px);
+  pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: 0.65rem;
+  background: #171717;
+  border: 1px solid #333333;
+  border-inline-start: 3px solid #ccff00;
+  border-radius: 0.9rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  animation: slideIn 0.2s ease-out both;
+  pointer-events: auto;
+}
+.toast.err { border-inline-start-color: #ff3366; }
+.toast.ok .material-symbols-outlined { color: #ccff00; }
+.toast.err .material-symbols-outlined { color: #ff3366; }
+
+/* ---- Modals ---- */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+@media (min-width: 640px) {
+  .modal-backdrop { align-items: center; }
+}
+.modal-panel {
+  width: 100%; max-width: 480px;
+  max-height: 90vh; overflow-y: auto;
+  background: #171717;
+  border: 1px solid #333333;
+  border-radius: 2rem 2rem 0 0;
+  animation: slideIn 0.22s ease-out both;
+}
+@media (min-width: 640px) {
+  .modal-panel { border-radius: 2rem; }
+}
+
+/* ---- Status pips ---- */
+.pip { width: 0.5rem; height: 0.5rem; border-radius: 9999px; display: inline-block; }
+.pip-volt { background: #ccff00; box-shadow: 0 0 8px rgba(204, 255, 0, 0.6); }
+.pip-alert { background: #ff3366; box-shadow: 0 0 8px rgba(255, 51, 102, 0.6); }
+.pip-frost { background: #d1e5f3; }
+
+/* ---- Bilingual label pattern ---- */
+.bi-label {
+  display: flex; flex-direction: column; gap: 0.15rem;
+  line-height: 1.25;
+}
+.bi-label .ar { opacity: 0.7; font-size: 0.85em; }
+
+/* ---- Design utilities (Stitch parity) ---- */
+.arabic-sub { font-family: "Tajawal", sans-serif; opacity: 0.7; font-size: 0.85em; }
+.neon-text-pink { text-shadow: 0 0 8px rgba(255, 51, 102, 0.5); }
+.alert-glow { box-shadow: 0 0 15px rgba(255, 51, 102, 0.5); }
+.cyber-card { background-color: #171717; border: 1px solid #333333; }
+.grid-bg {
+  background-image:
+    linear-gradient(to right, #1e2113 1px, transparent 1px),
+    linear-gradient(to bottom, #1e2113 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.bar-chart-fill { background: linear-gradient(to top, rgba(195, 244, 0, 0.1) 0%, rgba(195, 244, 0, 0.8) 100%); }
+.bar-chart-fill-pink { background: linear-gradient(to top, rgba(255, 51, 102, 0.1) 0%, rgba(255, 51, 102, 0.8) 100%); }

@@ -1,132 +1,28 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IB2040 — تطبيقك الاحترافي</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Digital Pulse</title>
+<script src="vendor/tailwind.js"></script>
+<script>
+  tailwind.config = { theme: { extend: {} } };
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Tajawal:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .font-arabic { font-family: 'Tajawal', sans-serif; }
+  .font-cairo { font-family: 'Cairo', sans-serif; }
+  .glow-effect { box-shadow: 0 0 20px rgba(204, 255, 0, 0.4); }
+  .glow-volt { box-shadow: 0 0 20px rgba(204, 255, 0, 0.15); }
+  .text-glow { text-shadow: 0 0 10px rgba(204, 255, 0, 0.3); }
+  .neon-border { box-shadow: 0 0 15px rgba(204, 255, 0, 0.2); border: 1px solid rgba(204, 255, 0, 0.3); }
+  .arabic-text { direction: rtl; }
+  body { min-height: max(884px, 100dvh); }
+</style>
 </head>
-<body>
-
-<!-- ============ شاشات الـ ONBOARDING (4 شاشات) ============ -->
-<section id="onboarding" class="onboarding">
-  <div class="ob-slides" id="obSlides">
-
-    <!-- الشاشة 1 -->
-    <div class="ob-slide active">
-      <div class="ob-art">
-        <svg viewBox="0 0 200 200" width="180" height="180">
-          <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#2563eb"/></linearGradient></defs>
-          <rect x="60" y="30" width="80" height="140" rx="14" fill="url(#g1)"/>
-          <rect x="70" y="45" width="60" height="95" rx="6" fill="#fff" opacity="0.92"/>
-          <circle cx="100" cy="155" r="6" fill="#fff" opacity="0.8"/>
-          <circle cx="100" cy="78" r="16" fill="url(#g1)"/>
-          <path d="M93 78l5 5 9-10" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h1>مرحباً بك في IB2040</h1>
-      <p>منصة احترافية آمنة تجمع كل ما تحتاجه في مكان واحد، بتصميم عصري وسهل الاستخدام.</p>
-    </div>
-
-    <!-- الشاشة 2 -->
-    <div class="ob-slide">
-      <div class="ob-art">
-        <svg viewBox="0 0 200 200" width="180" height="180">
-          <defs><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#2563eb"/><stop offset="100%" stop-color="#06b6d4"/></linearGradient></defs>
-          <path d="M100 35l45 18v34c0 32-20 52-45 60-25-8-45-28-45-60V53z" fill="url(#g2)"/>
-          <path d="M85 100l11 11 22-26" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h1>حماية وأمان تام</h1>
-      <p>كل حساب محمي بكود تفعيل خاص، ولا يمكن الوصول للمناطق الحساسة إلا عبر صلاحيات مصرّح بها.</p>
-    </div>
-
-    <!-- الشاشة 3 -->
-    <div class="ob-slide">
-      <div class="ob-art">
-        <svg viewBox="0 0 200 200" width="180" height="180">
-          <defs><linearGradient id="g3" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
-          <circle cx="100" cy="100" r="62" fill="url(#g3)"/>
-          <rect x="78" y="78" width="44" height="44" rx="8" fill="#fff"/>
-          <circle cx="100" cy="100" r="14" fill="url(#g3)"/>
-          <path d="M78 100h-18M122 100h18M100 78v-18M100 122v18" stroke="url(#g3)" stroke-width="6" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <h1>تحكم كامل وسهل</h1>
-      <p>واجهة بسيطة تتيح لك إدارة الأكواد والمستخدمين بخطوات قليلة، من أي جهاز.</p>
-    </div>
-
-    <!-- الشاشة 4 -->
-    <div class="ob-slide">
-      <div class="ob-art">
-        <svg viewBox="0 0 200 200" width="180" height="180">
-          <defs><linearGradient id="g4" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient></defs>
-          <path d="M100 30c10 40 40 60 50 95 0 28-22 45-50 45s-50-17-50-45c10-35 40-55 50-95z" fill="url(#g4)"/>
-          <circle cx="100" cy="120" r="10" fill="#fff"/>
-          <path d="M100 130v22" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <h1>جاهز للانطلاق</h1>
-      <p>كل ما عليك هو إدخال كود التفعيل الخاص بك للبدء. لنبدأ رحلتك الآن.</p>
-    </div>
-
-  </div>
-
-  <div class="ob-dots" id="obDots"></div>
-
-  <div class="ob-nav">
-    <button class="ob-skip" id="obSkip">تخطّي</button>
-    <button class="ob-next btn-primary" id="obNext">التالي</button>
-  </div>
-</section>
-
-<!-- ============ شاشة كود التفعيل ============ -->
-<section id="activation" class="center-screen hidden">
-  <div class="card">
-    <div class="card-logo">IB<i>2040</i></div>
-    <h2>إدخال كود التفعيل</h2>
-    <p class="muted">أدخل كود التفعيل الذي حصلت عليه لتتمكن من الدخول إلى التطبيق.</p>
-    <form id="activationForm">
-      <input type="text" id="actCode" class="field" placeholder="مثال: IB-XXXXXX" autocomplete="off" required>
-      <button type="submit" class="btn-primary full">تفعيل والدخول</button>
-      <p class="msg" id="actMsg"></p>
-    </form>
-  </div>
-</section>
-
-<!-- ============ التطبيق ============ -->
-<section id="app" class="app hidden">
-  <header class="app-header">
-    <div class="app-brand">IB<i>2040</i></div>
-    <div style="display:flex;gap:8px">
-      <button class="icon-btn" id="adminBtn" title="لوحة إدارة الأكواد">🔐 الأكواد</button>
-      <button class="icon-btn" id="logoutBtn" title="تسجيل الخروج">خروج</button>
-    </div>
-  </header>
-  <main class="app-main">
-    <div class="welcome-box">
-      <h2>أهلاً بك 👋</h2>
-      <p>تم تفعيل حسابك بنجاح. استمتع بتجربة IB2040.</p>
-      <div class="stat-row">
-        <div class="stat"><span id="statCode">—</span><label>كودك</label></div>
-        <div class="stat"><span id="statDate">—</span><label>تاريخ التفعيل</label></div>
-      </div>
-    </div>
-    <div class="features">
-      <div class="feature"><div class="f-ic">⚡</div><h3>سريع</h3><p>أداء عالٍ وتنقل سلس.</p></div>
-      <div class="feature"><div class="f-ic">🔒</div><h3>آمن</h3><p>حماية كاملة لبياناتك.</p></div>
-      <div class="feature"><div class="f-ic">🎯</div><h3>دقيق</h3><p>إدارة احترافية للأكواد.</p></div>
-    </div>
-  </main>
-</section>
-
-<script src="js/app.js"></script>
+<body class="bg-[#000000] text-white h-full w-full overflow-x-hidden antialiased selection:bg-[#CCFF00] selection:text-black">
+<div id="slideRoot" class="min-h-[max(884px,100dvh)] flex flex-col"></div>
+<script src="js/onboarding.js"></script>
 </body>
 </html>

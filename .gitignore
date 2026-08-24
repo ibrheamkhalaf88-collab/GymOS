@@ -1,10 +1,24 @@
 # Dependencies
 node_modules/
 
+# Archive of legacy code (kept locally only)
+_archive/
+.claude/
+
 # Build outputs
 dist/
 build/
+www/
 *.local
+
+# Android / Capacitor build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea/
+android/capacitor-cordova-android-plugins/
+ios/
 
 # Environment files
 .env
@@ -15,6 +29,7 @@ build/
 .firebase/
 firebase-debug.log
 firestore-debug.log
+ui-debug.log
 
 # IDE
 .vscode/
@@ -26,16 +41,13 @@ firestore-debug.log
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Testing
-coverage/
-.nyc_output/
 
 # Temporary files
 tmp/

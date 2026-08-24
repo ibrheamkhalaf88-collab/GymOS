@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Get-ChildItem \"C:\\\\Users\\\\acc\\\\Desktop\\\\New folder \\(4\\)\" -Recurse -File -Force)",
-      "Bash(Select-Object -First 50)"
-    ]
-  }
-}
