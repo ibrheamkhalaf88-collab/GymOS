@@ -91,9 +91,9 @@ function seedData(col) {
       const pm = new Date(); pm.setDate(1); pm.setMonth(pm.getMonth() - 1);
       return [
         { id: "t1", name: "Coach Ahmad", salary: 400, phone: "+970599000111",
-          payDay: 1, lastPaidAt: pm.getTime() },
+          payDay: 1, lastPaidAt: pm.getTime(), startedAt: Date.now() - 86400000 * 210 },
         { id: "t2", name: "Coach Lena", salary: 300, phone: "",
-          payDay: 5, lastPaidAt: null },
+          payDay: 5, lastPaidAt: null, startedAt: Date.now() - 86400000 * 90 },
       ];
     }
     case "ledger": {
