@@ -34,19 +34,19 @@ function seedData(col) {
       const day = 86400000;
       return [
         { id: "m1", name: "Alex Mercer", phone: "+970599111222", plan: "pro", status: "active",
-          joinDate: now - day * 120, expiresAt: now + day * 45, checkins: 42, paidAmount: 150, locker: "42",
+          joinDate: now - day * 120, expiresAt: now + day * 45, checkins: 42, paidAmount: 150,
           photo: "assets/img/member-1.jpg", tag: "PT Active" },
         { id: "m2", name: "Sarah Connor", phone: "+970599333444", plan: "regular", status: "expired",
-          joinDate: now - day * 200, expiresAt: now - day * 2, checkins: 28, paidAmount: 80, locker: "",
+          joinDate: now - day * 200, expiresAt: now - day * 2, checkins: 28, paidAmount: 80,
           photo: "assets/img/member-2.jpg", tag: "" },
         { id: "m3", name: "John Doe", phone: "+970599555666", plan: "half", status: "trial",
-          joinDate: now - day * 3, expiresAt: now + day * 4, checkins: 4, paidAmount: 0, locker: "",
+          joinDate: now - day * 3, expiresAt: now + day * 4, checkins: 4, paidAmount: 0,
           photo: "", tag: "GUEST" },
         { id: "m4", name: "Marcus Wright", phone: "+970599777888", plan: "pro", status: "active",
-          joinDate: now - day * 60, expiresAt: now + day * 12, checkins: 19, paidAmount: 120, locker: "",
+          joinDate: now - day * 60, expiresAt: now + day * 12, checkins: 19, paidAmount: 120,
           photo: "assets/img/member-3.jpg", tag: "Cardio Focus" },
         { id: "m5", name: "Lena Hassan", phone: "+970599999000", plan: "pro", status: "frozen",
-          joinDate: now - day * 300, expiresAt: now + day * 65, checkins: 88, paidAmount: 120, locker: "08",
+          joinDate: now - day * 300, expiresAt: now + day * 65, checkins: 88, paidAmount: 120,
           photo: "", tag: "" },
       ];
     }

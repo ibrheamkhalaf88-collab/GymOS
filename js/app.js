@@ -457,7 +457,6 @@ function memberCard(m) {
       </div>
       ${statusLine}
       <div class="flex gap-2 mt-2 flex-wrap">
-        ${m.locker ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">Locker ${escapeHtml(m.locker)}</span>` : ""}
         ${m.tag ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">${escapeHtml(m.tag)}</span>` : ""}
       </div>
     </div>
@@ -484,8 +483,8 @@ function openMemberModal(id = null) {
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.phone}</label>
           <input name="phone" dir="ltr" class="dp-field mt-1" value="${m ? escapeHtml(m.phone || "") : ""}" /></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Locker</label>
-          <input name="locker" class="dp-field mt-1" value="${m ? escapeHtml(m.locker || "") : ""}" /></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Tag / وسم</label>
+          <input name="tag" class="dp-field mt-1" value="${m ? escapeHtml(m.tag || "") : ""}" placeholder="PT Active..." /></div>
       </div>
       <div class="grid ${m ? "grid-cols-2" : "grid-cols-[1fr_auto]"} gap-3 items-end">
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline flex justify-between items-center">
@@ -533,7 +532,7 @@ function openMemberModal(id = null) {
     const data = {
       name: fd.get("name").trim(),
       phone: fd.get("phone").trim(),
-      locker: fd.get("locker").trim(),
+      tag: (fd.get("tag") || "").trim(),
       plan: fd.get("plan"),
       paidAmount: Number(fd.get("paidAmount")) || 0,
     };
@@ -547,7 +546,6 @@ function openMemberModal(id = null) {
       store.insert("members", {
         ...data,
         photo: "",
-        tag: "",
         status: data.plan === "trial" ? "trial" : "active",
         joinDate: joinTs,
         expiresAt: joinTs + days * DAY,
