@@ -3,7 +3,7 @@
 // Screens: dashboard / roster / hardware / ledger / reports / profile
 // ============================================================
 
-import { store } from "./store.js";
+import { store, PLANS, planPrices, savePlanPrices } from "./store.js";
 import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
@@ -422,7 +422,8 @@ function viewRoster() {
   };
 }
 
-const TIER_LABEL = { elite: "ELITE TIER", pro: "PRO TIER", standard: "STANDARD TIER", trial: "GUEST" };
+const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
+  elite: "ELITE TIER", standard: "STANDARD TIER", trial: "GUEST" };
 
 function memberAvatar(m, st) {
   if (m.photo) {
@@ -468,6 +469,12 @@ function memberCard(m) {
 function openMemberModal(id = null) {
   const t = i18n.t;
   const m = id ? store.get("members", id) : null;
+  const prices = planPrices();
+  const planOptions = PLANS.map((p) =>
+    `<option value="${p.key}" ${m?.plan === p.key ? "selected" : ""}>${p.en} / ${p.ar} — $${prices[p.key]}</option>`).join("");
+  const legacyOpt = m && !PLANS.some((p) => p.key === m.plan)
+    ? `<option value="${m.plan}" selected>${m.plan}</option>` : "";
+
   const mod = openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${m ? t.editMember : t.addMember}</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${m ? "تعديل بيانات العضو" : "إضافة عضو جديد"}</p>
@@ -480,16 +487,20 @@ function openMemberModal(id = null) {
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Locker</label>
           <input name="locker" class="dp-field mt-1" value="${m ? escapeHtml(m.locker || "") : ""}" /></div>
       </div>
-      <div class="grid ${m ? "grid-cols-2" : ""} gap-3">
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.plan}</label>
-          <select name="plan" class="dp-field mt-1">${["trial", "standard", "pro", "elite"].map((p) => `<option value="${p}" ${m?.plan === p ? "selected" : ""}>${t.plans[p]}</option>`).join("")}</select></div>
+      <div class="grid ${m ? "grid-cols-2" : "grid-cols-[1fr_auto]"} gap-3 items-end">
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline flex justify-between items-center">
+            <span>${t.plan}</span>
+            <button type="button" id="editPricesBtn" title="Edit plan prices / تعديل أسعار الباقات" class="text-primary hover:text-white transition-colors normal-case">
+              <span class="material-symbols-outlined text-[16px]">settings_suggest</span>
+            </button></label>
+          <select name="plan" class="dp-field mt-1">${planOptions}${legacyOpt}</select></div>
         ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / الأيام</label>
-          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>`}
+          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1 w-24" /></div>`}
       </div>
       ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Start Date / تاريخ البداية</label>
         <input name="startDate" type="date" value="${new Date().toLocaleDateString("en-CA")}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1" /></div>`}
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paidAmount} ($)</label>
-        <input name="paidAmount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
+        <input name="paidAmount" type="number" min="0" step="0.5" value="${m ? m.paidAmount ?? 0 : prices[PLANS[0].key]}" class="dp-field mt-1" /></div>
       <div class="flex gap-3 pt-2">
         <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
         <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">${t.save}</button>
@@ -497,6 +508,24 @@ function openMemberModal(id = null) {
     </form>`);
 
   mod.el.querySelector("[data-close]").onclick = mod.close;
+
+  // Auto-fill paid amount from the selected plan price (add mode only)
+  if (!m) {
+    $("#plan", mod.el).addEventListener("change", (e) => {
+      const p = planPrices()[e.target.value];
+      if (p != null) $('[name="paidAmount"]', mod.el).value = p;
+    });
+  }
+  // Inline price editor
+  $("#editPricesBtn", mod.el).addEventListener("click", () => openPlanPrices(() => {
+    // refresh option labels with the new prices after editing
+    const sel = $("#plan", mod.el);
+    const current = sel.value;
+    const fresh = planPrices();
+    sel.innerHTML = PLANS.map((p) =>
+      `<option value="${p.key}" ${p.key === current ? "selected" : ""}>${p.en} / ${p.ar} — $${fresh[p.key]}</option>`).join("");
+  }));
+
   $("#memberForm", mod.el).addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -546,7 +575,7 @@ function openMemberDetail(id) {
     <div class="grid grid-cols-2 gap-3 text-sm mb-6">
       <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.joinDate}</p><p class="font-headline">${fmt.date(m.joinDate)}</p></div>
       <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.expiresOn}</p><p class="font-headline ${st === "expired" ? "text-error" : ""}">${fmt.date(m.expiresAt)}</p></div>
-      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.plan}</p><p class="font-headline uppercase">${t.plans[m.plan]}</p></div>
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.plan}</p><p class="font-headline uppercase">${t.plans[m.plan] || m.plan}</p></div>
       <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.checkins}</p><p class="font-headline">${m.checkins || 0}</p></div>
     </div>
     <div class="flex gap-3">
@@ -564,8 +593,38 @@ function openMemberDetail(id) {
   mod.el.querySelector("[data-renew]").onclick = () => { mod.close(); openRenewModal(id); };
 }
 
-function openRenewModal(id) {
-  const m = store.get("members", id);
+// ---------- Plan prices editor ----------
+function openPlanPrices(onSaved) {
+  const t = i18n.t;
+  const prices = planPrices();
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">Plan Prices / أسعار الباقات</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">حدّد السعر الافتراضي لكل باقة — يُستخدم تلقائياً عند إضافة عضو</p>
+    <form id="pricesForm" class="flex flex-col gap-3">
+      ${PLANS.map((p) => `
+        <div class="grid grid-cols-[1fr_120px] gap-3 items-end">
+          <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline block mb-1">${p.en} / ${p.ar}</label></div>
+          <div><input name="${p.key}" type="number" min="0" step="0.5" value="${prices[p.key] ?? 0}" class="dp-field" dir="ltr" /></div>
+        </div>`).join("")}
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#pricesForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const next = {};
+    PLANS.forEach((p) => { next[p.key] = Number(fd.get(p.key)) || 0; });
+    savePlanPrices(next);
+    mod.close();
+    showToast("Prices saved / تم حفظ الأسعار");
+    onSaved && onSaved();
+  });
+}
+
+function openRenewModal(id) {  const m = store.get("members", id);
   const t = i18n.t;
   const mod = openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.renew} — ${escapeHtml(m.name)}</h3>
@@ -1132,11 +1191,11 @@ function viewReports() {
   const hotIdx = weekly.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]).slice(0, 2).map(([, i]) => i);
 
   // Plan distribution
-  const PLAN_BI = { standard: ["Monthly", "شهري"], pro: ["3-Month", "٣ أشهر"], elite: ["Annual", "سنوي"], trial: ["Guest", "تجربة"] };
+  const PLAN_BI = { regular: ["Regular", "عادي"], pro: ["Pro", "اخترافي"], half: ["Half", "نص"] };
   const planCounts = {};
   members.forEach((m) => { if (effStatus(m) !== "expired") planCounts[m.plan] = (planCounts[m.plan] || 0) + 1; });
   const totalPlans = Object.values(planCounts).reduce((a, b) => a + b, 0) || 1;
-  const planOrder = ["standard", "pro", "elite", "trial"];
+  const planOrder = ["regular", "pro", "half"];
   const dist = planOrder.filter((p) => planCounts[p]).slice(0, 3)
     .map((p, i) => ({ p, pct: Math.round((planCounts[p] / totalPlans) * 100), cls: ["bg-primary", "bg-accent", "bg-muted"][i], txtCls: ["text-primary", "text-accent", "text-muted"][i] }));
 
@@ -1340,6 +1399,14 @@ function viewProfile() {
           <span class="material-symbols-outlined text-muted">tune</span>
         </div>
         <div class="space-y-6">
+          <div class="flex items-center justify-between group cursor-pointer" id="planPricesRow">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Plan Prices / <span class="font-arabic normal-case">أسعار الباقات</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">Default price per plan</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Edit</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Language / اللغة</p>
@@ -1487,6 +1554,7 @@ function viewProfile() {
   document.querySelectorAll(".lang-btn").forEach((b) =>
     b.addEventListener("click", () => { i18n.setLang(b.dataset.lang); paintLang(); }));
 
+  $("#planPricesRow").onclick = () => openPlanPrices();
   $("#copyKey").onclick = async () => {
     try { await navigator.clipboard.writeText(`DP-${lic.code}`); showToast("Copied / تم النسخ"); }
     catch { showToast("Copy failed / فشل النسخ", "err"); }

@@ -33,13 +33,13 @@ function seedData(col) {
       const now = Date.now();
       const day = 86400000;
       return [
-        { id: "m1", name: "Alex Mercer", phone: "+970599111222", plan: "elite", status: "active",
+        { id: "m1", name: "Alex Mercer", phone: "+970599111222", plan: "pro", status: "active",
           joinDate: now - day * 120, expiresAt: now + day * 45, checkins: 42, paidAmount: 150, locker: "42",
           photo: "assets/img/member-1.jpg", tag: "PT Active" },
-        { id: "m2", name: "Sarah Connor", phone: "+970599333444", plan: "standard", status: "expired",
+        { id: "m2", name: "Sarah Connor", phone: "+970599333444", plan: "regular", status: "expired",
           joinDate: now - day * 200, expiresAt: now - day * 2, checkins: 28, paidAmount: 80, locker: "",
           photo: "assets/img/member-2.jpg", tag: "" },
-        { id: "m3", name: "John Doe", phone: "+970599555666", plan: "trial", status: "trial",
+        { id: "m3", name: "John Doe", phone: "+970599555666", plan: "half", status: "trial",
           joinDate: now - day * 3, expiresAt: now + day * 4, checkins: 4, paidAmount: 0, locker: "",
           photo: "", tag: "GUEST" },
         { id: "m4", name: "Marcus Wright", phone: "+970599777888", plan: "pro", status: "active",
@@ -127,6 +127,28 @@ function seedData(col) {
 
 export function uid(prefix = "id") {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+// ---------- Plans & prices (editable by the admin) ----------
+const PLAN_PRICES_KEY = "dp_plan_prices";
+
+export const PLANS = [
+  { key: "regular", en: "Regular", ar: "عادي", defaultPrice: 25 },
+  { key: "pro", en: "Pro", ar: "اخترافي", defaultPrice: 45 },
+  { key: "half", en: "Half", ar: "نص", defaultPrice: 15 },
+];
+
+export function planPrices() {
+  const defaults = Object.fromEntries(PLANS.map((p) => [p.key, p.defaultPrice]));
+  try {
+    const saved = JSON.parse(localStorage.getItem(PLAN_PRICES_KEY));
+    if (saved && typeof saved === "object") return { ...defaults, ...saved };
+  } catch {}
+  return defaults;
+}
+
+export function savePlanPrices(prices) {
+  localStorage.setItem(PLAN_PRICES_KEY, JSON.stringify(prices));
 }
 
 export const store = {
