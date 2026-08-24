@@ -985,7 +985,7 @@ function viewLedger() {
         <p class="font-headline text-sm text-alert uppercase tracking-wide">⏰ Salaries due this month / رواتب مستحقة</p>
         <p class="text-xs text-muted mt-1 truncate">${due.map((t) => `${t.name} ($${t.salary})`).join(" · ")} — الإجمالي: ${fmt.money(dueTotal)}</p>
       </div>
-      <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">✅ Pay all / دفع الكل</button>
+      <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">🔁 Renew all / تجديد الكل</button>
     </div>` : "";
 
   screen.innerHTML = `
@@ -1075,7 +1075,7 @@ function payTrainer(t, { silent = false } = {}) {
     });
   }
   store.update("trainers", t.id, { lastPaidAt: Date.now() });
-  if (!silent) showToast(`✅ Paid ${t.name} — ${fmt.money(amount)}`);
+  if (!silent) showToast(`🔁 Renewed ${t.name} — ${fmt.money(amount)} deducted to Ledger / تم تجديد الراتب وخصمه بالمالية`);
 }
 
 function openTrainers() {
@@ -1097,7 +1097,9 @@ function openTrainers() {
             <p class="font-headline font-bold uppercase truncate">${escapeHtml(t.name)}</p>
             <p class="text-xs text-muted mt-0.5">${fmt.money(t.salary)} / شهر · ${paid ? "✅ مدفع هالشهر" : "⏰ مستحق"}</p>
           </div>
-          ${paid ? "" : `<button data-pay="${t.id}" class="shrink-0 bg-primary text-black text-[10px] font-headline font-bold uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all">Pay</button>`}
+          ${paid ? "" : `<button data-pay="${t.id}" class="shrink-0 bg-primary text-black text-[10px] font-headline font-bold uppercase tracking-widest px-3 py-2 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]" style="font-variation-settings:'FILL' 1;">autorenew</span> تجديد / Renew
+          </button>`}
           <button data-del="${t.id}" title="Delete" class="text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
         </div>`;
       }).join("") : `<p class="text-center text-muted py-6 text-sm">📭 ما في مدربين بعد</p>`}
