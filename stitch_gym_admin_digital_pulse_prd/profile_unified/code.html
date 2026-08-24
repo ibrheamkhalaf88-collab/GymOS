@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Commander Profile - Digital Pulse</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Manrope:wght@400;500;600;700&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-container": "#d1e5f3",
+                      "on-tertiary-container": "#546773",
+                      "surface-container-lowest": "#0c0f04",
+                      "secondary-container": "#464747",
+                      "surface": "#111508",
+                      "inverse-on-surface": "#2f3223",
+                      "tertiary": "#ffffff",
+                      "background": "#111508",
+                      "tertiary-fixed-dim": "#b5c9d7",
+                      "surface-variant": "#333627",
+                      "on-tertiary-fixed": "#091e28",
+                      "on-secondary-fixed-variant": "#464747",
+                      "on-primary": "#283500",
+                      "on-primary-fixed": "#161e00",
+                      "secondary-fixed": "#e3e2e2",
+                      "surface-bright": "#373b2c",
+                      "on-surface": "#e2e4cf",
+                      "surface-container-high": "#282b1d",
+                      "on-secondary": "#303031",
+                      "error": "#ffb4ab",
+                      "secondary-fixed-dim": "#c7c6c6",
+                      "on-secondary-container": "#b6b5b5",
+                      "surface-tint": "#abd600",
+                      "on-tertiary": "#20333d",
+                      "primary-container": "#c3f400",
+                      "on-error-container": "#ffdad6",
+                      "primary": "#ffffff",
+                      "outline-variant": "#444933",
+                      "primary-fixed-dim": "#abd600",
+                      "surface-container-highest": "#333627",
+                      "secondary": "#c7c6c6",
+                      "primary-fixed": "#c3f400",
+                      "on-background": "#e2e4cf",
+                      "on-surface-variant": "#c4c9ac",
+                      "surface-container": "#1e2113",
+                      "on-tertiary-fixed-variant": "#364954",
+                      "on-primary-container": "#556d00",
+                      "inverse-primary": "#506600",
+                      "tertiary-fixed": "#d1e5f3",
+                      "error-container": "#93000a",
+                      "surface-container-low": "#1a1d10",
+                      "surface-dim": "#111508",
+                      "outline": "#8e9379",
+                      "on-secondary-fixed": "#1b1c1c",
+                      "inverse-surface": "#e2e4cf",
+                      "on-primary-fixed-variant": "#3c4d00",
+                      "on-error": "#690005"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {},
+              "fontFamily": {
+                      "headline": [
+                              "Space Grotesk"
+                      ],
+                      "display": [
+                              "Space Grotesk"
+                      ],
+                      "body": [
+                              "Manrope"
+                      ],
+                      "label": [
+                              "Space Grotesk"
+                      ],
+                      "arabic": [
+                              "Tajawal"
+                      ]
+              },
+              "fontSize": {}
+      },
+          },
+        }
+      </script>
+<style>
+        .neon-shadow {
+            box-shadow: 0 0 12px rgba(204, 255, 0, 0.4);
+        }
+        .neon-border {
+            border: 2px solid #ccff00;
+        }
+        .alert-glow {
+            box-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
+        }
+        .cyber-card {
+            background-color: #171717; /* Slate override for cards */
+            border: 1px solid #333333; /* Dark outline */
+        }
+        .grid-bg {
+            background-image: 
+                linear-gradient(to right, #1e2113 1px, transparent 1px),
+                linear-gradient(to bottom, #1e2113 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .hyper-pink {
+            background-color: #FF3366;
+            color: #ffffff;
+        }
+      </style>
+</head>
+<body class="bg-[#000000] text-on-background font-body min-h-screen pb-[85px] md:pb-0 pt-[64px] grid-bg">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#000000] border-b border-[#333333] flat no shadows flex items-center justify-between px-4 h-[64px] max-w-full">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full overflow-hidden neon-border neon-shadow bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[#ccff00] text-sm">apps_outage</span>
+</div>
+<h1 class="text-headline-sm font-headline font-bold text-white tracking-tighter uppercase">DIGITAL PULSE</h1>
+</div>
+<button class="w-10 h-10 rounded-full flex items-center justify-center text-white hover:bg-surface-bright/20 transition-transform active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto p-4 md:p-8 space-y-6 md:space-y-8 flex md:flex-row flex-col gap-6 pt-6">
+<!-- NavigationDrawer (Web only) -->
+<aside class="hidden md:flex bg-[#111111] h-[calc(100vh-100px)] w-[280px] rounded-[1rem] border border-[#333333] shadow-xl flex-col py-6 sticky top-[80px]">
+<div class="px-6 mb-8 left_align">
+<div class="w-16 h-16 rounded-full overflow-hidden neon-border neon-shadow mb-4">
+<img class="w-full h-full object-cover" data-alt="A gritty, high-contrast portrait of a cyber-athletic commander. Intense lighting, dark background, sharp features, illuminated by subtle neon green accents. Minimalist, professional, authoritative vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfAufRZVMZGEO9Ls__Qj0_0C7NpfR39eRm0hjmOUAn0rIqnHicXQZ3C74rwGct56-mf3OWkispVtOonMipHmBGLWmuMZSQt9hwFC0JJXDt3IvmKLWEqbwPZNB33lpkKWnxITLSEGYPtHWAxwmrO2Gcf-G3Q1s1U4jp64IV9ptbi7ClnioEOl0yUE-52IHbTe9McLyhuqFAV3fIvKKShCduu1RnynTYlziyL_o_Xo3ilSxIy2QAgJyb"/>
+</div>
+<h2 class="text-white font-headline italic text-xl font-bold tracking-tighter uppercase">COMMANDER</h2>
+<p class="text-on-surface-variant font-body text-sm">Shift Alpha</p>
+<div class="mt-2 inline-flex items-center gap-1.5 bg-[#ccff00]/10 px-2 py-1 rounded-sm border border-[#ccff00]/30">
+<span class="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse"></span>
+<span class="text-[#ccff00] text-[10px] font-label tracking-widest uppercase">SYSTEM ACTIVE</span>
+</div>
+</div>
+<nav class="flex-1 px-2 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface dark:text-on-surface hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors duration-150 rounded-[1rem]" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body font-medium uppercase tracking-tight">System Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface dark:text-on-surface hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors duration-150 rounded-[1rem]" href="#">
+<span class="material-symbols-outlined">build</span>
+<span class="font-body font-medium uppercase tracking-tight">Maintenance Log</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface dark:text-on-surface hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors duration-150 rounded-[1rem]" href="#">
+<span class="material-symbols-outlined">lock</span>
+<span class="font-body font-medium uppercase tracking-tight">Staff Access</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface dark:text-on-surface hover:bg-surface-variant dark:hover:bg-surface-variant transition-colors duration-150 rounded-[1rem]" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body font-medium uppercase tracking-tight">Support</span>
+</a>
+</nav>
+</aside>
+<!-- Profile Canvas -->
+<div class="flex-1 space-y-8">
+<!-- Mobile Header Profile -->
+<div class="md:hidden flex flex-col items-center justify-center mb-8 cyber-card p-6 rounded-[1rem]">
+<div class="w-24 h-24 rounded-full overflow-hidden neon-border neon-shadow mb-4 relative group cursor-pointer transition-transform active:scale-95">
+<img class="w-full h-full object-cover" data-alt="A gritty, high-contrast portrait of a cyber-athletic commander. Intense lighting, dark background, sharp features, illuminated by subtle neon green accents. Minimalist, professional, authoritative vibe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBu94K6TQNI9S5C05dPmGzSuDaZhBHGYvDpImoHGoNAiV0LlyIZ5LUQ0cFRq52Wvxbj8nR5h0atk9t5f0aBH3zHBoZCSPbyB3qjYVKkHfU1gGVEh6gMzCykfhRa1o0_K55DzNrH4hLV3r-NmRLtU2yfvVcSVRX7s_aLuR3USISjhuAXd0FOqhoTHg2sX4z4KOlwS1LsSEJJML8BywcGHGNVOyyTn8eBPlavt1z2uYm6UWAELUTBsiYw"/>
+<div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[#ccff00]">edit</span>
+</div>
+</div>
+<h2 class="text-white font-headline text-2xl font-bold tracking-tighter uppercase">COMMANDER</h2>
+<div class="flex flex-col items-center mt-1">
+<span class="text-on-surface-variant font-body text-sm">Shift Alpha</span>
+<span class="font-arabic text-on-surface-variant/70 text-xs mt-0.5">القائد - المناوبة ألفا</span>
+</div>
+<div class="mt-4 inline-flex items-center gap-1.5 bg-[#ccff00]/10 px-3 py-1.5 rounded-sm border border-[#ccff00]/30">
+<span class="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse"></span>
+<span class="text-[#ccff00] text-[10px] font-label tracking-widest uppercase">SYSTEM ACTIVE</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Account Security -->
+<section class="cyber-card p-6 flex flex-col justify-between h-full hover:bg-[#1a1a1a] transition-colors duration-300 rounded-[1rem]">
+<div>
+<div class="flex items-center justify-between mb-6 border-b border-[#333333] pb-4">
+<div>
+<h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">Account Security</h3>
+<p class="font-arabic text-on-surface-variant/70 text-sm">أمان الحساب</p>
+</div>
+<span class="material-symbols-outlined text-secondary">security</span>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between group cursor-pointer">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Password</p>
+<p class="text-secondary text-xs mt-1 font-headline">Last changed 30 days ago</p>
+</div>
+<button class="text-[#ccff00] text-sm font-label uppercase tracking-widest group-hover:underline">Edit</button>
+</div>
+<div class="h-px bg-[#333333] w-full"></div>
+<div class="flex items-center justify-between group cursor-pointer">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">2FA Status</p>
+<p class="text-[#ccff00] text-xs mt-1 flex items-center gap-1 font-headline">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Active
+                                    </p>
+</div>
+<button class="text-[#ccff00] text-sm font-label uppercase tracking-widest group-hover:underline">Manage</button>
+</div>
+<div class="h-px bg-[#333333] w-full"></div>
+<div class="flex items-center justify-between group cursor-pointer">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Active Sessions</p>
+<p class="text-secondary text-xs mt-1 font-headline">2 devices connected</p>
+</div>
+<button class="text-[#ccff00] text-sm font-label uppercase tracking-widest group-hover:underline">Review</button>
+</div>
+</div>
+</div>
+</section>
+<!-- App Preferences -->
+<section class="cyber-card p-6 flex flex-col justify-between h-full hover:bg-[#1a1a1a] transition-colors duration-300 rounded-[1rem]">
+<div>
+<div class="flex items-center justify-between mb-6 border-b border-[#333333] pb-4">
+<div>
+<h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">App Preferences</h3>
+<p class="font-arabic text-on-surface-variant/70 text-sm">تفضيلات التطبيق</p>
+</div>
+<span class="material-symbols-outlined text-secondary">tune</span>
+</div>
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Language / اللغة</p>
+<p class="text-secondary text-xs mt-1 font-headline">English (Default)</p>
+</div>
+<div class="bg-surface-variant rounded-full p-1 flex">
+<button class="px-4 py-1.5 rounded-full bg-[#ccff00] text-black font-label text-[10px] tracking-widest uppercase transition-colors">ENG</button>
+<button class="px-4 py-1.5 rounded-full text-on-surface font-arabic text-sm hover:text-white transition-colors">عربي</button>
+</div>
+</div>
+<div class="h-px bg-[#333333] w-full"></div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Theme Mode</p>
+<p class="text-secondary text-xs mt-1 font-headline">Dark Mode (Forced)</p>
+</div>
+<label class="relative inline-flex items-center cursor-not-allowed">
+<input checked="" class="sr-only peer" disabled="" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ccff00] opacity-70"></div>
+</label>
+</div>
+<div class="h-px bg-[#333333] w-full"></div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Haptic Feedback</p>
+<p class="text-secondary text-xs mt-1 font-headline">Tactile responses</p>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ccff00]"></div>
+</label>
+</div>
+</div>
+</div>
+</section>
+<!-- System Info & Logout -->
+<section class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+<section class="cyber-card p-6 flex flex-col justify-between h-full hover:bg-[#1a1a1a] transition-colors duration-300 rounded-[1rem]">
+<div>
+<div class="flex items-center justify-between mb-6 border-b border-[#333333] pb-4">
+<div>
+<h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">System License</h3>
+<p class="font-arabic text-on-surface-variant/70 text-sm">ترخيص النظام</p>
+</div>
+<span class="material-symbols-outlined text-secondary">verified_user</span>
+</div>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">License Key</p>
+<p class="font-arabic text-on-surface-variant/70 text-[10px] mt-0.5">مفتاح الترخيص</p>
+<p class="text-secondary font-headline text-xs mt-1">DP-XXXX-8802</p>
+</div>
+<button class="text-[#ccff00] text-sm font-label uppercase tracking-widest hover:underline">Copy</button>
+</div>
+<div class="h-px bg-[#333333] w-full"></div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
+<p class="font-arabic text-on-surface-variant/70 text-[10px] mt-0.5">المدة المتبقية</p>
+<p class="text-[#ccff00] text-xs mt-1 font-bold tracking-wider uppercase font-headline">314 Days / يومًا</p>
+</div>
+<div class="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse"></div>
+</div>
+</div>
+</div>
+</section><div class="cyber-card p-6 flex flex-col justify-between rounded-[1rem]"><div class="mb-4 pb-4 border-b border-[#333333]"><div class="flex items-center justify-between mb-2"><div><h3 class="font-headline text-sm font-bold uppercase tracking-tight text-[#ccff00]">Team Identity</h3><p class="font-arabic text-on-surface-variant/70 text-[10px]">هوية الفريق</p></div><span class="material-symbols-outlined text-[#ccff00] text-sm">hub</span></div><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-surface-variant border border-[#ccff00]/30 flex items-center justify-center neon-shadow"><span class="material-symbols-outlined text-[#ccff00] text-xs">terminal</span></div><div><p class="font-headline text-lg font-bold tracking-tighter text-on-surface uppercase">hitik</p><p class="text-secondary text-[10px] font-body tracking-wider">Built by hitik / <span class="font-arabic">صُنع بواسطة hitik</span></p></div></div></div><div class="mb-4 pb-4 border-b border-[#333333]"><div class="flex items-center justify-between mb-2"><div><h3 class="font-headline text-sm font-bold uppercase tracking-tight text-[#ccff00]">Team Contact</h3><p class="font-arabic text-on-surface-variant/70 text-[10px]">جهة اتصال الفريق</p></div><span class="material-symbols-outlined text-[#ccff00] text-sm">contact_support</span></div><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full bg-surface-variant border border-[#ccff00]/30 flex items-center justify-center neon-shadow"><span class="material-symbols-outlined text-[#ccff00] text-xs">call</span></div><div><p class="font-headline text-lg font-bold tracking-tighter text-on-surface">+972568802803</p><p class="text-secondary text-[10px] font-body tracking-wider uppercase">WhatsApp / Signal</p></div></div></div><div class="flex items-center justify-between mb-4 border-b border-[#333333] pb-2"><div><h3 class="font-headline text-sm font-bold uppercase tracking-tight text-secondary">System Build</h3></div><span class="material-symbols-outlined text-secondary text-sm">memory</span></div><div class="flex items-end justify-between"><div><p class="font-headline text-2xl font-bold tracking-tighter text-on-surface">v4.2.0-rc1</p><p class="text-secondary text-xs font-headline mt-1">Build: 98f2a1b</p></div><span class="text-[10px] font-label text-[#b5c9d7] uppercase tracking-widest">Up to date</span></div></div>
+<div class="flex flex-col gap-4 mt-4">
+<button class="w-full border border-[#ccff00] text-[#ccff00] font-headline uppercase font-bold tracking-widest text-lg py-4 rounded-[1rem] flex flex-col items-center justify-center hover:bg-[#ccff00]/10 transition-all active:scale-95">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">download</span>
+<span class="">EXPORT DATA</span>
+</div>
+<span class="font-arabic text-xs mt-1 opacity-70">تصدير البيانات</span>
+</button>
+<button class="w-full hyper-pink font-headline uppercase font-bold tracking-widest text-lg py-4 rounded-[1rem] flex flex-col items-center justify-center hover:bg-[#e62e5c] transition-all active:scale-95 alert-glow border border-[#FF3366]">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">logout</span>
+<span class="">LOGOUT</span>
+</div>
+<span class="font-arabic text-xs mt-1 opacity-90">تسجيل الخروج</span>
+</button>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only) -->
+<nav class="md:hidden fixed bottom-0 w-full z-50 h-[85px] bg-[#111111] border-t border-[#333333] flat no shadows flex justify-around items-center px-2 pb-safe"><a class="flex flex-col items-center justify-center text-on-surface-variant/70 hover:text-[#ccff00] transition-all duration-200 active:scale-90 w-full h-full" href="#"><span class="material-symbols-outlined mb-1">dashboard</span><span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span></a><a class="flex flex-col items-center justify-center text-on-surface-variant/70 hover:text-[#ccff00] transition-all duration-200 active:scale-90 w-full h-full" href="#"><span class="material-symbols-outlined mb-1">group</span><span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span></a><a class="flex flex-col items-center justify-center text-on-surface-variant/70 hover:text-[#ccff00] transition-all duration-200 active:scale-90 w-full h-full" href="#"><span class="material-symbols-outlined mb-1">memory</span><span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span></a><a class="flex flex-col items-center justify-center text-on-surface-variant/70 hover:text-[#ccff00] transition-all duration-200 active:scale-90 w-full h-full" href="#"><span class="material-symbols-outlined mb-1">payments</span><span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span></a><a class="flex flex-col items-center justify-center text-[#ccff00] drop-shadow-[0_0_8px_rgba(204,255,0,0.4)] transition-all duration-200 active:scale-90 w-full h-full" href="#"><span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">account_circle</span><span class="font-label uppercase tracking-widest text-[10px]">PROFILE</span></a></nav>
+</body></html>

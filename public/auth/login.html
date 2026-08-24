@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Login — Digital Pulse Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/css/main.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="brand-dot"></span>
+        <div class="brand-text">
+          <h1>DIGITAL PULSE</h1>
+          <p>Membership Manager</p>
+        </div>
+      </div>
+
+      <h2 class="auth-title" data-i18n="welcomeBack">Welcome back</h2>
+      <p class="auth-sub" data-i18n="loginSub">Sign in to your account to continue</p>
+
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" data-i18n="email">Email</label>
+          <input type="email" class="form-input" id="login-email" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="password">Password</label>
+          <div class="password-wrap">
+            <input type="password" class="form-input" id="login-password" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="toggle-pw" aria-label="Toggle password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;" data-i18n="login">Login</button>
+      </form>
+
+      <p class="auth-footer">
+        <span data-i18n="noAccount">Don't have an account?</span>
+        <a href="/auth/signup.html" data-i18n="signup">Create one</a>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth } from '/src/js/auth.js';
+    import { i18n } from '/src/js/i18n.js';
+    import { showToast } from '/src/js/ui.js';
+    i18n.apply();
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const result = await auth.login(email, password);
+      if (result.success) {
+        showToast(i18n.t.loginSuccess, 'success');
+        setTimeout(() => window.location.href = '/public/app.html', 500);
+      } else {
+        showToast(result.error || i18n.t.error, 'error');
+      }
+    });
+  </script>
+</body>
+</html>

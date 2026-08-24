@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Pulse - Monthly Reports</title>
+<!-- Google Fonts: Space Grotesk, Manrope, Tajawal (for Arabic) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700;800&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "accent": "#FF3366",
+                      "on-surface": "#e2e4cf",
+                      "surface-container-lowest": "#0c0f04",
+                      "on-secondary": "#303031",
+                      "inverse-surface": "#e2e4cf",
+                      "on-primary-container": "#556d00",
+                      "surface-bright": "#373b2c",
+                      "on-secondary-container": "#b6b5b5",
+                      "surface-tint": "#abd600",
+                      "on-primary-fixed": "#161e00",
+                      "on-tertiary-fixed-variant": "#364954",
+                      "secondary": "#c7c6c6",
+                      "on-background": "#e2e4cf",
+                      "error": "#ffb4ab",
+                      "secondary-container": "#464747",
+                      "on-tertiary-fixed": "#091e28",
+                      "surface-dim": "#111508",
+                      "surface-container-highest": "#333627",
+                      "primary-fixed": "#c3f400",
+                      "outline-variant": "#444933",
+                      "on-primary-fixed-variant": "#3c4d00",
+                      "outline": "#8e9379",
+                      "on-surface-variant": "#c4c9ac",
+                      "surface-variant": "#333627",
+                      "on-error": "#690005",
+                      "surface-container": "#1e2113",
+                      "secondary-fixed-dim": "#c7c6c6",
+                      "on-secondary-fixed": "#1b1c1c",
+                      "tertiary-fixed": "#d1e5f3",
+                      "tertiary-container": "#d1e5f3",
+                      "surface": "#111508",
+                      "primary-fixed-dim": "#abd600",
+                      "on-tertiary": "#20333d",
+                      "secondary-fixed": "#e3e2e2",
+                      "on-primary": "#283500",
+                      "error-container": "#93000a",
+                      "on-secondary-fixed-variant": "#464747",
+                      "primary-container": "#c3f400",
+                      "primary": "#ffffff",
+                      "on-error-container": "#ffdad6",
+                      "inverse-on-surface": "#2f3223",
+                      "tertiary": "#ffffff",
+                      "inverse-primary": "#506600",
+                      "tertiary-fixed-dim": "#b5c9d7",
+                      "surface-container-low": "#1a1d10",
+                      "on-tertiary-container": "#546773",
+                      "surface-container-high": "#282b1d",
+                      "background": "#000000"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk", "sans-serif"],
+                      "display": ["Space Grotesk", "sans-serif"],
+                      "body": ["Manrope", "sans-serif"],
+                      "label": ["Space Grotesk", "sans-serif"],
+                      "arabic": ["Tajawal", "sans-serif"]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        /* Custom Styles & Utilities */
+        .neon-text { text-shadow: 0 0 10px rgba(195, 244, 0, 0.4); }
+        .neon-shadow { box-shadow: 0 0 15px rgba(195, 244, 0, 0.15); }
+        .neon-text-pink { text-shadow: 0 0 10px rgba(255, 51, 102, 0.4); }
+        .neon-shadow-pink { box-shadow: 0 0 15px rgba(255, 51, 102, 0.15); }
+        .cyber-border { border: 1px solid theme('colors.outline-variant'); }
+        
+        /* Chart specific */
+        .bar-chart-fill {
+            background: linear-gradient(to top, rgba(195, 244, 0, 0.1) 0%, rgba(195, 244, 0, 0.8) 100%);
+        }
+        .bar-chart-fill-pink {
+            background: linear-gradient(to top, rgba(255, 51, 102, 0.1) 0%, rgba(255, 51, 102, 0.8) 100%);
+        }
+        
+        /* Hide scrollbar for neatness */
+        ::-webkit-scrollbar { display: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body min-h-screen pb-[100px] antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- TopAppBar -->
+<header class="sticky top-0 w-full flex justify-between items-center h-16 px-4 z-50 bg-background border-b border-outline-variant">
+<button class="text-primary-fixed dark:text-primary-fixed-dim active:scale-95 transition-transform hover:bg-surface-container-high dark:hover:bg-surface-container-highest p-2 rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<div class="text-center">
+<h1 class="text-headline-sm font-headline font-black tracking-tighter text-primary-fixed dark:text-primary-fixed-dim uppercase">DIGITAL PULSE</h1>
+</div>
+<button class="text-primary-fixed dark:text-primary-fixed-dim active:scale-95 transition-transform hover:bg-surface-container-high dark:hover:bg-surface-container-highest p-2 rounded-full relative">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full animate-pulse"></span>
+</button>
+</header>
+<main class="p-4 max-w-lg mx-auto space-y-6">
+<!-- Page Header -->
+<div class="space-y-1">
+<h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">Monthly Reports</h2>
+<p class="font-arabic text-sm text-on-surface-variant/70">التقارير الشهرية</p>
+</div>
+<!-- Date Selector -->
+<div class="bg-surface-container cyber-border rounded-[2rem] p-3 flex justify-between items-center relative overflow-hidden">
+<!-- Subtle background accent -->
+<div class="absolute inset-0 bg-gradient-to-r from-primary-fixed/5 to-transparent pointer-events-none"></div>
+<button class="p-2 text-on-surface-variant hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<div class="text-center">
+<div class="font-headline font-bold text-primary-fixed tracking-widest neon-text">OCTOBER 2026</div>
+<div class="font-arabic text-xs text-on-surface-variant/80 mt-0.5">أكتوبر ٢٠٢٦</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-primary-fixed transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+<!-- Key Metrics Grid -->
+<div class="grid grid-cols-2 gap-4">
+<!-- Total Revenue (Full Width) -->
+<div class="col-span-2 bg-surface cyber-border rounded-[2rem] p-5 relative overflow-hidden active:scale-[0.98] transition-transform">
+<div class="absolute bottom-[-10px] right-[-10px] opacity-10 text-primary-fixed">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+</div>
+<div class="flex justify-between items-start mb-2">
+<div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Total Revenue</p>
+<p class="font-arabic text-[10px] text-on-surface-variant/70 leading-none">إجمالي الإيرادات</p>
+</div>
+<span class="material-symbols-outlined text-accent">trending_up</span>
+</div>
+<div class="mt-4 flex items-baseline gap-2">
+<span class="font-display text-4xl font-bold text-on-surface tabular-nums">142,500</span>
+<span class="font-headline text-sm text-primary-fixed font-bold">ILS</span>
+</div>
+<div class="mt-2 flex items-center gap-1 text-xs text-accent">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+<span class="">12.4% vs last month</span>
+</div>
+</div>
+<!-- Net Growth -->
+<div class="bg-surface cyber-border rounded-[2rem] p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
+<div class="mb-2">
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Net Growth</p>
+<p class="font-arabic text-[10px] text-on-surface-variant/70 leading-none">صافي النمو</p>
+</div>
+<div class="mt-4">
+<span class="font-display text-3xl font-bold text-accent tabular-nums neon-text-pink">+84</span>
+</div>
+<div class="mt-1 text-xs text-on-surface-variant font-headline">New Members</div>
+</div>
+<!-- Retention Rate -->
+<div class="bg-surface cyber-border rounded-[2rem] p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
+<div class="mb-2">
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Retention</p>
+<p class="font-arabic text-[10px] text-on-surface-variant/70 leading-none">معدل الاحتفاظ</p>
+</div>
+<div class="mt-4">
+<span class="font-display text-3xl font-bold text-on-surface tabular-nums">92<span class="text-lg">%</span></span>
+</div>
+<!-- Mini progress bar -->
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-tertiary-fixed h-full rounded-full w-[92%]"></div>
+</div>
+</div>
+</div>
+<!-- Financial Chart (Visual Placeholder) -->
+<div class="bg-surface cyber-border rounded-[2rem] p-5">
+<div class="flex justify-between items-center mb-6">
+<div>
+<p class="font-label text-xs uppercase tracking-widest text-on-surface">Revenue Trend</p>
+<p class="font-arabic text-[10px] text-on-surface-variant/70">اتجاه الإيرادات</p>
+</div>
+<select class="bg-surface-container border-none text-xs text-on-surface-variant rounded-md py-1 pl-2 pr-6 focus:ring-1 focus:ring-primary-fixed">
+<option>Daily</option>
+<option>Weekly</option>
+</select>
+</div>
+<!-- Simulated Bar Chart -->
+<div class="h-32 flex items-end justify-between gap-1 w-full mt-4">
+<div class="w-full bar-chart-fill rounded-t-sm h-[40%] transition-all duration-500" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill rounded-t-sm h-[60%] transition-all duration-500" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill rounded-t-sm h-[35%] transition-all duration-500" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill-pink rounded-t-sm h-[80%] transition-all duration-500 neon-shadow-pink" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill rounded-t-sm h-[50%] transition-all duration-500" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill-pink rounded-t-sm h-[90%] transition-all duration-500" style="height: 0%;"></div>
+<div class="w-full bar-chart-fill rounded-t-sm h-[45%] transition-all duration-500" style="height: 0%;"></div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] text-on-surface-variant font-headline">
+<span class="">W1</span><span class="">W2</span><span class="">W3</span><span class="">W4</span>
+</div>
+</div>
+<!-- Subscriber Breakdown -->
+<div class="bg-surface cyber-border rounded-[2rem] p-5">
+<div class="mb-4">
+<p class="font-label text-xs uppercase tracking-widest text-on-surface">Plan Distribution</p>
+<p class="font-arabic text-[10px] text-on-surface-variant/70">توزيع الخطط</p>
+</div>
+<div class="space-y-4">
+<!-- Item 1 -->
+<div>
+<div class="flex justify-between text-sm mb-1">
+<span class="font-headline font-bold text-on-surface">Monthly / شهري</span>
+<span class="text-primary-fixed font-headline font-bold tabular-nums">45%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-primary-fixed h-full rounded-full w-[45%]"></div>
+</div>
+</div>
+<!-- Item 2 -->
+<div>
+<div class="flex justify-between text-sm mb-1">
+<span class="font-headline font-bold text-on-surface">3-Month / ٣ أشهر</span>
+<span class="text-accent font-headline font-bold tabular-nums">35%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-accent h-full rounded-full w-[35%]"></div>
+</div>
+</div>
+<!-- Item 3 -->
+<div>
+<div class="flex justify-between text-sm mb-1">
+<span class="font-headline font-bold text-on-surface">Annual / سنوي</span>
+<span class="text-on-surface-variant font-headline font-bold tabular-nums">20%</span>
+</div>
+<div class="w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
+<div class="bg-on-surface-variant h-full rounded-full w-[20%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Export Action -->
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-headline font-bold py-4 rounded-[2rem] flex items-center justify-center gap-2 uppercase tracking-wide hover:bg-primary-fixed-dim transition-colors active:scale-[0.98] neon-shadow mt-4">
+<span class="material-symbols-outlined">download</span>
+<div class="flex flex-col items-start leading-none text-left">
+<span class="">Export PDF</span>
+<span class="font-arabic text-[10px] mt-0.5 opacity-80">تصدير PDF</span>
+</div>
+</button>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container border-t border-outline-variant shadow-[0_-4px_12px_rgba(204,255,0,0.1)] h-[85px] rounded-t-[2rem]">
+<!-- DASHBOARD -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 hover:text-primary-fixed transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+</a>
+<!-- ROSTER -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 hover:text-primary-fixed transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1">group</span>
+<span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+</a>
+<!-- HARDWARE -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 hover:text-primary-fixed transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1">settings_input_component</span>
+<span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+</a>
+<!-- LEDGER (Active) -->
+<a class="flex flex-col items-center justify-center text-primary-fixed bg-surface-container-highest rounded-xl px-3 py-1 w-16 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+<span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span>
+</a>
+<!-- PROFILE -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant w-16 hover:text-primary-fixed transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1">person</span>
+<span class="font-label uppercase tracking-widest text-[10px]">PROFILE</span>
+</a>
+</nav>
+<!-- Micro-interaction script -->
+<script>
+        // Simple animation to simulate loading data
+        document.addEventListener("DOMContentLoaded", () => {
+            const bars = document.querySelectorAll('.bar-chart-fill, .bar-chart-fill-pink');
+            bars.forEach((bar, index) => {
+                const originalHeight = bar.style.height || bar.className.match(/h-\[\d+%\]/)[0].replace('h-[', '').replace('%]', '');
+                bar.style.height = '0%';
+                setTimeout(() => {
+                    bar.style.height = originalHeight + '%';
+                }, 100 + (index * 100));
+            });
+        });
+    </script>
+</body></html>

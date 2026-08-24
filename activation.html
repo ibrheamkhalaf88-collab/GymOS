@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IB2040 — تفعيل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="center-screen">
+  <div class="card">
+    <div class="card-logo">IB<i>2040</i></div>
+    <h2>إدخال كود التفعيل</h2>
+    <p class="muted">أدخل كود التفعيل الذي حصلت عليه لتتمكن من الدخول إلى التطبيق.</p>
+    <form id="activationForm">
+      <input type="text" id="actCode" class="field" placeholder="مثال: IB-XXXXXX" autocomplete="off" required>
+      <button type="submit" class="btn-primary full">تفعيل والدخول</button>
+      <p class="msg" id="actMsg"></p>
+    </form>
+  </div>
+</div>
+<script src="js/activation.js"></script>
+</body>
+</html>

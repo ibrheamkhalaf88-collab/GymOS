@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+
+<html class="dark" dir="ltr" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gym Admin: Digital Pulse - Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Manrope:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">tailwind.config = {darkMode: "class", theme: {extend: {colors: {primary: "#ccff00", "background-light": "#f8f8f5", "background-dark": "#000000", surface: "#111508", "surface-hover": "#262626", "text-main": "#F5F5F5", muted: "#737373", alert: "#FF3366", "on-secondary-fixed": "#1b1c1c", "on-tertiary-container": "#546773", background: "#000000", "primary-container": "#c3f400", "on-primary-fixed-variant": "#3c4d00", "inverse-primary": "#506600", "surface-container-low": "#1a1d10", "surface-dim": "#111508", error: "#ffb4ab", "inverse-surface": "#e2e4cf", "error-container": "#93000a", "on-primary": "#283500", "tertiary-fixed": "#d1e5f3", "inverse-on-surface": "#2f3223", "surface-container-highest": "#333627", "secondary-container": "#464747", "surface-tint": "#abd600", "surface-container": "#1e2113", "on-tertiary-fixed-variant": "#364954", secondary: "#c7c6c6", "primary-fixed-dim": "#abd600", "surface-variant": "#333627", "tertiary-fixed-dim": "#b5c9d7", "on-tertiary-fixed": "#091e28", "on-surface-variant": "#c4c9ac", "on-tertiary": "#20333d", "surface-container-high": "#282b1d", "on-primary-fixed": "#161e00", "primary-fixed": "#c3f400", "tertiary-container": "#d1e5f3", "secondary-fixed-dim": "#c7c6c6", "on-primary-container": "#556d00", "on-secondary": "#303031", "on-error": "#690005", "on-secondary-fixed-variant": "#464747", "on-secondary-container": "#b6b5b5", "surface-container-lowest": "#0c0f04", "surface-bright": "#373b2c", "on-surface": "#e2e4cf", "outline-variant": "#444933", "secondary-fixed": "#e3e2e2", "on-error-container": "#ffdad6", tertiary: "#ffffff", "on-background": "#e2e4cf", outline: "#8e9379"}, fontFamily: {display: ["Space Grotesk"], body: ["Manrope"], headline: ["Space Grotesk"], label: ["Space Grotesk"]}, boxShadow: {neon: "0 0 12px rgba(204, 255, 0, 0.4)", "neon-alert": "0 0 12px rgba(255, 51, 102, 0.4)"}, fontSize: {}, borderRadius: {DEFAULT: "1rem", lg: "2rem", xl: "3rem", full: "9999px"}}}};</script>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+        body {
+            background-color: theme('colors.background-dark');
+            color: theme('colors.text-main');
+            font-family: theme('fontFamily.body');
+            min-height: max(884px, 100dvh);
+        }
+        
+        .stat-card {
+            transition: transform 0.1s ease-in-out;
+            border-radius: 2rem;
+        }
+        
+        .stat-card:active {
+            transform: scale(0.95);
+        }
+
+        .border-grid {
+            border-color: #333333;
+        }
+        
+        .animate-pulse-fast {
+            animation: pulse-fast 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse-fast {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-text-main antialiased overflow-x-hidden min-h-screen flex flex-col">
+<!-- Sticky Top Nav -->
+<header class="sticky top-0 z-50 bg-background-dark border-b border-grid h-16 flex items-center justify-between px-4">
+<div class="flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-primary shadow-neon animate-pulse-fast"></div>
+<h1 class="font-display font-bold text-xl tracking-[-0.05em] uppercase text-text-main leading-tight flex flex-col">
+<span class=""><br/></span>
+<span class="text-xs opacity-70">GYM</span>
+</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-muted text-xl cursor-pointer hover:text-white transition-colors">notifications</span><div class="absolute top-4 right-12 w-2 h-2 bg-alert rounded-full border border-background-dark shadow-neon-alert"></div>
+<div class="w-8 h-8 rounded-full bg-surface-hover border border-grid flex items-center justify-center font-display text-sm font-bold">
+                JM
+            </div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col p-4 pb-24 gap-4 overflow-y-auto no-scrollbar">
+<!-- Metrics Grid -->
+<div class="grid grid-cols-2 gap-4">
+<!-- Active Members -->
+<div class="stat-card cursor-pointer bg-surface border border-grid p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover">
+<p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+<span class="">Active Members</span>
+<span class="">الأعضاء النشطين</span>
+</p>
+<div class="flex items-end justify-between">
+<p class="font-display font-bold text-5xl tabular-nums text-white mt-2">1,204</p>
+<span class="material-symbols-outlined text-white opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">group</span>
+</div>
+</div>
+<!-- Ended Today -->
+<div class="stat-card cursor-pointer bg-surface border border-grid p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover">
+<div class="flex items-start justify-between">
+<p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+<span class="">Ended Today</span>
+<span class="">انتهت اليوم</span>
+</p>
+<div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>
+</div>
+<div class="flex items-end justify-between">
+<p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">14</p>
+<span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">event_busy</span>
+</div>
+</div>
+<!-- Total Expired -->
+<div class="stat-card cursor-pointer bg-surface border border-grid p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover">
+<p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+<span class=""><br/></span>
+<span class="">اجمالي الارباح </span>
+</p>
+<p class="font-display font-bold text-3xl tabular-nums text-muted mt-1">342</p>
+</div>
+<!-- Maintenance Alert -->
+<div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
+<p class="font-body font-semibold text-xs text-black uppercase tracking-[1px] flex items-start gap-1 leading-tight">
+<span class="material-symbols-outlined text-[14px] mt-0.5">build</span>
+<span class="flex flex-col gap-0.5">
+<span class="">Maint. Alert</span>
+<span class="">تنبيه صيانة</span>
+</span>
+</p>
+<p class="font-display font-bold text-3xl tabular-nums text-black mt-1">1</p>
+</div>
+<div class="stat-card cursor-pointer bg-surface border border-grid p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover relative overflow-hidden group col-span-2">
+<div class="flex flex-col gap-0.5">
+<p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col">
+<span class="">License Status</span>
+<span class="text-[10px] opacity-70">حالة الترخيص</span>
+</p>
+</div>
+<div class="flex flex-col">
+<p class="font-mono text-white text-sm tracking-wider">CODE: 882-XPQ</p>
+<p class="font-display font-bold text-xs text-white mt-1 uppercase">
+<span class="">142 Days Left</span>
+<span class="ml-1 opacity-70">يوم متبقي</span>
+</p>
+</div>
+<span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
+</div></div>
+<!-- Growth Chart Section -->
+<div class="mt-4 flex-1 flex flex-col">
+<div class="flex items-start justify-between mb-2">
+<h2 class="font-display font-bold text-lg tracking-[-0.05em] uppercase leading-tight flex flex-col">
+<span class="">Check-ins (7D)</span>
+<span class="text-sm opacity-70">تسجيلات الدخول (٧ أيام)</span>
+</h2>
+<div class="flex gap-2">
+<button class="rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 bg-surface-hover border border-grid text-white flex flex-col items-center">
+<span class="">7D</span>
+<span class="">٧أ</span>
+</button>
+<button class="rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 border border-grid text-muted flex flex-col items-center">
+<span class="">30D</span>
+<span class="">٣٠أ</span>
+</button>
+</div>
+</div>
+<div class="rounded-[2rem] overflow-hidden bg-surface border border-grid p-4 flex-1 min-h-[220px] relative">
+<!-- Abstract visual representation of a chart since we can't guarantee chart.js renders perfectly without JS context in some previewers, but we include it anyway -->
+<canvas class="w-full h-full absolute inset-0 p-4" height="154" id="growthChart" style="display: block; box-sizing: border-box; height: 185.6px; width: 323.6px;" width="269"></canvas>
+<!-- Fallback/Overlay for visual flair -->
+<div class="absolute inset-x-4 bottom-4 top-4 pointer-events-none flex items-end">
+<div class="w-full h-full bg-gradient-to-t from-[rgba(204,255,0,0.1)] to-transparent border-b border-primary relative">
+<!-- Grid lines -->
+<div class="absolute inset-0 flex flex-col justify-between opacity-10">
+<div class="border-t border-white w-full"></div>
+<div class="border-t border-white w-full"></div>
+<div class="border-t border-white w-full"></div>
+<div class="border-t border-white w-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Alerts Feed -->
+<div class="mt-4 flex flex-col gap-2">
+<h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-1 flex gap-1 items-center">
+<span class="">System Feed</span>
+<span class="">/</span>
+<span class="">سجل النظام</span>
+</h2>
+<div class="rounded-[2rem] bg-surface border-l-2 border-l-alert p-3 flex justify-between items-center text-sm">
+<div class="flex flex-col gap-1">
+<div class="flex flex-col leading-tight">
+<span class="font-display font-bold text-text-main">Treadmill 04 Offline</span>
+<span class="font-display font-bold text-text-main text-xs opacity-80">جهاز المشي ٠٤ متوقف</span>
+</div>
+<div class="flex flex-col leading-tight mt-1">
+<span class="text-muted text-xs font-display">Belt slippage reported</span>
+<span class="text-muted text-[10px] font-display">تم الإبلاغ عن انزلاق الحزام</span>
+</div>
+</div>
+<span class="text-muted text-xs font-mono">10:42 AM</span>
+</div>
+<div class="rounded-[2rem] bg-surface border-l-2 border-l-primary p-3 flex justify-between items-center text-sm">
+<div class="flex flex-col gap-1">
+<div class="flex flex-col leading-tight">
+<span class="font-display font-bold text-text-main">Capacity Alert</span>
+<span class="font-display font-bold text-text-main text-xs opacity-80">تنبيه السعة</span>
+</div>
+<div class="flex flex-col leading-tight mt-1">
+<span class="text-muted text-xs font-display">Floor utilization at 85%</span>
+<span class="text-muted text-[10px] font-display">استخدام الصالة بنسبة ٨٥٪</span>
+</div>
+</div>
+<span class="text-muted text-xs font-mono">09:15 AM</span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Shared Component) -->
+<div class="fixed bottom-0 w-full z-50">
+<div class="flex gap-2 border-t border-[#333333] bg-[#000000] px-4 pb-6 pt-3 h-[85px] rounded-t-3xl"><a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#"><div class="flex h-6 items-center justify-center"><span class="material-symbols-outlined text-[24px]" style='font-variation-settings: "FILL" 1;'>bar_chart</span></div><p class="font-display font-bold uppercase text-[10px] tracking-[1px] flex flex-col items-center leading-tight"><span class="">Dash</span><span class="">لوحة</span></p></a><a class="flex flex-1 flex-col items-center justify-center gap-1 text-muted hover:text-white transition-colors" href="#"><div class="flex h-6 items-center justify-center"><span class="material-symbols-outlined text-[24px]">group</span></div><p class="font-display font-bold uppercase text-[10px] tracking-[1px] flex flex-col items-center leading-tight"><span class="">Roster</span><span class="">أعضاء</span></p></a><a class="flex flex-1 flex-col items-center justify-center gap-1 text-muted hover:text-white transition-colors" href="#"><div class="flex h-6 items-center justify-center"><span class="material-symbols-outlined text-[24px]">build</span></div><p class="font-display font-bold uppercase text-[10px] tracking-[1px] flex flex-col items-center leading-tight"><span class="">Hardware</span><span class="">معدات</span></p></a><a class="flex flex-1 flex-col items-center justify-center gap-1 text-muted hover:text-white transition-colors" href="#"><div class="flex h-6 items-center justify-center"><span class="material-symbols-outlined text-[24px]">attach_money</span></div><p class="font-display font-bold uppercase text-[10px] tracking-[1px] flex flex-col items-center leading-tight"><span class="">Ledger</span><span class="">مالية</span></p></a><a class="flex flex-1 flex-col items-center justify-center gap-1 text-muted hover:text-white transition-colors" href="#"><div class="flex h-6 items-center justify-center"><span class="material-symbols-outlined text-[24px]">person</span></div><p class="font-display font-bold uppercase text-[10px] tracking-[1px] flex flex-col items-center leading-tight"><span class="">Profile</span><span class="">الملف</span></p></a></div>
+</div>
+<script>
+        // Chart.js implementation for the sparkline
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            
+            // Create gradient
+            let gradient = ctx.createLinearGradient(0, 0, 0, 200);
+            gradient.addColorStop(0, 'rgba(204, 255, 0, 0.4)'); // Primary color with opacity
+            gradient.addColorStop(1, 'rgba(204, 255, 0, 0.0)');
+            
+            const data = [120, 150, 140, 180, 220, 190, 250];
+            const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Check-ins',
+                        data: data,
+                        borderColor: '#CCFF00', // Primary color
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        pointBackgroundColor: '#0A0A0A',
+                        pointBorderColor: '#CCFF00',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: true,
+                        tension: 0.3 // Smooth curves
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: '#171717',
+                            titleFont: { family: 'Space Grotesk', size: 14 },
+                            bodyFont: { family: 'Space Grotesk', size: 16, weight: 'bold' },
+                            padding: 10,
+                            borderColor: '#333333',
+                            borderWidth: 1,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + ' check-ins';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: false // Hide x axis for sparkline look
+                        },
+                        y: {
+                            display: false, // Hide y axis
+                            min: 100 // Adjust based on data to give padding
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
+                }
+            });
+        });
+    </script>
+</body></html>

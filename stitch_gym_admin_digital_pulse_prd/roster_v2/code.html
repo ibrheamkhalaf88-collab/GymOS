@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Pulse - Member Roster</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#c3f400",
+                        "on-primary-fixed": "#161e00",
+                        "secondary-container": "#464747",
+                        "on-primary": "#283500",
+                        "tertiary-container": "#d1e5f3",
+                        "surface-variant": "#333627",
+                        "tertiary": "#ffffff",
+                        "surface-container-low": "#1a1d10",
+                        "inverse-surface": "#e2e4cf",
+                        "on-secondary-container": "#b6b5b5",
+                        "primary": "#ffffff",
+                        "outline-variant": "#444933",
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary": "#c7c6c6",
+                        "on-tertiary": "#20333d",
+                        "on-secondary": "#303031",
+                        "primary-fixed-dim": "#abd600",
+                        "tertiary-fixed-dim": "#b5c9d7",
+                        "error": "#ffb4ab",
+                        "background": "#111508",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2f3223",
+                        "on-background": "#e2e4cf",
+                        "on-tertiary-container": "#546773",
+                        "tertiary-fixed": "#d1e5f3",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#e3e2e2",
+                        "on-primary-container": "#556d00",
+                        "outline": "#8e9379",
+                        "primary-fixed": "#c3f400",
+                        "surface-tint": "#abd600",
+                        "surface-container-lowest": "#0c0f04",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "on-tertiary-fixed": "#091e28",
+                        "surface-container-highest": "#333627",
+                        "on-surface": "#e2e4cf",
+                        "surface": "#111508",
+                        "surface-dim": "#111508",
+                        "surface-container": "#1e2113",
+                        "surface-container-high": "#282b1d",
+                        "surface-bright": "#373b2c",
+                        "inverse-primary": "#506600",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-tertiary-fixed-variant": "#364954"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "display": ["Space Grotesk"],
+                        "body": ["Manrope"],
+                        "label": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Manrope', sans-serif; background-color: #111508; color: #e2e4cf; }
+        h1, h2, h3, h4, h5, h6, .font-headline, .font-display, .font-label { font-family: 'Space Grotesk', sans-serif; }
+        .neon-shadow { box-shadow: 0 0 12px rgba(204, 255, 0, 0.4); }
+        .neon-shadow-alert { box-shadow: 0 0 12px rgba(255, 180, 171, 0.4); }
+        .cyber-border { border: 1px solid #333333; }
+        .ink-trap { background-color: #0A0A0A; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col md:flex-row pb-safe pb-[85px] md:pb-0">
+<!-- TopAppBar (Mobile) -->
+<header class="md:hidden sticky top-0 w-full z-50 bg-background border-b border-outline-variant flex justify-between items-center h-16 px-4">
+<button aria-label="Menu" class="text-primary-fixed active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="text-headline-sm font-headline font-black tracking-tighter text-primary-fixed uppercase">DIGITAL PULSE</span>
+<button aria-label="Notifications" class="text-primary-fixed active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</header>
+<!-- NavigationDrawer (Desktop) -->
+<aside class="hidden md:flex flex-col h-screen w-80 bg-surface border-r border-outline-variant shadow-2xl p-4 sticky top-0 z-40">
+<div class="flex items-center gap-4 mb-8">
+<img class="w-12 h-12 rounded-full object-cover border border-outline-variant" data-alt="A stylized, neon-lit avatar portrait of a system administrator in a high-tech gym setting. The lighting is dominated by vivid volt green and deep charcoal blacks, reflecting a cyber-athletic aesthetic. The avatar has a stoic, focused expression, suited for a 'COMMANDER' role." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA40sYct-2rzv0aNf7kRBEKYxfNUHhDmGFJIHj---KZTvBOSLRJHyO1zkfqEmgcImclHXrz77FHOIUbLtNHc47Z1jWlCd1VzSlEcsngchDYhgdb-uPh_qtpj4Ri9TnfNoV_e6_2tw4r37Vul3I7AI5N0Ey6tpFFDj0jrhH6Qga7bOVLDPV4Y6skkAW3GOE-9ABv_Hx31aT3m1oiKY_sCLIqYTx5GqsmkB9WNNt_4pEF7sZd49AK2vhg"/>
+<div>
+<div class="font-headline font-bold text-primary-fixed uppercase tracking-tight">COMMANDER</div>
+<div class="text-xs text-on-surface-variant font-body">System Admin</div>
+<div class="text-[10px] text-primary-fixed-dim font-label tracking-widest uppercase mt-1">ACTIVE</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-headline uppercase tracking-tight text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full bg-primary-container text-on-primary-container font-bold transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="group" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-headline uppercase tracking-tight text-sm">ROSTER</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="settings_input_component">settings_input_component</span>
+<span class="font-headline uppercase tracking-tight text-sm">Hardware</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-high transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-headline uppercase tracking-tight text-sm">Ledger</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col min-h-screen">
+<!-- Desktop Header area for Page Title & Search -->
+<div class="hidden md:flex items-center justify-between p-8 border-b border-outline-variant bg-surface-container-lowest">
+<div>
+<h1 class="font-headline text-display-lg text-primary-fixed tracking-tighter uppercase mb-1">MEMBER ROSTER</h1>
+<p class="font-body text-sm text-on-surface-variant">Manage and monitor active personnel</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-2 text-sm font-label uppercase tracking-wider text-on-surface focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed transition-all w-64 placeholder:text-on-surface-variant/50" placeholder="SEARCH ID OR NAME..." type="text"/>
+</div>
+<button class="bg-surface-container border border-outline-variant p-2 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 text-on-surface">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+</div>
+</div>
+<div class="p-4 md:p-8 flex-1 flex flex-col gap-6">
+<!-- Mobile Search & Filters -->
+<div class="md:hidden flex flex-col gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider text-on-surface focus:outline-none focus:border-primary-fixed focus:ring-1 focus:ring-primary-fixed transition-all placeholder:text-on-surface-variant/50" placeholder="SEARCH ID OR NAME..." type="text"/>
+</div>
+<div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-primary-fixed bg-primary-fixed/10 text-primary-fixed font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center">
+<span>ACTIVE</span>
+<span class="text-[8px] opacity-70">نشط</span>
+</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-outline-variant bg-surface-container text-on-surface-variant hover:text-on-surface font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center">
+<span>EXPIRED</span>
+<span class="text-[8px] opacity-70">منتهي</span>
+</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-outline-variant bg-surface-container text-on-surface-variant hover:text-on-surface font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center">
+<span>TRIAL</span>
+<span class="text-[8px] opacity-70">تجربة</span>
+</button>
+<button class="whitespace-nowrap px-4 py-1.5 rounded-full border border-outline-variant bg-surface-container text-on-surface-variant hover:text-on-surface font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center">
+<span>FROZEN</span>
+<span class="text-[8px] opacity-70">مجمد</span>
+</button>
+</div>
+</div>
+<!-- Desktop Filters -->
+<div class="hidden md:flex gap-3">
+<button class="px-5 py-2 rounded-full border border-primary-fixed bg-primary-fixed/10 text-primary-fixed font-label uppercase tracking-widest text-xs active:scale-95 transition-transform flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary-fixed neon-shadow"></div>
+                    ACTIVE
+                    <span class="opacity-50 text-[10px] ml-1">نشط</span>
+</button>
+<button class="px-5 py-2 rounded-full border border-outline-variant bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors font-label uppercase tracking-widest text-xs flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+                    EXPIRED
+                    <span class="opacity-50 text-[10px] ml-1">منتهي</span>
+</button>
+<button class="px-5 py-2 rounded-full border border-outline-variant bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors font-label uppercase tracking-widest text-xs flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary-fixed"></div>
+                    TRIAL
+                    <span class="opacity-50 text-[10px] ml-1">تجربة</span>
+</button>
+</div>
+<!-- Roster List -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+<!-- Member Card 1 - Active -->
+<div class="bg-[#171717] cyber-border rounded-lg p-4 flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group active:scale-[0.98]">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover border border-primary-fixed/50" data-alt="A futuristic portrait of a gym member, illuminated by striking volt green edge lighting against a pitch black background. The style is raw, high-contrast cyber-athletic, suitable for a digital ID card." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB2aWs_S1lpum2tnDo4Et3x_p5XTzquFTIN3UoRQcf7K3yjzzWKZK5BLEB6FPOemsj5DtWZ8c3W1HV5NcJEolBP2lUYxw91ELd6GpbnO5kNY2-kv1OVaHo4Hu7D7AewAkOCTA5uwSNwQ8Sl9WJFepS7xD0Mwb1iCOrMT7gkXM89EbIQDeo9kQd-QWUVLMeYq2b2cUzKQqcwxDAPf3p8Hl5HAf72yYGRF5xJPPZJUJB_ojl5r3TdN7zh"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-primary-fixed rounded-full border-2 border-[#171717] neon-shadow"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h3 class="font-headline font-bold text-on-surface uppercase truncate">Alex Mercer</h3>
+<span class="font-label text-xs tracking-widest text-on-surface-variant opacity-70">ID: 8492</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant mt-0.5">ELITE TIER</p>
+<div class="flex gap-2 mt-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-label tracking-wider uppercase border border-outline-variant">Locker 42</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-label tracking-wider uppercase border border-outline-variant">PT Active</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Member Card 2 - Expired -->
+<div class="bg-[#171717] cyber-border border-l-2 border-l-error rounded-lg p-4 flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group active:scale-[0.98]">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover border border-error/50 grayscale" data-alt="A futuristic portrait of a gym member, softly lit with neon pink alert lighting against a dark background, indicating an expired status. The aesthetic is high-tech and aggressive." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDO3vGDjqVkP-0A094bUu7YudBttM_r05rPemnn5c4Fqjl4sbzXKhI7-Cm6HKb8d9MRtAfykRPjzRiYT7jFJSotEfEl3SzS31hgev2WSdO3_yXea_3KGrBopEEPFPlAM29GB9HmW8E-2gTeG9rQjuDD7byid-T_ZfDRUV7E2YsGEu_ejueRiAJKjEqGnQSTZi53WzbqS_RSbT0BlcETFlI-_1ct8Sd5wX52ewT66NqZNcOgoEJ4qyIx"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-error rounded-full border-2 border-[#171717] neon-shadow-alert"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h3 class="font-headline font-bold text-on-surface uppercase truncate">Sarah Connor</h3>
+<span class="font-label text-xs tracking-widest text-error opacity-90">ID: 1024</span>
+</div>
+<p class="font-body text-xs text-error mt-0.5">EXPIRED - 2 DAYS</p>
+<div class="flex gap-2 mt-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-label tracking-wider uppercase border border-outline-variant">STANDARD TIER</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-error transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Member Card 3 - Active/Trial -->
+<div class="bg-[#171717] cyber-border rounded-lg p-4 flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group active:scale-[0.98]">
+<div class="relative">
+<div class="w-14 h-14 rounded-full bg-surface-container-high border border-tertiary-fixed flex items-center justify-center">
+<span class="font-headline text-lg text-tertiary-fixed">JD</span>
+</div>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-tertiary-fixed rounded-full border-2 border-[#171717]"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h3 class="font-headline font-bold text-on-surface uppercase truncate">John Doe</h3>
+<span class="font-label text-xs tracking-widest text-on-surface-variant opacity-70">ID: 9921</span>
+</div>
+<p class="font-body text-xs text-tertiary-fixed mt-0.5">TRIAL PASS - DAY 4</p>
+<div class="flex gap-2 mt-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-label tracking-wider uppercase border border-outline-variant">GUEST</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-tertiary-fixed transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- Member Card 4 - Active -->
+<div class="bg-[#171717] cyber-border rounded-lg p-4 flex items-center gap-4 hover:bg-[#262626] transition-colors cursor-pointer group active:scale-[0.98]">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover border border-primary-fixed/50" data-alt="A digital ID portrait of a gym goer. High-contrast lighting with striking volt green accents on deep black background. Technical and athletic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlhwwRgHxu5CUUx7CuamF0r1BTkxxteXpBYLdT7hN1on48fDiFztoYzK6eQvPv2IFXKuvZwnmTyDvNBkUlv16g6_aK7Tgg3ozJpf7wsJgc0GIR_wg9efA9IVnx3bmMf7JwexyCtVDcRgrwUJWrpvv9asyPmJ0VlRibhxZ3QWkR23sYQ0zd1wcPXbMLZD2ev4_AQmLGtuQJQ848X_Apg7k3medgJkGjV3dV4cLdTAdxQ_BPfBil6Jv4"/>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-primary-fixed rounded-full border-2 border-[#171717] neon-shadow"></div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start">
+<h3 class="font-headline font-bold text-on-surface uppercase truncate">Marcus Wright</h3>
+<span class="font-label text-xs tracking-widest text-on-surface-variant opacity-70">ID: 7731</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant mt-0.5">PRO TIER</p>
+<div class="flex gap-2 mt-2">
+<span class="px-2 py-0.5 rounded bg-surface-container-highest text-on-surface-variant text-[10px] font-label tracking-wider uppercase border border-outline-variant">Cardio Focus</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary-fixed transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container h-[85px] rounded-t-lg border-t border-outline-variant shadow-[0_-4px_12px_rgba(204,255,0,0.1)]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary-fixed bg-surface-container-highest rounded-xl px-3 py-1 transition-colors active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="group" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings_input_component">settings_input_component</span>
+<span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span>
+</a>
+</nav>
+</body></html>

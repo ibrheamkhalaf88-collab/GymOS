@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Gym App Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="typography">
+    /* Importing a font that supports both English well and has good Arabic glyphs */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Tajawal:wght@400;700&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .font-arabic {
+      font-family: 'Tajawal', sans-serif;
+    }
+  </style>
+<style data-purpose="utilities">
+    /* Digital Pulse specific utility overrides */
+    .glow-effect {
+      box-shadow: 0 0 20px rgba(204, 255, 0, 0.4);
+    }
+  </style>
+<!-- END: Custom Styles -->
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#000000] text-white h-[884px] w-full overflow-hidden antialiased selection:bg-[#CCFF00] selection:text-black">
+<!-- BEGIN: OnboardingScreen -->
+<main class="flex flex-col h-full w-full max-w-md mx-auto px-6 py-8 relative">
+<!-- Top safe area spacer for iOS -->
+<div aria-hidden="true" class="h-8 w-full"></div>
+<!-- BEGIN: Main Content Area (Image & Text) -->
+<section class="flex-1 flex flex-col items-center justify-center w-full pb-8">
+<!-- Illustration Container -->
+<!-- The image represents growth and starting (rocket) -->
+<div class="w-full max-w-[280px] aspect-square relative mb-12 flex items-center justify-center">
+<div class="absolute inset-0 bg-[#CCFF00] opacity-10 blur-3xl rounded-full"></div>
+<img alt="Rocket Launch Illustration" class="w-full h-full object-contain relative z-10 drop-shadow-2xl" data-purpose="onboarding-hero-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-GqD0VrTXpAtNJoxDjgp-MREHyE-sJfsrDZLJ_f-bqdxhjFaR-f0e4zCsf9E2R-1zBmHT3dI96iUe6nPbjP8b7Ux04Xtr9urWL-nIpFSXbQLD_ek6Am-Yy56AGy5V3n2lt1_95CtulfUJuuDXzFUgPU2FbcuQ16mh0s7wzz_omVOR8n4iOsq2KW4VxurMufyocZJFjo8GqBBeDOL63jL0wqFs36aB6Lbx-1rRNJ1pDJNzXvMQ3Y6V"/>
+</div>
+<!-- Typography Section -->
+<div class="w-full text-center space-y-6">
+<!-- Headers -->
+<header class="space-y-2">
+<h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+            Ready to Start?
+          </h1>
+<h2 class="text-3xl sm:text-4xl font-bold font-arabic text-white" dir="rtl">
+            جاهز تبدأ؟
+          </h2>
+</header>
+<!-- Subtext / Description -->
+<div class="space-y-3 px-4">
+<p class="text-base text-gray-400 leading-relaxed">
+            Register your account now and make your club management exceptional.
+          </p>
+<p class="text-base text-gray-400 leading-relaxed font-arabic" dir="rtl">
+            سجل حسابك الآن واجعل إدارة ناديك استثنائية.
+          </p>
+</div>
+</div>
+</section>
+<!-- END: Main Content Area -->
+<!-- BEGIN: Bottom Action Area -->
+<section class="w-full pb-6 pt-4 mt-auto">
+<!-- Primary Call to Action Button in Volt Green -->
+<button class="w-full bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black font-extrabold text-lg py-4 px-8 rounded-2xl transition-all duration-200 ease-in-out glow-effect flex items-center justify-center gap-2" data-purpose="start-registration-button" type="button">
+<span>Get Started</span>
+<!-- Optional arrow icon for momentum -->
+<svg class="h-5 w-5" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"></path>
+</svg>
+</button>
+</section>
+<!-- END: Bottom Action Area -->
+</main>
+<!-- END: OnboardingScreen -->
+</body></html>

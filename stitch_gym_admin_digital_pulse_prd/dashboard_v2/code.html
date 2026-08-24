@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+<title>Gym Management Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-container": "#c3f400",
+                        "on-primary-fixed": "#161e00",
+                        "secondary-container": "#464747",
+                        "on-primary": "#283500",
+                        "tertiary-container": "#d1e5f3",
+                        "surface-variant": "#333627",
+                        "tertiary": "#ffffff",
+                        "surface-container-low": "#1a1d10",
+                        "inverse-surface": "#e2e4cf",
+                        "on-secondary-container": "#b6b5b5",
+                        "primary": "#ffffff",
+                        "outline-variant": "#444933",
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary": "#c7c6c6",
+                        "on-tertiary": "#20333d",
+                        "on-secondary": "#303031",
+                        "primary-fixed-dim": "#abd600",
+                        "tertiary-fixed-dim": "#b5c9d7",
+                        "error": "#ffb4ab",
+                        "background": "#111508",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2f3223",
+                        "on-background": "#e2e4cf",
+                        "on-tertiary-container": "#546773",
+                        "tertiary-fixed": "#d1e5f3",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#e3e2e2",
+                        "on-primary-container": "#556d00",
+                        "outline": "#8e9379",
+                        "primary-fixed": "#c3f400",
+                        "surface-tint": "#abd600",
+                        "surface-container-lowest": "#0c0f04",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "on-tertiary-fixed": "#091e28",
+                        "surface-container-highest": "#333627",
+                        "on-surface": "#e2e4cf",
+                        "surface": "#111508",
+                        "surface-dim": "#111508",
+                        "surface-container": "#1e2113",
+                        "surface-container-high": "#282b1d",
+                        "surface-bright": "#373b2c",
+                        "inverse-primary": "#506600",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-tertiary-fixed-variant": "#364954"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Manrope", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .neon-shadow {
+            box-shadow: 0 0 12px rgba(204, 255, 0, 0.4);
+        }
+        .neon-text {
+            text-shadow: 0 0 8px rgba(204, 255, 0, 0.6);
+        }
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        body {
+            background-color: #111508;
+            color: #e2e4cf;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: rgba(30, 33, 19, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid #333627;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body flex h-screen overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- Navigation Drawer (Desktop) -->
+<aside class="hidden md:flex flex-col h-full w-80 rounded-r-xl border-r border-outline-variant bg-surface shadow-2xl z-40 relative">
+<div class="p-6 flex items-center gap-4 border-b border-outline-variant/50 mb-4">
+<img class="w-12 h-12 rounded-full border-2 border-primary-fixed object-cover" data-alt="A stylized, high-contrast cyberpunk portrait of a system administrator with glowing neon accents in a dark, brutalist environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPO2_kyJSSzdwFMti0Ahgb8rf8KAF2DQkAX2UxiHEIVZ5khxJ1Hf-SDSUC7aG7E4uyALFDi439K8axptqIZgITqTuhXC5AJDGP1wMwia3AVXVwbN_dHbeh823N_Oskjp53MuRTQ1M1Dl7Mkq8p1PQeOA9tDkAOkcbopxNiv5_F8SramLp3SsATv7zdIhD-aXkZHw1eU2SyFRDO0PMbs1SoxGr_iLADXUos7kjiVWUVlQgUbKDRQW3q"/>
+<div>
+<h2 class="text-primary-fixed font-headline font-bold text-lg tracking-tight uppercase">COMMANDER</h2>
+<p class="text-on-surface-variant font-body text-sm">System Admin</p>
+<span class="text-xs font-label text-primary-fixed bg-primary-fixed/10 px-2 py-0.5 rounded-full mt-1 inline-block">ACTIVE</span>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2 overflow-y-auto">
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container font-bold rounded-full transition-transform active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-headline tracking-tight uppercase text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-headline tracking-tight uppercase text-sm">Staff Management</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-headline tracking-tight uppercase text-sm">Class Schedule</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">gavel</span>
+<span class="font-headline tracking-tight uppercase text-sm">Facility Rules</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="font-headline tracking-tight uppercase text-sm">Support Ticket</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-full transition-all active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-headline tracking-tight uppercase text-sm">System Settings</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col h-full overflow-hidden relative">
+<!-- TopAppBar (Mobile & Desktop) -->
+<header class="sticky top-0 w-full flex justify-between items-center h-16 px-4 z-50 bg-background/90 backdrop-blur-md border-b border-outline-variant shadow-sm md:border-none md:bg-transparent md:backdrop-blur-none">
+<button class="md:hidden p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors active:scale-95">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="flex flex-col items-center md:items-start">
+<h1 class="text-primary-fixed dark:text-primary-fixed-dim text-headline-sm font-headline font-black tracking-tighter uppercase neon-text">DIGITAL PULSE</h1>
+</div>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors active:scale-95 relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-primary-fixed rounded-full animate-pulse"></span>
+</button>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto p-4 md:p-8 pb-32 md:pb-8 space-y-6">
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- Stat Card 1 -->
+<div class="bg-surface-container rounded-2xl p-4 border border-outline-variant relative overflow-hidden group hover:bg-surface-container-high transition-colors active:scale-95">
+<div class="flex justify-between items-start mb-2 relative z-10">
+<div>
+<p class="font-body text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Active Members</p>
+<p class="font-body text-[10px] text-on-surface-variant/70">الأعضاء النشطون</p>
+</div>
+<div class="w-2 h-2 rounded-full bg-primary-fixed neon-shadow animate-pulse"></div>
+</div>
+<div class="mt-4 relative z-10">
+<span class="font-headline text-3xl font-bold text-primary-fixed tabular-nums tracking-tighter">1,248</span>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-6xl text-on-surface-variant/10 group-hover:text-primary-fixed/10 transition-colors" style="font-variation-settings: 'FILL' 1;">group</span>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-surface-container rounded-2xl p-4 border border-outline-variant relative overflow-hidden group hover:bg-surface-container-high transition-colors active:scale-95">
+<div class="flex justify-between items-start mb-2 relative z-10">
+<div>
+<p class="font-body text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Ended Today</p>
+<p class="font-body text-[10px] text-on-surface-variant/70">انتهت اليوم</p>
+</div>
+</div>
+<div class="mt-4 relative z-10 flex items-baseline gap-2">
+<span class="font-headline text-3xl font-bold text-error tabular-nums tracking-tighter">14</span>
+<span class="font-body text-xs text-error/80 flex items-center"><span class="material-symbols-outlined text-sm">trending_down</span> 2%</span>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-6xl text-on-surface-variant/10 group-hover:text-error/10 transition-colors" style="font-variation-settings: 'FILL' 1;">timer_off</span>
+</div>
+<!-- Stat Card 3 -->
+<div class="bg-surface-container rounded-2xl p-4 border border-outline-variant relative overflow-hidden group hover:bg-surface-container-high transition-colors active:scale-95">
+<div class="flex justify-between items-start mb-2 relative z-10">
+<div>
+<p class="font-body text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Hardware Status</p>
+<p class="font-body text-[10px] text-on-surface-variant/70">حالة الأجهزة</p>
+</div>
+</div>
+<div class="mt-4 relative z-10">
+<span class="font-headline text-3xl font-bold text-tertiary-fixed tabular-nums tracking-tighter">98%</span>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-6xl text-on-surface-variant/10 group-hover:text-tertiary-fixed/10 transition-colors" style="font-variation-settings: 'FILL' 1;">fitness_center</span>
+</div>
+<!-- Stat Card 4 -->
+<div class="bg-surface-container rounded-2xl p-4 border border-outline-variant relative overflow-hidden group hover:bg-surface-container-high transition-colors active:scale-95">
+<div class="flex justify-between items-start mb-2 relative z-10">
+<div>
+<p class="font-body text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Revenue Pulse</p>
+<p class="font-body text-[10px] text-on-surface-variant/70">نبض الإيرادات</p>
+</div>
+</div>
+<div class="mt-4 relative z-10 flex items-baseline gap-1">
+<span class="font-headline text-xl text-primary-fixed/80">$</span>
+<span class="font-headline text-3xl font-bold text-primary-fixed tabular-nums tracking-tighter">12.4k</span>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-6xl text-on-surface-variant/10 group-hover:text-primary-fixed/10 transition-colors" style="font-variation-settings: 'FILL' 1;">payments</span>
+</div>
+</div>
+<!-- Bento Layout section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Growth Chart (Span 2) -->
+<div class="lg:col-span-2 glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h3 class="font-headline text-lg font-bold text-on-surface uppercase tracking-tight">Growth Velocity</h3>
+<p class="font-body text-sm text-on-surface-variant/70">Monthly active users &amp; retention</p>
+</div>
+<button class="bg-surface-container-high text-on-surface-variant px-3 py-1.5 rounded-full text-xs font-label uppercase tracking-widest hover:text-primary-fixed transition-colors border border-outline-variant">Filter</button>
+</div>
+<div class="flex-1 relative min-h-[200px] w-full border-b border-l border-outline-variant/30 flex items-end">
+<!-- Mock Chart implementation with Tailwind -->
+<div class="w-full h-full flex items-end justify-between px-2 pb-1 gap-2 relative">
+<!-- Background Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
+<div class="w-full h-px bg-on-surface-variant"></div>
+<div class="w-full h-px bg-on-surface-variant"></div>
+<div class="w-full h-px bg-on-surface-variant"></div>
+<div class="w-full h-px bg-on-surface-variant"></div>
+</div>
+<!-- Bars -->
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[30%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[45%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[40%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[60%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[55%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[75%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/10 to-primary-fixed/40 h-[85%] rounded-t-sm group relative hover:from-primary-fixed/30 hover:to-primary-fixed/80 transition-all"></div>
+<div class="w-1/12 bg-gradient-to-t from-primary-fixed/40 to-primary-fixed h-[95%] rounded-t-sm neon-shadow group relative hover:opacity-90 transition-all">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-surface-container-high text-primary-fixed text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">Peak</div>
+</div>
+</div>
+</div>
+<div class="flex justify-between w-full mt-2 text-[10px] font-label text-on-surface-variant px-2">
+<span>W1</span>
+<span>W2</span>
+<span>W3</span>
+<span>W4</span>
+<span>W5</span>
+<span>W6</span>
+<span>W7</span>
+<span>NOW</span>
+</div>
+</div>
+<!-- System Feed -->
+<div class="glass-panel rounded-3xl p-6 flex flex-col h-[400px]">
+<div class="flex justify-between items-center mb-4">
+<h3 class="font-headline text-lg font-bold text-on-surface uppercase tracking-tight">System Feed</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-sm">history</span>
+</div>
+<div class="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin">
+<!-- Alert Item -->
+<div class="bg-surface-container p-3 rounded-xl border-l-2 border-error flex gap-3 items-start group hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="bg-error/10 p-2 rounded-lg text-error">
+<span class="material-symbols-outlined text-sm">build</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-headline text-sm font-bold text-error uppercase">Treadmill #04 Error</p>
+<span class="font-body text-[10px] text-on-surface-variant">2m ago</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-2">Motor temperature exceeding safe limits. Auto-shutdown initiated.</p>
+</div>
+</div>
+<!-- Info Item -->
+<div class="bg-surface-container p-3 rounded-xl border-l-2 border-primary-fixed flex gap-3 items-start group hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="bg-primary-fixed/10 p-2 rounded-lg text-primary-fixed">
+<span class="material-symbols-outlined text-sm">how_to_reg</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-headline text-sm font-bold text-primary-fixed uppercase">New Registration</p>
+<span class="font-body text-[10px] text-on-surface-variant">15m ago</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-1">Pro Plan activated: John D.</p>
+</div>
+</div>
+<!-- Secondary Item -->
+<div class="bg-surface-container p-3 rounded-xl border-l-2 border-tertiary-fixed flex gap-3 items-start group hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="bg-tertiary-fixed/10 p-2 rounded-lg text-tertiary-fixed">
+<span class="material-symbols-outlined text-sm">inventory_2</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between">
+<p class="font-headline text-sm font-bold text-on-surface uppercase">Restock Required</p>
+<span class="font-body text-[10px] text-on-surface-variant">1h ago</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant mt-1 line-clamp-1">Towels and wipes inventory low in Sector B.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container border-t border-outline-variant h-[85px] rounded-t-lg shadow-[0_-4px_12px_rgba(204,255,0,0.1)]">
+<a class="flex flex-col items-center justify-center text-primary-fixed bg-surface-container-highest rounded-xl px-3 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 px-3 py-1" href="#">
+<span class="material-symbols-outlined mb-1">group</span>
+<span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 px-3 py-1" href="#">
+<span class="material-symbols-outlined mb-1">settings_input_component</span>
+<span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 px-3 py-1" href="#">
+<span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+<span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span>
+</a>
+</nav>
+</body></html>

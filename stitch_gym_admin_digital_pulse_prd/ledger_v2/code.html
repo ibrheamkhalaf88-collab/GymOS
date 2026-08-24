@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Pulse - LEDGER</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700;800;900&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#c3f400",
+                        "on-primary-fixed": "#161e00",
+                        "secondary-container": "#464747",
+                        "on-primary": "#283500",
+                        "tertiary-container": "#d1e5f3",
+                        "surface-variant": "#333627",
+                        "tertiary": "#ffffff",
+                        "surface-container-low": "#1a1d10",
+                        "inverse-surface": "#e2e4cf",
+                        "on-secondary-container": "#b6b5b5",
+                        "primary": "#ffffff",
+                        "outline-variant": "#444933",
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary": "#c7c6c6",
+                        "on-tertiary": "#20333d",
+                        "on-secondary": "#303031",
+                        "primary-fixed-dim": "#abd600",
+                        "tertiary-fixed-dim": "#b5c9d7",
+                        "error": "#ffb4ab",
+                        "background": "#111508",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2f3223",
+                        "on-background": "#e2e4cf",
+                        "on-tertiary-container": "#546773",
+                        "tertiary-fixed": "#d1e5f3",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#e3e2e2",
+                        "on-primary-container": "#556d00",
+                        "outline": "#8e9379",
+                        "primary-fixed": "#c3f400",
+                        "surface-tint": "#abd600",
+                        "surface-container-lowest": "#0c0f04",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "on-tertiary-fixed": "#091e28",
+                        "surface-container-highest": "#333627",
+                        "on-surface": "#e2e4cf",
+                        "surface": "#111508",
+                        "surface-dim": "#111508",
+                        "surface-container": "#1e2113",
+                        "surface-container-high": "#282b1d",
+                        "surface-bright": "#373b2c",
+                        "inverse-primary": "#506600",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-tertiary-fixed-variant": "#364954"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-padding": "1rem",
+                        "stack-gap": "1rem",
+                        "element-gap-sm": "0.5rem",
+                        "nav-height": "64px",
+                        "tab-bar-height": "85px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Manrope", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"],
+                        "arabic": ["Tajawal", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "display-xl": ["48px", { lineHeight: "1", letterSpacing: "-0.05em", fontWeight: "700" }],
+                        "display-lg": ["30px", { lineHeight: "1", letterSpacing: "-0.05em", fontWeight: "700" }],
+                        "headline-sm": ["18px", { lineHeight: "1.2", fontWeight: "700" }],
+                        "body-md": ["14px", { lineHeight: "1.4", fontWeight: "500" }],
+                        "label-caps": ["10px", { lineHeight: "1", letterSpacing: "0.1em", fontWeight: "600" }],
+                        "metric-mobile": ["36px", { lineHeight: "1", fontWeight: "700" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-background'); }
+        .neon-shadow { box-shadow: 0 0 12px rgba(195, 244, 0, 0.4); }
+        .neon-text { text-shadow: 0 0 8px rgba(195, 244, 0, 0.6); }
+        .glass-card { background: rgba(30, 33, 19, 0.7); backdrop-filter: blur(10px); border: 1px solid theme('colors.outline-variant'); }
+        .arabic-sub { font-family: 'Tajawal', sans-serif; opacity: 0.7; font-size: 0.85em; }
+        
+        /* Bar Chart Animation */
+        @keyframes growUp {
+            from { height: 0; }
+            to { height: var(--target-height); }
+        }
+        .bar-animate { animation: growUp 1s ease-out forwards; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body antialiased pb-tab-bar-height selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center h-16 px-4 w-full z-50 bg-background sticky top-0 border-b border-outline-variant dark:border-outline-variant flat no shadows">
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors active:scale-95 transition-transform p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">menu</span>
+</button>
+<h1 class="text-headline-sm font-headline font-black tracking-tighter text-primary-fixed dark:text-primary-fixed-dim uppercase text-center flex-1">DIGITAL PULSE</h1>
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors active:scale-95 transition-transform p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="p-container-padding flex flex-col gap-stack-gap md:max-w-5xl md:mx-auto">
+<!-- Massive MRR Display -->
+<section class="glass-card rounded-lg p-6 flex flex-col items-center justify-center relative overflow-hidden active:scale-95 transition-transform">
+<div class="absolute inset-0 bg-gradient-to-b from-primary-fixed/5 to-transparent pointer-events-none"></div>
+<div class="text-center z-10">
+<h2 class="font-label uppercase tracking-widest text-on-surface-variant mb-2">Monthly Recurring Revenue <br/><span class="arabic-sub">الإيرادات الشهرية المتكررة</span></h2>
+<div class="font-headline text-display-xl md:text-[72px] text-primary-fixed neon-text tracking-tighter flex items-center gap-2 tabular-nums">
+<span>$</span><span>142,850</span>
+<span class="material-symbols-outlined text-primary-fixed text-display-lg" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+</div>
+<p class="text-tertiary-fixed-dim text-body-md mt-2 flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span> +12.4% vs Last Month
+                </p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-[120px] text-primary-fixed/5 pointer-events-none">account_balance</span>
+</section>
+<!-- Bento Grid for Metrics -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-element-gap-sm">
+<!-- Active Memberships -->
+<div class="glass-card rounded-DEFAULT p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden">
+<span class="font-label uppercase tracking-widest text-on-surface-variant text-[10px]">Active Members<br/><span class="arabic-sub">أعضاء نشطون</span></span>
+<div class="font-headline text-display-lg text-tertiary tabular-nums mt-4">2,410</div>
+<span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-tertiary/10">group</span>
+</div>
+<!-- Failed Payments -->
+<div class="glass-card rounded-DEFAULT p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden border-error/30">
+<span class="font-label uppercase tracking-widest text-error text-[10px]">Failed Payments<br/><span class="arabic-sub">مدفوعات فاشلة</span></span>
+<div class="font-headline text-display-lg text-error tabular-nums mt-4">18</div>
+<span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-error/10">warning</span>
+</div>
+<!-- Avg Revenue Per User -->
+<div class="glass-card rounded-DEFAULT p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1">
+<span class="font-label uppercase tracking-widest text-on-surface-variant text-[10px]">ARPU<br/><span class="arabic-sub">متوسط الإيراد للمستخدم</span></span>
+<div class="font-headline text-display-lg text-tertiary tabular-nums mt-4">$59.20</div>
+<span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-tertiary/10">payments</span>
+</div>
+<!-- Projected End of Month -->
+<div class="glass-card rounded-DEFAULT p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1 bg-surface-container-high border-primary-fixed/50 neon-shadow">
+<span class="font-label uppercase tracking-widest text-primary-fixed text-[10px]">EOM Projection<br/><span class="arabic-sub">توقعات نهاية الشهر</span></span>
+<div class="font-headline text-display-lg text-primary-fixed tabular-nums mt-4">$155K</div>
+<span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-primary-fixed/10">insights</span>
+</div>
+</div>
+<!-- Cashflow Comparison Chart -->
+<section class="glass-card rounded-lg p-6">
+<div class="flex justify-between items-end mb-6">
+<h3 class="font-headline text-headline-sm uppercase tracking-tight text-on-surface">Cashflow <span class="text-on-surface-variant">Vs Prev</span><br/><span class="arabic-sub text-on-surface-variant">التدفق النقدي مقابل السابق</span></h3>
+<div class="flex gap-4 text-[10px] font-label uppercase tracking-widest">
+<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary-fixed neon-shadow"></span> Current</div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-surface-variant border border-outline"></span> Previous</div>
+</div>
+</div>
+<div class="h-48 flex items-end justify-between gap-2 pt-4 relative">
+<!-- Grid Lines -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+<div class="border-b border-outline-variant w-full h-0"></div>
+<div class="border-b border-outline-variant w-full h-0"></div>
+<div class="border-b border-outline-variant w-full h-0"></div>
+<div class="border-b border-outline-variant w-full h-0"></div>
+</div>
+<!-- Bars (Simplified structural representation) -->
+<div class="flex-1 flex items-end gap-1 h-full z-10">
+<div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm h-[40%]"></div>
+<div class="w-1/2 bg-primary-fixed neon-shadow rounded-t-sm h-[60%] bar-animate" style="--target-height: 60%;"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full z-10">
+<div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm h-[50%]"></div>
+<div class="w-1/2 bg-primary-fixed neon-shadow rounded-t-sm h-[45%] bar-animate" style="--target-height: 45%;"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full z-10">
+<div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm h-[70%]"></div>
+<div class="w-1/2 bg-primary-fixed neon-shadow rounded-t-sm h-[85%] bar-animate" style="--target-height: 85%;"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full z-10">
+<div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm h-[30%]"></div>
+<div class="w-1/2 bg-primary-fixed neon-shadow rounded-t-sm h-[55%] bar-animate" style="--target-height: 55%;"></div>
+</div>
+<div class="flex-1 flex items-end gap-1 h-full z-10">
+<div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm h-[80%]"></div>
+<div class="w-1/2 bg-primary-fixed neon-shadow rounded-t-sm h-[100%] bar-animate" style="--target-height: 100%;"></div>
+</div>
+</div>
+<div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-on-surface-variant mt-2">
+<span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span>
+</div>
+</section>
+<!-- Live Transaction Feed -->
+<section class="flex flex-col gap-element-gap-sm">
+<h3 class="font-headline text-headline-sm uppercase tracking-tight text-on-surface px-2">Live Ledger <br/><span class="arabic-sub text-on-surface-variant">سجل حي</span></h3>
+<div class="glass-card rounded-DEFAULT flex flex-col divide-y divide-outline-variant/50">
+<!-- Transaction Item: Success -->
+<div class="p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container/20 flex items-center justify-center text-primary-fixed border border-primary-fixed/30">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-headline text-sm text-on-surface uppercase tracking-wide">Pro Membership Renewal</p>
+<p class="font-body text-xs text-on-surface-variant">TXN-8492 • 2 mins ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline text-lg text-primary-fixed tabular-nums">+$120.00</p>
+</div>
+</div>
+<!-- Transaction Item: Alert -->
+<div class="p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors active:scale-[0.98] border-l-2 border-l-error">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-error/20 flex items-center justify-center text-error border border-error/30">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">credit_card_off</span>
+</div>
+<div>
+<p class="font-headline text-sm text-on-surface uppercase tracking-wide">Payment Declined</p>
+<p class="font-body text-xs text-on-surface-variant">TXN-8491 • 15 mins ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline text-lg text-error tabular-nums">-$85.00</p>
+</div>
+</div>
+<!-- Transaction Item: Standard -->
+<div class="p-4 flex items-center justify-between hover:bg-surface-container-high transition-colors active:scale-[0.98]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-tertiary/10 flex items-center justify-center text-tertiary-fixed-dim border border-outline">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">storefront</span>
+</div>
+<div>
+<p class="font-headline text-sm text-on-surface uppercase tracking-wide">POS: Supplements</p>
+<p class="font-body text-xs text-on-surface-variant">TXN-8490 • 42 mins ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-headline text-lg text-tertiary tabular-nums">+$45.50</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container h-[85px] rounded-t-lg border-t border-outline-variant dark:border-outline-variant shadow-[0_-4px_12px_rgba(204,255,0,0.1)] md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16 h-16">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16 h-16">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">group</span>
+<span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 w-16 h-16">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">settings_input_component</span>
+<span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+</button>
+<!-- Active Tab: Ledger -->
+<button class="flex flex-col items-center justify-center text-primary-fixed dark:text-primary-fixed bg-surface-container-highest rounded-xl px-3 py-1 active:scale-90 transition-transform w-16 h-16 relative">
+<span class="material-symbols-outlined mb-1 text-primary-fixed" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+<span class="font-label uppercase tracking-widest text-[10px] text-primary-fixed">LEDGER</span>
+<span class="absolute top-1 right-2 w-2 h-2 bg-primary-fixed rounded-full neon-shadow animate-pulse"></span>
+</button>
+</nav>
+</body></html>

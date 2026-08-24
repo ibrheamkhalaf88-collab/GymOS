@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gym Management App Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'volt-green': '#CCFF00',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'], // Assuming Inter or similar for clean tech look
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-utilities">
+    /* Adding a custom class for text alignment that might be useful for bilingual text */
+    .text-dir-rtl { direction: rtl; }
+    .text-dir-ltr { direction: ltr; }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-black text-white min-h-screen flex flex-col font-sans">
+<!-- BEGIN: MainContent -->
+<main class="flex-grow flex flex-col justify-between px-6 pt-12 pb-8">
+<!-- Image Section -->
+<section class="flex justify-center items-center flex-grow mb-8" data-purpose="illustration-container">
+<div class="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-[0_0_30px_rgba(204,255,0,0.2)] border border-gray-800">
+<!-- Using provided image placeholder -->
+<img alt="Smart Gym Assistant Illustration" class="w-full h-auto object-cover block" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdWBf-v9jOqaYpiZIygVucCL8IW2Lu6__sUX-AKMKm_NluTyyFLxh842OtGsOujfb3Ym1_gKTAz3-i4TnVtCDXbV9KTu5ka4MgHRkqJ4BvbCoSm-_IHYE3VmrYJeSeEY3qYRgIrc5_bM3QyyiGnHKsd_e0l9LGP1MIcM9yLWflA-E8rmiewHF7DZcRLHcKvkRXIpJfGdSFVGtBTH9aYEvjKEbXUHQycMlQJOK1zHH51CXieynlZZB1"/>
+</div>
+</section>
+<!-- Text Content Section -->
+<section class="flex flex-col space-y-6 text-center" data-purpose="onboarding-text">
+<!-- Headlines -->
+<div class="space-y-3">
+<h1 class="text-2xl font-bold leading-tight" dir="rtl">مساعدك الذكي لإدارة الجيم</h1>
+<h2 class="text-xl font-semibold text-gray-300">Your Smart Assistant for Gym Management</h2>
+</div>
+<!-- Descriptions -->
+<div class="space-y-4 text-sm text-gray-400">
+<p class="leading-relaxed" dir="rtl">
+          اجعل إدارة ناديك الرياضي أكثر سهولة وذكاءً. حل متكامل لكل ما تحتاجه الإدارة في مكان واحد.
+        </p>
+<p class="leading-relaxed">
+          Make managing your sports club easier and smarter. An integrated solution for everything management needs in one place.
+        </p>
+</div>
+</section>
+<!-- Bottom Navigation Section -->
+<section class="mt-10 flex flex-col items-center space-y-6" data-purpose="bottom-navigation">
+<!-- Page Indicators -->
+<div class="flex space-x-2" data-purpose="pagination-dots">
+<div class="w-8 h-2 rounded-full bg-volt-green"></div>
+<div class="w-2 h-2 rounded-full bg-gray-600"></div>
+<div class="w-2 h-2 rounded-full bg-gray-600"></div>
+</div>
+<!-- Next Button -->
+<button class="w-full bg-volt-green text-black font-bold py-4 rounded-xl text-lg hover:bg-[#aacc00] transition-colors shadow-[0_4px_14px_0_rgba(204,255,0,0.39)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-volt-green focus:ring-offset-black" data-purpose="next-button">
+        Next / التالي
+      </button>
+</section>
+</main>
+<!-- END: MainContent -->
+</body></html>

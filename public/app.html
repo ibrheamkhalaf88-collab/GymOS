@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Digital Pulse Pro — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/css/main.css">
+</head>
+<body>
+  <div class="app-shell">
+    <div class="app" id="app">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section class="screen" id="screen-dashboard" data-screen hidden>
+        <header class="topbar">
+          <div class="brand">
+            <span class="brand-dot"></span>
+            <div class="brand-text">
+              <h1>DIGITAL PULSE</h1>
+              <p>Membership Manager</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <div class="dropdown-wrap">
+              <button class="icon-btn" id="notif-btn" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 0 0-5 5v3.2c0 .6-.2 1.2-.6 1.7L5 15h14l-1.4-2.1a2.7 2.7 0 0 1-.6-1.7V8a5 5 0 0 0-5-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.5 18a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                <span class="notif-badge" id="notif-badge"></span>
+              </button>
+              <div class="dropdown" id="notif-dropdown">
+                <div class="notif-list" id="notif-list"></div>
+              </div>
+            </div>
+            <div class="dropdown-wrap">
+              <button class="avatar" id="avatar-btn">JM</button>
+              <div class="dropdown" id="profile-dropdown">
+                <button class="dropdown-item" id="profile-view-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                  View Profile<span class="ar"></span>
+                </button>
+                <button class="dropdown-item danger" id="logout-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                  Log Out<span class="ar"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="stat-label">ACTIVE MEMBERS</p>
+            <p class="stat-value lime" id="stat-active">0</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label-row">
+              <p class="stat-label">ENDED TODAY</p>
+              <span class="dot pink"></span>
+            </div>
+            <p class="stat-value pink" id="stat-ended-today">0</p>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label-row">
+              <p class="stat-label">NET PROFIT</p>
+              <select id="profit-period" class="period-select">
+                <option value="month">THIS MONTH</option>
+                <option value="3months">3 MONTHS</option>
+                <option value="6months">6 MONTHS</option>
+                <option value="year">YEAR</option>
+                <option value="all">ALL TIME</option>
+              </select>
+            </div>
+            <p class="stat-value lime" id="stat-profit">$0</p>
+          </div>
+          <div class="stat-card stat-card--alert">
+            <p class="stat-label alert-label">
+              <svg viewBox="0 0 24 24" fill="none" class="alert-icon"><path d="M12 2 2 20h20L12 2Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 9v5M12 17.5v.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              MAINT. ALERT
+            </p>
+            <p class="stat-value" id="stat-alerts">0</p>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <div>
+            <h2 class="section-title">CHECK-INS (7D)</h2>
+            <p class="section-sub">Check-ins last 7 days</p>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <svg viewBox="0 0 320 160" class="line-chart" preserveAspectRatio="none" id="checkins-chart">
+            <defs>
+              <linearGradient id="lineFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ccff00" stop-opacity="0.45"/>
+                <stop offset="100%" stop-color="#ccff00" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="118" x2="320" y2="118" class="grid-line"/>
+            <path id="chart-area" d="M0,130 L320,150 L320,150 L0,150 Z" fill="url(#lineFill)" stroke="none"/>
+            <polyline id="chart-line" points="0,130 320,150" fill="none" stroke="#ccff00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="0" y1="150" x2="320" y2="150" class="base-line"/>
+            <g class="chart-dots" id="chart-dots"></g>
+          </svg>
+        </div>
+
+        <div class="section-row">
+          <div>
+            <h2 class="section-title">SYSTEM FEED</h2>
+            <p class="section-sub">Recent activity</p>
+          </div>
+        </div>
+
+        <div class="feed-list" id="dashboard-feed"></div>
+      </section>
+
+      <!-- ============ ROSTER ============ -->
+      <section class="screen" id="screen-roster" data-screen hidden>
+        <header class="topbar topbar--wrap">
+          <h1 class="page-title">ROSTER DB</h1>
+          <button class="icon-btn icon-btn--box" id="roster-sort-btn" aria-label="Sort">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M7 12h10M10 18h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </header>
+
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input type="text" id="roster-search" placeholder="SEARCH DB...">
+        </div>
+
+        <div class="pill-row" id="roster-filter-pills">
+          <button class="pill is-active" data-status="active">ACTIVE</button>
+          <button class="pill" data-status="expired">EXPIRED</button>
+          <button class="pill" data-status="trial">TRIAL</button>
+        </div>
+
+        <div class="roster-list" id="roster-list"></div>
+      </section>
+
+      <!-- ============ HARDWARE ============ -->
+      <section class="screen" id="screen-hardware" data-screen hidden>
+        <header class="topbar topbar--wrap">
+          <h1 class="page-title">SYSTEM HEALTH</h1>
+        </header>
+
+        <div class="stat-grid stat-grid--2">
+          <div class="stat-card">
+            <p class="stat-label">ONLINE DEVICES</p>
+            <p class="stat-value lime" id="dev-online">0</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">OFFLINE DEVICES</p>
+            <p class="stat-value pink" id="dev-offline">0</p>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <div>
+            <h2 class="section-title">EQUIPMENT</h2>
+          </div>
+          <button class="btn btn-ghost" id="add-device-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px; height:16px;"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-i18n="addEquipment">${i18n.t.addEquipment || 'Add Device'}</span>
+          </button>
+        </div>
+        <div class="feed-list" id="equip-list"></div>
+      </section>
+
+      <!-- ============ LEDGER ============ -->
+      <section class="screen" id="screen-ledger" data-screen hidden>
+        <header class="topbar topbar--wrap">
+          <h1 class="page-title">FINANCES</h1>
+        </header>
+
+        <div class="card mrr-card" style="margin-bottom:14px;">
+          <div class="mrr-head">
+            <p class="stat-label">MONTHLY REVENUE</p>
+            <p class="stat-value lime" id="mrr-value">$0</p>
+          </div>
+          <p class="section-sub" id="mrr-sub">This month</p>
+        </div>
+
+        <div class="stat-grid stat-grid--2">
+          <div class="stat-card">
+            <p class="stat-label">REVENUE</p>
+            <p class="stat-value lime" id="ledger-revenue">$0</p>
+          </div>
+          <div class="stat-card">
+            <p class="stat-label">EXPENSES</p>
+            <p class="stat-value pink" id="ledger-expenses">$0</p>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <div>
+            <h2 class="section-title">TRANSACTIONS</h2>
+          </div>
+        </div>
+        <div class="feed-list" id="ledger-list"></div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="screen" id="screen-settings" data-screen hidden>
+        <header class="topbar topbar--wrap">
+          <h1 class="page-title">SETTINGS</h1>
+        </header>
+
+        <div id="settings-content"></div>
+
+        <!-- Data management section with warnings -->
+        <div class="card" style="margin-top:16px; border-color:var(--border);">
+          <p class="form-label" style="color:var(--orange); margin-bottom: 12px;">DATA MANAGEMENT / إدارة البيانات</p>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <button class="btn btn-secondary btn-block" id="export-btn" style="justify-content: flex-start; padding: 14px 16px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="color:var(--lime);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              <span>EXPORT DATA <span class="ar" style="color:var(--text-dim);">/ تصدير البيانات</span></span>
+            </button>
+
+            <button class="btn btn-secondary btn-block" id="reset-btn" style="justify-content: flex-start; padding: 14px 16px; border-color: rgba(255,51,102,0.3); color: var(--pink);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5"/></svg>
+              <span>RESET ALL DATA <span class="ar" style="color:var(--text-dim);">/ مسح جميع البيانات</span></span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BOTTOM NAV ============ -->
+      <nav class="navbar" id="bottom-nav"></nav>
+
+      <!-- ============ FAB ============ -->
+      <button class="fab" id="add-member-fab" aria-label="Add member" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Toast stack -->
+  <div class="toast-stack" id="toast-stack"></div>
+
+  <!-- Modals injected here -->
+  <div id="modal-root"></div>
+
+  <script type="module" src="/src/js/app.js"></script>
+</body>
+</html>

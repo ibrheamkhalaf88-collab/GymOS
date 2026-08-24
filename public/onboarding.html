@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Welcome to Digital Pulse Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/css/main.css">
+  <link rel="stylesheet" href="/src/css/onboarding.css">
+</head>
+<body>
+  <div class="onb-app">
+    <!-- Skip button (top right) -->
+    <button class="onb-skip" id="onbSkip">Skip</button>
+
+    <!-- Slides -->
+    <div class="onb-stage">
+      <!-- Slide 1: Members -->
+      <section class="onb-slide is-active" data-slide="0">
+        <div class="onb-bg-glow"></div>
+        <div class="onb-image-wrap">
+          <img src="/onboarding/1-members.jpg" alt="Member management" class="onb-image">
+        </div>
+        <div class="onb-content">
+          <span class="onb-eyebrow">MEMBERS</span>
+          <h1 class="onb-title">Manage members <span class="onb-highlight">like a pro</span></h1>
+          <p class="onb-desc">Add, search, and track members with powerful filters. Plans, expiry dates, and check-ins — all in one place.</p>
+        </div>
+      </section>
+
+      <!-- Slide 2: Launch -->
+      <section class="onb-slide" data-slide="1">
+        <div class="onb-bg-glow"></div>
+        <div class="onb-image-wrap">
+          <img src="/onboarding/2-launch.jpg" alt="Launch your facility" class="onb-image">
+        </div>
+        <div class="onb-content">
+          <span class="onb-eyebrow">LAUNCH</span>
+          <h1 class="onb-title">Launch your facility <span class="onb-highlight">in minutes</span></h1>
+          <p class="onb-desc">Get up and running instantly. No complex setup, no training needed. Start accepting members today.</p>
+        </div>
+      </section>
+
+      <!-- Slide 3: Control -->
+      <section class="onb-slide" data-slide="2">
+        <div class="onb-bg-glow"></div>
+        <div class="onb-image-wrap">
+          <img src="/onboarding/3-control.jpg" alt="Full control" class="onb-image">
+        </div>
+        <div class="onb-content">
+          <span class="onb-eyebrow">CONTROL</span>
+          <h1 class="onb-title">Full control <span class="onb-highlight">at your fingertips</span></h1>
+          <p class="onb-desc">Real-time device monitoring, capacity alerts, and a complete system feed — all from one dashboard.</p>
+        </div>
+      </section>
+
+      <!-- Slide 4: Growth -->
+      <section class="onb-slide" data-slide="3">
+        <div class="onb-bg-glow"></div>
+        <div class="onb-image-wrap">
+          <img src="/onboarding/4-growth.jpg" alt="Grow your business" class="onb-image">
+        </div>
+        <div class="onb-content">
+          <span class="onb-eyebrow">GROWTH</span>
+          <h1 class="onb-title">Watch your business <span class="onb-highlight">grow</span></h1>
+          <p class="onb-desc">Track revenue, expenses, and MRR at a glance. Smart insights that help you scale with confidence.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- Footer controls -->
+    <div class="onb-footer">
+      <div class="onb-dots" id="onbDots">
+        <button class="onb-dot is-active" data-dot="0" aria-label="Slide 1"></button>
+        <button class="onb-dot" data-dot="1" aria-label="Slide 2"></button>
+        <button class="onb-dot" data-dot="2" aria-label="Slide 3"></button>
+        <button class="onb-dot" data-dot="3" aria-label="Slide 4"></button>
+      </div>
+      <button class="onb-cta" id="onbCta">
+        <span class="onb-cta-text">Next</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/js/onboarding.js"></script>
+</body>
+</html>

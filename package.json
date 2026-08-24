@@ -1,0 +1,10 @@
+{
+  "name": "ib2040-app",
+  "version": "1.0.0",
+  "description": "تطبيق IB2040 الاحترافي",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx serve .",
+    "build": "echo 'Static site - no build needed'"
+  }
+}

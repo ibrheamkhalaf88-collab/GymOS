@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Code Registry - PULSE CORE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-fixed": "#c3f400",
+                        "surface-container-highest": "#333627",
+                        "primary-container": "#c3f400",
+                        "tertiary-fixed": "#d1e5f3",
+                        "on-background": "#e2e4cf",
+                        "on-tertiary-container": "#546773",
+                        "on-surface-variant": "#c4c9ac",
+                        "on-surface": "#e2e4cf",
+                        "on-tertiary-fixed": "#091e28",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "tertiary-container": "#d1e5f3",
+                        "tertiary": "#ffffff",
+                        "secondary-fixed": "#e3e2e2",
+                        "background": "#111508",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "error": "#ffb4ab",
+                        "surface-container-low": "#1a1d10",
+                        "error-container": "#93000a",
+                        "surface-container": "#1e2113",
+                        "on-secondary-container": "#b6b5b5",
+                        "outline-variant": "#444933",
+                        "on-primary-fixed": "#161e00",
+                        "tertiary-fixed-dim": "#b5c9d7",
+                        "inverse-surface": "#e2e4cf",
+                        "inverse-primary": "#506600",
+                        "on-error-container": "#ffdad6",
+                        "outline": "#8e9379",
+                        "on-primary": "#283500",
+                        "on-error": "#690005",
+                        "on-secondary": "#303031",
+                        "secondary": "#c7c6c6",
+                        "on-primary-container": "#556d00",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "surface-tint": "#abd600",
+                        "surface-variant": "#333627",
+                        "surface": "#111508",
+                        "on-tertiary": "#20333d",
+                        "inverse-on-surface": "#2f3223",
+                        "surface-dim": "#111508",
+                        "surface-container-lowest": "#0c0f04",
+                        "surface-bright": "#373b2c",
+                        "secondary-container": "#464747",
+                        "primary-fixed-dim": "#abd600",
+                        "on-tertiary-fixed-variant": "#364954",
+                        "surface-container-high": "#282b1d",
+                        "primary": "#ffffff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Manrope", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"],
+                        "arabic": ["Tajawal", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .neon-shadow-primary {
+            box-shadow: 0 0 12px rgba(195, 244, 0, 0.4);
+        }
+        .neon-shadow-error {
+            box-shadow: 0 0 12px rgba(255, 180, 171, 0.4);
+        }
+        .cyber-grid {
+            background-image: linear-gradient(to right, #333627 1px, transparent 1px), linear-gradient(to bottom, #333627 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: center center;
+        }
+        /* Custom scrollbar for data table */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111508; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #444933; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8e9379; 
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body h-screen overflow-hidden flex selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- SideNavBar -->
+<nav class="h-screen w-64 left-0 sticky border-r border-outline-variant bg-surface-container-low dark:bg-surface-container-low flex flex-col hidden md:flex shrink-0">
+<!-- Header -->
+<div class="p-6 border-b border-outline-variant">
+<div class="flex items-center gap-4 mb-2">
+<img alt="System Admin" class="w-12 h-12 rounded-full border border-primary-fixed object-cover" data-alt="A highly detailed close-up portrait of a futuristic system administrator avatar. The avatar is rendered in a sleek, cyber-brutalist style with a high-contrast lighting setup against a pure black background. Neon yellow-green accents highlight the visor and tactical gear. The overall mood is intense, technological, and secure." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjBAXBYzhZYowlGfeUIIik24aX_Toc80p92n7iF6qfAVx0vvuNwSuhx3lPe1XYDUyuxjh3ePx2g2uX6QOQTz82wZcqS_DudIHFwm6GWzjSTGD0xHGAv_uP5ke7PvBIOWSeG2BcUHW0v0CMvMijQpcE24RJLOqxqm0hEbvK_n8iMOD9phQS7zht5jMGb74tdOoXiOe7J5-xh5_tmXnDUmycj3bvEr06krxWrOHfVNF9pySQvl5NTjVc"/>
+<div>
+<h2 class="font-headline text-primary-fixed font-bold tracking-tight text-lg">ADM_ROOT</h2>
+<p class="font-label text-label-caps tracking-widest text-on-surface-variant text-xs">Level 4 Clearance</p>
+</div>
+</div>
+</div>
+<!-- Tabs -->
+<div class="flex-1 overflow-y-auto py-4">
+<ul class="flex flex-col space-y-1">
+<li>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container-high hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">terminal</span>
+<span class="font-label text-label-caps tracking-widest uppercase">Command Center</span>
+</a>
+</li>
+<li>
+<a class="bg-surface-container-highest text-primary-fixed border-l-4 border-primary-fixed px-4 py-3 flex items-center gap-3 translate-x-1 duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">vpn_key</span>
+<span class="font-label text-label-caps tracking-widest uppercase font-bold">Code Registry</span>
+</a>
+</li>
+<li>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container-high hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">verified_user</span>
+<span class="font-label text-label-caps tracking-widest uppercase">Member Clearance</span>
+</a>
+</li>
+<li>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container-high hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings_input_component</span>
+<span class="font-label text-label-caps tracking-widest uppercase">System Health</span>
+</a>
+</li>
+<li>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container-high hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">lan</span>
+<span class="font-label text-label-caps tracking-widest uppercase">Network Nodes</span>
+</a>
+</li>
+<li>
+<a class="text-on-surface-variant px-4 py-3 flex items-center gap-3 hover:bg-surface-container-high hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">policy</span>
+<span class="font-label text-label-caps tracking-widest uppercase">Security Protocol</span>
+</a>
+</li>
+</ul>
+</div>
+<!-- CTA & Footer -->
+<div class="p-4 mt-auto border-t border-outline-variant">
+<button class="w-full bg-error text-on-error font-headline font-bold uppercase tracking-widest py-3 px-4 rounded mb-4 hover:bg-error-container hover:text-on-error-container transition-colors neon-shadow-error flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">warning</span>
+                System Lockdown
+            </button>
+<ul class="flex flex-col space-y-1">
+<li>
+<a class="text-on-surface-variant px-4 py-2 flex items-center gap-3 hover:text-primary-fixed transition-colors text-sm" href="#">
+<span class="material-symbols-outlined text-sm">help_center</span>
+<span>Support</span>
+</a>
+</li>
+<li>
+<a class="text-on-surface-variant px-4 py-2 flex items-center gap-3 hover:text-primary-fixed transition-colors text-sm" href="#">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span>Sign Out</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<div class="absolute inset-0 cyber-grid opacity-20 pointer-events-none"></div>
+<!-- TopNavBar -->
+<header class="w-full top-0 sticky z-50 bg-surface-container-lowest dark:bg-surface-container-lowest flex justify-between items-center px-8 h-16 shrink-0 shadow-lg border-b border-outline-variant">
+<!-- Brand -->
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary-fixed text-3xl">radar</span>
+<span class="text-display-lg font-headline font-bold text-primary-fixed tracking-tighter">PULSE CORE</span>
+</div>
+<!-- Global Search & Actions -->
+<div class="flex items-center gap-6">
+<!-- Search bar styling based on JSON 'on_left' but pushed right for layout balance here -->
+<div class="hidden lg:flex items-center bg-surface-container px-4 py-1.5 rounded-full border border-outline-variant focus-within:border-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant mr-2">search</span>
+<input class="bg-transparent border-none text-on-surface font-label text-label-caps tracking-widest focus:ring-0 placeholder:text-on-surface-variant w-48 outline-none" placeholder="QUERY DATABASE..." type="text"/>
+</div>
+<button class="text-primary-fixed dark:text-primary-fixed-dim hover:text-primary-fixed transition-colors duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">notifications_active</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors duration-200">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+</button>
+<button class="bg-surface-container-highest text-primary-fixed border border-primary-fixed font-headline tracking-tight uppercase px-4 py-1.5 rounded hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors active:scale-95 text-sm font-bold">
+                    Generate Code
+                </button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 overflow-y-auto p-6 md:p-8 z-10 relative">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 border-b border-outline-variant pb-4">
+<div>
+<h1 class="font-headline text-display-lg text-primary-fixed uppercase tracking-tighter mb-1">CODE REGISTRY</h1>
+<h2 class="font-arabic text-on-surface-variant text-xl opacity-80 font-medium">سجل الأكواد</h2>
+</div>
+<div class="bg-surface-container px-4 py-2 rounded border border-outline-variant flex items-center gap-3">
+<div class="w-3 h-3 rounded-full bg-primary-fixed animate-pulse"></div>
+<span class="font-label text-label-caps tracking-widest text-primary-fixed uppercase">SYSTEM_STATUS: SECURE</span>
+</div>
+</div>
+<!-- Top Stat Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<!-- Stat 1 -->
+<div class="bg-surface-container-high rounded-lg p-6 border border-outline-variant relative overflow-hidden group hover:border-primary-fixed transition-colors">
+<div class="absolute bottom-[-10px] right-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-primary-fixed">qr_code_scanner</span>
+</div>
+<p class="font-label text-label-caps tracking-widest text-on-surface-variant uppercase mb-4">Total Active Codes</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline text-display-xl text-primary-fixed tabular-nums">142</span>
+</div>
+</div>
+<!-- Stat 2 -->
+<div class="bg-surface-container-high rounded-lg p-6 border border-outline-variant relative overflow-hidden group hover:border-tertiary-fixed transition-colors">
+<div class="absolute bottom-[-10px] right-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-tertiary-fixed">update</span>
+</div>
+<p class="font-label text-label-caps tracking-widest text-on-surface-variant uppercase mb-4">Used Today</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline text-display-xl text-tertiary-fixed tabular-nums">28</span>
+</div>
+</div>
+<!-- Stat 3 -->
+<div class="bg-surface-container-high rounded-lg p-6 border border-outline-variant relative overflow-hidden group hover:border-error transition-colors">
+<div class="absolute bottom-[-10px] right-[-10px] opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-error">block</span>
+</div>
+<p class="font-label text-label-caps tracking-widest text-on-surface-variant uppercase mb-4">Expired / Revoked</p>
+<div class="flex items-baseline gap-2">
+<span class="font-headline text-display-xl text-error tabular-nums">12</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+<!-- Primary Action Area -->
+<div class="xl:col-span-1">
+<div class="bg-surface-container-highest rounded-lg p-6 border border-outline-variant h-full flex flex-col justify-center items-center text-center relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-1 bg-primary-fixed"></div>
+<span class="material-symbols-outlined text-6xl text-primary-fixed mb-6" style="font-variation-settings: 'FILL' 1;">lock_open</span>
+<h3 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface mb-2">Generate Encryption Key</h3>
+<p class="font-arabic text-on-surface-variant text-lg mb-8 opacity-80">إنشاء كود تفعيل</p>
+<div class="w-full space-y-4 mb-8">
+<div class="text-left">
+<label class="font-label text-label-caps tracking-widest text-on-surface-variant uppercase mb-1 block">Tier Level</label>
+<select class="w-full bg-surface border border-outline-variant rounded p-3 text-on-surface font-body outline-none focus:border-primary-fixed">
+<option>Standard Access</option>
+<option>VIP Clearance</option>
+<option>Guest Node</option>
+</select>
+</div>
+<div class="text-left">
+<label class="font-label text-label-caps tracking-widest text-on-surface-variant uppercase mb-1 block">Duration (Hours)</label>
+<input class="w-full bg-surface border border-outline-variant rounded p-3 text-on-surface font-body outline-none focus:border-primary-fixed tabular-nums" type="number" value="24"/>
+</div>
+</div>
+<button class="w-full bg-primary-fixed text-on-primary-fixed font-headline font-bold text-lg uppercase tracking-widest py-4 px-6 rounded neon-shadow-primary hover:bg-white transition-all active:scale-95 flex items-center justify-center gap-3 mt-auto">
+<span class="material-symbols-outlined">data_object</span>
+                            Execute Init
+                        </button>
+</div>
+</div>
+<!-- Advanced Data Table -->
+<div class="xl:col-span-2">
+<div class="bg-surface-container rounded-lg border border-outline-variant flex flex-col h-full overflow-hidden">
+<div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+<h3 class="font-headline text-lg font-bold uppercase tracking-tight text-on-surface">Active Nodes Log</h3>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded text-on-surface-variant hover:text-primary-fixed hover:border-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+</button>
+<button class="p-2 border border-outline-variant rounded text-on-surface-variant hover:text-primary-fixed hover:border-primary-fixed transition-colors">
+<span class="material-symbols-outlined text-sm">download</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left whitespace-nowrap">
+<thead class="bg-surface border-b border-outline-variant">
+<tr>
+<th class="p-4 font-label text-label-caps tracking-widest text-on-surface-variant uppercase">Access Code</th>
+<th class="p-4 font-label text-label-caps tracking-widest text-on-surface-variant uppercase">Status</th>
+<th class="p-4 font-label text-label-caps tracking-widest text-on-surface-variant uppercase">Time Remaining</th>
+<th class="p-4 font-label text-label-caps tracking-widest text-on-surface-variant uppercase">Tier</th>
+<th class="p-4 font-label text-label-caps tracking-widest text-on-surface-variant uppercase text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="font-body text-sm divide-y divide-outline-variant/50">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4 font-headline font-bold text-on-surface tabular-nums tracking-wider">AX-992-V</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 text-primary-fixed bg-primary-fixed/10 px-2 py-1 rounded text-xs font-bold border border-primary-fixed/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span> ONLINE
+                                            </span>
+</td>
+<td class="p-4 text-on-surface-variant tabular-nums">23:45:10</td>
+<td class="p-4 text-on-surface-variant">VIP</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="text-on-surface-variant hover:text-error transition-colors"><span class="material-symbols-outlined text-xl">cancel</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4 font-headline font-bold text-on-surface tabular-nums tracking-wider">B7-441-Z</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 text-primary-fixed bg-primary-fixed/10 px-2 py-1 rounded text-xs font-bold border border-primary-fixed/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span> ONLINE
+                                            </span>
+</td>
+<td class="p-4 text-on-surface-variant tabular-nums">12:10:05</td>
+<td class="p-4 text-on-surface-variant">Standard</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="text-on-surface-variant hover:text-error transition-colors"><span class="material-symbols-outlined text-xl">cancel</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-high transition-colors bg-surface-variant/30">
+<td class="p-4 font-headline font-bold text-error tabular-nums tracking-wider opacity-75 line-through">QR-110-X</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 text-error bg-error/10 px-2 py-1 rounded text-xs font-bold border border-error/30">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span> REVOKED
+                                            </span>
+</td>
+<td class="p-4 text-error opacity-75 tabular-nums">00:00:00</td>
+<td class="p-4 text-on-surface-variant opacity-75">Guest</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors"><span class="material-symbols-outlined text-xl">history</span></button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-4 font-headline font-bold text-on-surface tabular-nums tracking-wider">KT-882-M</td>
+<td class="p-4">
+<span class="inline-flex items-center gap-1.5 text-primary-fixed bg-primary-fixed/10 px-2 py-1 rounded text-xs font-bold border border-primary-fixed/30">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span> ONLINE
+                                            </span>
+</td>
+<td class="p-4 text-on-surface-variant tabular-nums">04:22:50</td>
+<td class="p-4 text-on-surface-variant">VIP</td>
+<td class="p-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="text-on-surface-variant hover:text-primary-fixed transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+<button class="text-on-surface-variant hover:text-error transition-colors"><span class="material-symbols-outlined text-xl">cancel</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

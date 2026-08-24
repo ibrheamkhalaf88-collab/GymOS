@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Equipment Maintenance - Digital Pulse</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Space+Grotesk:wght@400;500;600;700&amp;family=Tajawal:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#c3f400",
+                        "on-primary-fixed": "#161e00",
+                        "secondary-container": "#464747",
+                        "on-primary": "#283500",
+                        "tertiary-container": "#d1e5f3",
+                        "surface-variant": "#333627",
+                        "tertiary": "#ffffff",
+                        "surface-container-low": "#1a1d10",
+                        "inverse-surface": "#e2e4cf",
+                        "on-secondary-container": "#b6b5b5",
+                        "primary": "#ffffff",
+                        "outline-variant": "#444933",
+                        "on-surface-variant": "#c4c9ac",
+                        "secondary": "#c7c6c6",
+                        "on-tertiary": "#20333d",
+                        "on-secondary": "#303031",
+                        "primary-fixed-dim": "#abd600",
+                        "tertiary-fixed-dim": "#b5c9d7",
+                        "error": "#ffb4ab",
+                        "background": "#111508",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#2f3223",
+                        "on-background": "#e2e4cf",
+                        "on-tertiary-container": "#546773",
+                        "tertiary-fixed": "#d1e5f3",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#e3e2e2",
+                        "on-primary-container": "#556d00",
+                        "outline": "#8e9379",
+                        "primary-fixed": "#c3f400",
+                        "surface-tint": "#abd600",
+                        "surface-container-lowest": "#0c0f04",
+                        "on-error": "#690005",
+                        "on-primary-fixed-variant": "#3c4d00",
+                        "on-tertiary-fixed": "#091e28",
+                        "surface-container-highest": "#333627",
+                        "on-surface": "#e2e4cf",
+                        "surface": "#111508",
+                        "surface-dim": "#111508",
+                        "surface-container": "#1e2113",
+                        "surface-container-high": "#282b1d",
+                        "surface-bright": "#373b2c",
+                        "inverse-primary": "#506600",
+                        "on-secondary-fixed-variant": "#464747",
+                        "on-tertiary-fixed-variant": "#364954"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": [
+                            "Space Grotesk"
+                        ],
+                        "display": [
+                            "Space Grotesk"
+                        ],
+                        "body": [
+                            "Manrope"
+                        ],
+                        "label": [
+                            "Space Grotesk"
+                        ]
+                    },
+                    "fontSize": {}
+                },
+            },
+        }
+    </script>
+<style>
+        .neon-shadow {
+            box-shadow: 0 0 12px rgba(204, 255, 0, 0.4);
+        }
+        .neon-text {
+            text-shadow: 0 0 8px rgba(204, 255, 0, 0.5);
+        }
+        .alert-shadow {
+            box-shadow: 0 0 15px rgba(255, 180, 171, 0.3);
+        }
+        .arabic-text {
+            font-family: 'Tajawal', sans-serif;
+        }
+        /* Hide scrollbar for clean horizontal scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body min-h-screen pb-[85px] selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- Top App Bar -->
+<header class="sticky top-0 w-full flex justify-between items-center h-16 px-4 z-50 bg-background border-b border-outline-variant dark:border-outline-variant">
+<button class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="text-headline-sm font-headline font-black tracking-tighter text-primary-fixed dark:text-primary-fixed-dim">
+            DIGITAL PULSE
+        </div>
+<button class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-highest transition-colors active:scale-95 transition-transform p-2 rounded-full flex items-center justify-center relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full alert-shadow"></span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+<!-- Page Title & Overall Health -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="font-headline text-display-lg tracking-tighter text-on-surface uppercase mb-1">Hardware Status</h1>
+<p class="arabic-text text-on-surface-variant text-sm opacity-80" dir="rtl">حالة الأجهزة</p>
+</div>
+<!-- Health Donut -->
+<div class="bg-surface-container rounded-2xl p-4 border border-outline-variant flex items-center gap-4 w-full md:w-auto">
+<div class="relative w-16 h-16 flex items-center justify-center shrink-0">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-primary-fixed drop-shadow-[0_0_4px_rgba(195,244,0,0.5)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="82, 100" stroke-width="3"></path>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="font-headline font-bold text-lg leading-none text-primary-fixed">82%</span>
+</div>
+</div>
+<div>
+<h3 class="font-label uppercase tracking-widest text-xs text-on-surface-variant">Facility Health</h3>
+<p class="arabic-text text-[10px] text-on-surface-variant opacity-70 mb-1" dir="rtl">صحة المنشأة</p>
+<div class="flex gap-2 text-xs">
+<span class="text-primary-fixed flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary-fixed"></span> 142 Active</span>
+<span class="text-error flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error"></span> 3 Offline</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Critical Alerts (Bento style) -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Alert Card 1 -->
+<div class="bg-[#171717] rounded-lg border-l-2 border-l-error border border-outline-variant p-4 relative overflow-hidden group hover:bg-[#262626] transition-all active:scale-95">
+<div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined" style="font-size: 8rem; font-variation-settings: 'FILL' 1;">directions_run</span>
+</div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse alert-shadow"></span>
+<span class="font-label text-[10px] text-error uppercase tracking-widest">Critical Failure</span>
+</div>
+<h3 class="font-headline font-bold text-xl uppercase">Treadmill 04</h3>
+<p class="arabic-text text-xs text-on-surface-variant opacity-80" dir="rtl">جهاز المشي 04</p>
+</div>
+<span class="material-symbols-outlined text-error">build</span>
+</div>
+<div class="relative z-10 mt-6">
+<p class="text-sm text-on-surface-variant mb-2">Motor belt tension low. Drive error code E-42.</p>
+<button class="w-full bg-surface-container-high text-on-surface py-2 rounded-md font-label text-xs uppercase tracking-widest border border-outline-variant hover:bg-outline-variant transition-colors">Dispatch Tech</button>
+</div>
+</div>
+<!-- Alert Card 2 -->
+<div class="bg-[#171717] rounded-lg border-l-2 border-l-error border border-outline-variant p-4 relative overflow-hidden group hover:bg-[#262626] transition-all active:scale-95">
+<div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined" style="font-size: 8rem; font-variation-settings: 'FILL' 1;">fitness_center</span>
+</div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-error animate-pulse alert-shadow"></span>
+<span class="font-label text-[10px] text-error uppercase tracking-widest">Maintenance Req</span>
+</div>
+<h3 class="font-headline font-bold text-xl uppercase">Cable Tower A</h3>
+<p class="arabic-text text-xs text-on-surface-variant opacity-80" dir="rtl">برج الكابلات أ</p>
+</div>
+<span class="material-symbols-outlined text-error">build</span>
+</div>
+<div class="relative z-10 mt-6">
+<p class="text-sm text-on-surface-variant mb-2">Frayed cable on right pulley system. Unsafe for use.</p>
+<button class="w-full bg-surface-container-high text-on-surface py-2 rounded-md font-label text-xs uppercase tracking-widest border border-outline-variant hover:bg-outline-variant transition-colors">Log Repair</button>
+</div>
+</div>
+<!-- Info Card (Non-Critical) -->
+<div class="bg-[#171717] rounded-lg border-l-2 border-l-tertiary-fixed border border-outline-variant p-4 relative overflow-hidden group hover:bg-[#262626] transition-all active:scale-95">
+<div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity text-tertiary-fixed">
+<span class="material-symbols-outlined" style="font-size: 8rem; font-variation-settings: 'FILL' 1;">pedal_bike</span>
+</div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span>
+<span class="font-label text-[10px] text-tertiary-fixed uppercase tracking-widest">Scheduled maint</span>
+</div>
+<h3 class="font-headline font-bold text-xl uppercase">Spin Bike 12</h3>
+<p class="arabic-text text-xs text-on-surface-variant opacity-80" dir="rtl">دراجة الدوران 12</p>
+</div>
+<span class="material-symbols-outlined text-tertiary-fixed">update</span>
+</div>
+<div class="relative z-10 mt-6">
+<p class="text-sm text-on-surface-variant mb-2">Routine lubrication and resistance check due today.</p>
+<button class="w-full bg-surface-container-high text-on-surface py-2 rounded-md font-label text-xs uppercase tracking-widest border border-outline-variant hover:bg-outline-variant transition-colors text-tertiary-fixed">Mark Complete</button>
+</div>
+</div>
+</section>
+<!-- Category Tabs -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-outline-variant">
+<button class="px-4 py-2 rounded-t-lg bg-surface-container-highest border-b-2 border-primary-fixed text-primary-fixed font-headline uppercase tracking-tight font-bold shrink-0">
+<div class="flex flex-col items-start">
+<span>Cardio Matrix</span>
+<span class="arabic-text text-[10px] font-normal opacity-80" dir="rtl">مصفوفة القلب</span>
+</div>
+</button>
+<button class="px-4 py-2 rounded-t-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-headline uppercase tracking-tight shrink-0">
+<div class="flex flex-col items-start">
+<span>Strength / Free</span>
+<span class="arabic-text text-[10px] font-normal opacity-80" dir="rtl">القوة / الحر</span>
+</div>
+</button>
+<button class="px-4 py-2 rounded-t-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors font-headline uppercase tracking-tight shrink-0">
+<div class="flex flex-col items-start">
+<span>Amenities</span>
+<span class="arabic-text text-[10px] font-normal opacity-80" dir="rtl">وسائل الراحة</span>
+</div>
+</button>
+</div>
+<!-- Machine List (Table/Grid) -->
+<div class="bg-surface-container rounded-2xl border border-outline-variant overflow-hidden">
+<div class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant bg-surface-container-low font-label text-xs uppercase tracking-widest text-on-surface-variant">
+<div class="col-span-5 md:col-span-4">Unit / ID</div>
+<div class="col-span-4 md:col-span-3">Status</div>
+<div class="col-span-3 md:col-span-3 hidden md:block">Last Service</div>
+<div class="col-span-3 md:col-span-2 text-right">Action</div>
+</div>
+<!-- List Item 1 -->
+<div class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant items-center hover:bg-surface-container-high transition-colors">
+<div class="col-span-5 md:col-span-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface">directions_run</span>
+</div>
+<div>
+<div class="font-headline font-bold">TRD-01</div>
+<div class="text-xs text-on-surface-variant">Treadmill Alpha</div>
+</div>
+</div>
+<div class="col-span-4 md:col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-fixed neon-shadow"></span>
+<span class="font-body text-sm">Online</span>
+</div>
+<div class="col-span-3 md:col-span-3 hidden md:block text-sm text-on-surface-variant">
+                    12 Days Ago
+                </div>
+<div class="col-span-3 md:col-span-2 text-right">
+<button class="p-2 rounded-md hover:bg-surface transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</button>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant items-center hover:bg-surface-container-high transition-colors">
+<div class="col-span-5 md:col-span-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface">directions_run</span>
+</div>
+<div>
+<div class="font-headline font-bold">TRD-02</div>
+<div class="text-xs text-on-surface-variant">Treadmill Alpha</div>
+</div>
+</div>
+<div class="col-span-4 md:col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-fixed neon-shadow"></span>
+<span class="font-body text-sm">Online</span>
+</div>
+<div class="col-span-3 md:col-span-3 hidden md:block text-sm text-on-surface-variant">
+                    12 Days Ago
+                </div>
+<div class="col-span-3 md:col-span-2 text-right">
+<button class="p-2 rounded-md hover:bg-surface transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</button>
+</div>
+</div>
+<!-- List Item 3 (Warning) -->
+<div class="grid grid-cols-12 gap-4 p-4 items-center bg-[#1a1710] hover:bg-[#221e15] transition-colors">
+<div class="col-span-5 md:col-span-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-[#332b1a] flex items-center justify-center shrink-0 border border-[#4d4026]">
+<span class="material-symbols-outlined text-yellow-500">directions_run</span>
+</div>
+<div>
+<div class="font-headline font-bold">TRD-03</div>
+<div class="text-xs text-on-surface-variant">Treadmill Alpha</div>
+</div>
+</div>
+<div class="col-span-4 md:col-span-3 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)] animate-pulse"></span>
+<span class="font-body text-sm text-yellow-500">Degraded</span>
+</div>
+<div class="col-span-3 md:col-span-3 hidden md:block text-sm text-yellow-500/70">
+                    60 Days Ago
+                </div>
+<div class="col-span-3 md:col-span-2 text-right">
+<button class="p-2 rounded-md hover:bg-black/20 transition-colors active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant">more_vert</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container fixed bottom-0 w-full h-[85px] rounded-t-lg border-t border-outline-variant dark:border-outline-variant shadow-[0_-4px_12px_rgba(204,255,0,0.1)] md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">dashboard</span>
+<span class="font-label uppercase tracking-widest text-[10px]">DASHBOARD</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">group</span>
+<span class="font-label uppercase tracking-widest text-[10px]">ROSTER</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary-fixed dark:text-primary-fixed bg-surface-container-highest rounded-xl px-3 py-1 hover:text-primary-fixed transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">settings_input_component</span>
+<span class="font-label uppercase tracking-widest text-[10px]">HARDWARE</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant hover:text-primary-fixed transition-colors active:scale-90 transition-transform">
+<span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+<span class="font-label uppercase tracking-widest text-[10px]">LEDGER</span>
+</button>
+</nav>
+</body></html>

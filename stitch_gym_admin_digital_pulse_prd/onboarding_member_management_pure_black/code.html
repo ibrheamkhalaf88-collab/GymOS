@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+
+<html dir="ltr" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gym Onboarding - Membership Management</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Custom Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            volt: '#CCFF00',
+            dark: '#000000',
+            gray: {
+              400: '#9CA3AF',
+              600: '#4B5563',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'], // Assuming Inter or similar for clean digital look
+            arabic: ['Cairo', 'sans-serif'], // Using Cairo for Arabic text
+          }
+        }
+      }
+    }
+  </script>
+<!-- Google Fonts for Arabic -->
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="custom-utilities">
+    .text-glow {
+      text-shadow: 0 0 10px rgba(204, 255, 0, 0.3);
+    }
+    .neon-border {
+      box-shadow: 0 0 15px rgba(204, 255, 0, 0.2);
+      border: 1px solid rgba(204, 255, 0, 0.3);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-dark text-white min-h-screen flex flex-col items-center justify-between font-sans antialiased pb-8">
+<!-- BEGIN: MainContent -->
+<main class="w-full max-w-md mx-auto flex flex-col flex-1" data-purpose="onboarding-main">
+<!-- Top Spacer / Status Bar Area -->
+<div class="h-12 w-full"></div>
+<!-- Image Container -->
+<section class="flex-1 flex items-center justify-center p-6 w-full" data-purpose="illustration-section">
+<div class="relative w-full aspect-square max-w-[320px] rounded-3xl overflow-hidden neon-border bg-gray-900/50 backdrop-blur-sm">
+<img alt="Membership Management Illustration showing a tablet with member card, fingerprint, credit card, and user profile icons" class="w-full h-full object-cover mix-blend-screen opacity-90" data-purpose="hero-image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAX4G1MrCv-Hweo7A1iFCCsG9t8xltvXtWwbMSw-GBNUNzo2tvMZ25eXiFATiv-4vRxpaAUGax1z92Ph6TC_mrwqs48HJwi8Zcu7lqIKL4S4PqxfZgm9cfL5cfyPHdjRXyKBCsFCEFIImwYI_tbT4ItZgPXLptBrfVVeeopW3q5g8LZBale5XZLSP07lNM8bmEkK5kjsh59P-YQEZ08RNoJDNJVmAFGb7PCEeyV1UCehQwIjgQn-mH0"/>
+</div>
+</section>
+<!-- Text Content Area -->
+<section class="px-6 py-8 flex flex-col gap-6 text-center" data-purpose="text-content">
+<!-- Headers -->
+<div class="space-y-3" data-purpose="headers">
+<h1 class="text-2xl font-bold tracking-tight text-white font-arabic">
+          إدارة العضويات بلمسة واحدة
+        </h1>
+<h2 class="text-xl font-semibold tracking-tight text-volt text-glow">
+          One-Touch Membership Management
+        </h2>
+</div>
+<!-- Descriptions -->
+<div class="space-y-4" data-purpose="descriptions">
+<p class="text-base text-gray-400 font-arabic leading-relaxed" dir="rtl">
+          سجل المشتركين الجدد، تابع تواريخ التجديد، وادفع الاشتراكات بسهولة فائقة دون فوضى الأوراق.
+        </p>
+<p class="text-sm text-gray-400 leading-relaxed max-w-[280px] mx-auto">
+          Register new members, track renewal dates, and pay subscriptions with extreme speed without paper chaos.
+        </p>
+</div>
+</section>
+</main>
+<!-- END: MainContent -->
+<!-- BEGIN: BottomNavigation -->
+<footer class="w-full max-w-md mx-auto px-6 pb-6 pt-4 flex flex-col gap-8" data-purpose="bottom-nav">
+<!-- Page Indicators -->
+<div class="flex justify-center items-center gap-2" data-purpose="pagination-dots">
+<div class="w-2 h-2 rounded-full bg-gray-600 transition-colors"></div>
+<div class="w-6 h-2 rounded-full bg-volt shadow-[0_0_8px_rgba(204,255,0,0.5)] transition-all"></div>
+<div class="w-2 h-2 rounded-full bg-gray-600 transition-colors"></div>
+</div>
+<!-- Action Button -->
+<div class="w-full flex gap-4" data-purpose="actions">
+<!-- Optional Skip Button (Hidden here based on prompt focus, but good practice for onboarding) -->
+<!-- <button class="px-6 py-4 text-gray-400 font-semibold rounded-2xl hover:bg-gray-800 transition-colors">Skip</button> -->
+<button class="flex-1 bg-volt text-dark font-bold text-lg py-4 px-8 rounded-2xl shadow-[0_4px_20px_rgba(204,255,0,0.3)] hover:bg-[#b3e600] active:scale-[0.98] transition-all flex items-center justify-center gap-2 group" data-purpose="next-button">
+        Next / التالي
+        <svg class="h-5 w-5 group-hover:translate-x-1 transition-transform" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"></path>
+</svg>
+</button>
+</div>
+</footer>
+<!-- END: BottomNavigation -->
+</body></html>

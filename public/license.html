@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Activate — Digital Pulse Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Noto+Kufi+Arabic:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/css/main.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="brand-dot"></span>
+        <div class="brand-text">
+          <h1>DIGITAL PULSE</h1>
+          <p>Membership Manager</p>
+        </div>
+      </div>
+
+      <h2 class="auth-title" data-i18n="activateAccount">Activate Your Account</h2>
+      <p class="auth-sub" data-i18n="activateSub">Enter your license key to continue</p>
+
+      <form id="license-form">
+        <div class="form-group">
+          <label class="form-label" data-i18n="licenseKey">License Key</label>
+          <input type="text" class="form-input" id="license-key" placeholder="DPRO-XXXXXX" required autocomplete="off">
+          <p class="form-help">Example: DPRO-A1B2C3</p>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;" data-i18n="activate">Activate</button>
+      </form>
+
+      <div id="license-message" style="display:none; margin-top:16px; padding:12px; border-radius:8px; background:var(--bg-secondary); border:1px solid var(--border);">
+        <p style="margin:0;" id="message-text"></p>
+      </div>
+
+      <p class="auth-footer">
+        <span data-i18n="noLicense">Don't have a license key?</span>
+        <a href="https://your-website.com/buy" target="_blank" data-i18n="buyLicense">Purchase one</a>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { license } from '/src/js/license.js';
+    import { i18n } from '/src/js/i18n.js';
+    import { showToast } from '/src/js/ui.js';
+
+    i18n.apply();
+
+    document.getElementById('license-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const key = document.getElementById('license-key').value.trim().toUpperCase();
+      const messageBox = document.getElementById('license-message');
+      const messageText = document.getElementById('message-text');
+
+      // Show loading
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = i18n.lang === 'ar' ? 'جاري التفعيل...' : 'Activating...';
+      submitBtn.disabled = true;
+
+      try {
+        const result = await license.activate(key);
+
+        if (result.success) {
+          messageBox.style.display = 'block';
+          messageBox.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
+          messageBox.style.borderColor = '#22c55e';
+          messageText.textContent = i18n.lang === 'ar'
+            ? '✅ تم التفعيل بنجاح! يتم توجيهك إلى لوحة التحكم...'
+            : '✅ Activation successful! Redirecting to dashboard...';
+
+          // Redirect after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/public/app.html';
+          }, 2000);
+        } else {
+          messageBox.style.display = 'block';
+          messageBox.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+          messageBox.style.borderColor = '#ef4444';
+          messageText.textContent = i18n.lang === 'ar'
+            ? `❌ ${result.error || 'الكود غير صحيح أو تم استخدامه مسبقاً'}`
+            : `❌ ${result.error || 'Invalid license key or already used'}`;
+        }
+      } catch (error) {
+        messageBox.style.display = 'block';
+        messageBox.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+        messageBox.style.borderColor = '#ef4444';
+        messageText.textContent = i18n.lang === 'ar'
+          ? '❌ حدث خطأ في التحقق، حاول مرة أخرى'
+          : '❌ Verification error, please try again';
+      } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Auto-focus license input
+    document.getElementById('license-key').focus();
+  </script>
+</body>
+</html>

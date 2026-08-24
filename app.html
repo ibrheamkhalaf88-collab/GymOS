@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IB2040 — التطبيق</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="app">
+  <header class="app-header">
+    <div class="app-brand">IB<i>2040</i></div>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="adminBtn" title="لوحة إدارة الأكواد">🔐 الأكواد</button>
+      <button class="icon-btn" id="logoutBtn" title="تسجيل الخروج">خروج</button>
+    </div>
+  </header>
+  <main class="app-main">
+    <div class="welcome-box">
+      <h2>أهلاً بك 👋</h2>
+      <p>تم تفعيل حسابك بنجاح. استمتع بتجربة IB2040.</p>
+      <div class="stat-row">
+        <div class="stat"><span id="statCode">—</span><label>كودك</label></div>
+        <div class="stat"><span id="statDate">—</span><label>تاريخ التفعيل</label></div>
+      </div>
+    </div>
+    <div class="features">
+      <div class="feature"><div class="f-ic">⚡</div><h3>سريع</h3><p>أداء عالٍ وتنقل سلس.</p></div>
+      <div class="feature"><div class="f-ic">🔒</div><h3>آمن</h3><p>حماية كاملة لبياناتك.</p></div>
+      <div class="feature"><div class="f-ic">🎯</div><h3>دقيق</h3><p>إدارة احترافية للأكواد.</p></div>
+    </div>
+  </main>
+</section>
+<script src="js/app.js"></script>
+</body>
+</html>
