@@ -1337,14 +1337,6 @@ function viewProfile() {
           <span class="material-symbols-outlined text-muted">security</span>
         </div>
         <div class="space-y-4">
-          <div class="flex items-center justify-between group cursor-pointer" id="secPassword">
-            <div>
-              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Admin Console</p>
-              <p class="text-muted text-xs mt-1 font-headline">Generate activation codes / إدارة الأكواد</p>
-            </div>
-            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Open</button>
-          </div>
-          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secRestore">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Restore Backup</p>
@@ -1536,7 +1528,6 @@ function viewProfile() {
   };
   $("#hapticToggle")?.addEventListener("change", (e) =>
     localStorage.setItem("dp_haptic", e.target.checked ? "1" : "0"));
-  $("#secPassword").onclick = () => location.href = "admin.html";
   $("#secRestore").onclick = () => $("#importFile").click();
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {

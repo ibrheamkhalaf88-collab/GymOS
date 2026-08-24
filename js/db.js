@@ -11,6 +11,12 @@ import { db, auth, onlineMode } from "./firebase-config.js";
 // admin pages whenever gstatic is unreachable.
 const FS = () => import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
+// ---- Client password hashing (SHA-256, no plaintext stored) ----
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text)));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // ---- Code format: XXX-XXX (unambiguous alphabet) ----
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -192,6 +198,56 @@ function demoSeed() {
       demoSave(list);
     }
     return { ok: true, record: { ...record, ...patch } };
+  },
+
+  // ---------- Website client accounts (code + password) ----------
+  // First-time: the buyer sets a password right after activation.
+  async setClientPassword(code, password) {
+    const id = normalizeCode(code);
+    if (!id) return false;
+    const passHash = await sha256(password);
+    if (onlineMode()) {
+      const { doc, updateDoc } = await FS();
+      await updateDoc(doc(db, "codes", id), { passHash });
+    } else {
+      const list = demoAll();
+      const item = list.find((c) => c.code === id);
+      if (item) { item.passHash = passHash; demoSave(list); }
+    }
+    localStorage.setItem("dp_cloud", "1");
+    return true;
+  },
+
+  // Login with code + password from any browser
+  async verifyClientLogin(code, password) {
+    const id = normalizeCode(code);
+    if (!id) return { ok: false, error: "INVALID_FORMAT" };
+    const rec = await this.get(id);
+    if (!rec) return { ok: false, error: "NOT_FOUND" };
+    if (!rec.used) return { ok: false, error: "NOT_ACTIVATED" };
+    if (!rec.passHash) return { ok: false, error: "NO_PASSWORD" };
+    const h = await sha256(password);
+    if (rec.passHash !== h) return { ok: false, error: "WRONG_PASSWORD" };
+    return { ok: true, record: rec };
+  },
+
+  // ---------- Cloud gym data (website database) ----------
+  async loadGym(code) {
+    if (!onlineMode()) return null;
+    const id = normalizeCode(code);
+    if (!id) return null;
+    const { doc, getDoc } = await FS();
+    const snap = await getDoc(doc(db, "gyms", id));
+    return snap.exists() ? snap.data() : null;
+  },
+
+  async saveGym(code, data) {
+    if (!onlineMode()) return false;
+    const id = normalizeCode(code);
+    if (!id) return false;
+    const { doc, setDoc } = await FS();
+    await setDoc(doc(db, "gyms", id), data);
+    return true;
   },
 };
 

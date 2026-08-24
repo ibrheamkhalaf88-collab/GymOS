@@ -16,6 +16,25 @@ function read(col) {
 function write(col, list) {
   localStorage.setItem(PREFIX + col, JSON.stringify(list));
   emit(col, list);
+  queueCloudSave();
+}
+
+// ---- Website cloud sync (online mode only) ----
+// After login/activation with a password, every change is pushed to
+// Firestore gyms/{CODE} so the owner can continue from any browser.
+let _cloudTimer = null;
+function queueCloudSave() {
+  if (localStorage.getItem("dp_cloud") !== "1") return;
+  clearTimeout(_cloudTimer);
+  _cloudTimer = setTimeout(async () => {
+    try {
+      const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+      if (!lic || !lic.code) return;
+      const { codesDb } = await import("./db.js");
+      if (!codesDb.saveGym) return;
+      await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: exportAll().data });
+    } catch (err) { console.warn("[GymOS] cloud save skipped:", err && err.message); }
+  }, 1500);
 }
 function emit(col, list) {
   (listeners.get(col) || new Set()).forEach((cb) => cb(list));

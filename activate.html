@@ -83,25 +83,33 @@
         <input aria-label="Digit 6" class="digit-input" maxlength="1" type="text"/>
       </div>
 
-      <div class="flex flex-col gap-2 mb-6">
+      <div id="manualBlock" class="flex flex-col gap-2 mb-6">
         <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Manual Activation / التنشيط اليدوي</label>
         <input id="manualCode" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="Enter Code Manually / أدخل الرمز يدوياً" style="color: #CCFF00;" type="text"/>
+      </div>
+
+      <div id="passBlock" class="flex flex-col gap-2 mb-6 hidden">
+        <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Website Password / كلمة سر موقعك</label>
+        <input id="clientPass" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="••••••••" style="color: #CCFF00;" type="password"/>
       </div>
 
       <div class="flex flex-col gap-4">
         <button id="verifyBtn" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);" type="submit">
           <div class="flex flex-col items-center">
-            <span class="">VERIFY</span>
+            <span id="verifyLabel">VERIFY</span>
             <span class="text-xs opacity-80" dir="rtl">تحقق</span>
           </div>
           <span class="material-symbols-outlined">arrow_forward</span>
         </button>
-        <a id="requestBtn" href="#" class="w-full py-3 bg-transparent font-body font-medium text-sm rounded-lg border border-transparent hover:border-[#444933] transition-colors duration-150 flex items-center justify-center" style="color:#c7c6c6;" onmouseover="this.style.color='#e2e4cf'" onmouseout="this.style.color='#c7c6c6'">
+        <a id="requestBtn" href="#" class="w-full py-3 bg-transparent font-body font-medium text-sm rounded-lg border border-transparent hover:border-[#444933] transition-colors duration-150 flex items-center justify-center" style="color:#c7c6c6;">
           <div class="flex flex-col items-center">
             <span class="">Request New Code</span>
             <span class="arabic-text mt-1" dir="rtl">طلب كود جديد</span>
           </div>
         </a>
+        <button id="modeToggle" type="button" class="w-full py-2 text-xs uppercase tracking-widest font-headline opacity-70 hover:opacity-100 transition-opacity" style="color:#c7c6c6;">
+          👤 Already activated? Client login / دخول العملاء
+        </button>
       </div>
 
       <div class="h-0 overflow-visible"><p id="actMsg" class="text-sm text-center"></p></div>

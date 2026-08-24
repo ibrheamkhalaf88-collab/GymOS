@@ -1,15 +1,19 @@
 rules_version = '2';
 
 // ============================================================
-// Digital Pulse — Firestore Security Rules
+// GymOS — Firestore Security Rules
+//
+// المجموعات:
+//  codes/{CODE}  : سجل أكواد التفعيل (المعرّف = الكود نفسه)
+//  gyms/{CODE}   : بيانات النادي السحابية لصاحب الكود
 //
 // النموذج:
-//  - مجموعة codes: كل مستند = كود تفعيل (المعرّف = الكود نفسه XXX-XXX)
-//  - العميل (بدون تسجيل دخول): يقرأ كوداً واحداً بالمعرّف فقط، ويستطيع
-//    تعديل حقول التفعيل فقط (used/usedAt/usedDevice) وبشرط أن يكون
-//    الكود غير مستخدم سابقاً.
-//  - المدير: يجب تسجيل الدخول ببريد adminEmail (حدّده أدناه) —
-//    له صلاحية إنشاء/حذف/تعديل أي كود وقراءة القائمة كاملة.
+//  - العميل بدون تسجيل دخول: يقرأ كوداً واحداً بالمعرّف، يفعّله مرة
+//    واحدة، ويستطيع تعيين passHash مرة واحدة فقط بعد التفعيل.
+//  - gyms: الوصول عبر "معرفة الكود" (مفتاح عشوائي 6 خانات من أبجدية
+//    غير ملتبسة ≈ مليار احتمال) — نموذج Capability Token مناسب لهذا
+//    الحجم؛ للتشديد مستقبلاً استخدم Cloud Functions + Auth حقيقي.
+//  - المدير: تسجيل دخول ببريد adminEmail أدناه.
 // ============================================================
 
 service cloud.firestore {
@@ -22,28 +26,35 @@ service cloud.firestore {
     }
 
     match /codes/{codeId} {
-      // قراءة كود واحد بالمعرّف (لتفعيل العميل) — مسموحة للجميع
       allow get: if true;
-      // عرض قائمة كل الأكواد — للمدير فقط
       allow list: if isAdmin();
-      // إنشاء وحذف أكواد — للمدير فقط
       allow create, delete: if isAdmin();
 
-      // تعديل:
-      //  - المدير يعدّل بحرية
-      //  - العميل يستطيع فقط وضع used=true مع بيانات الجهاز،
-      //    ولا يمكنه التعديل إذا كان الكود مستخدماً أو موقوفاً
       allow update: if isAdmin()
+        // تفعيل العميل (حقول محددة فقط، مرة واحدة)
         || (
           request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(["used", "usedAt", "usedDevice", "usedDeviceName"])
           && request.resource.data.used == true
           && resource.data.used != true
           && resource.data.revoked != true
+        )
+        // تعيين كلمة سر الموقع — أول مرة فقط، وبعد التفعيل
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["passHash"])
+          && resource.data.used == true
+          && !("passHash" in resource.data)
+          && request.resource.data.passHash is string
+          && request.resource.data.passHash.size() == 64
         );
     }
 
-    // أي مجموعة أخرى: مرفوضة افتراضياً
+    match /gyms/{codeId} {
+      // صيغة الكود إلزامية {XXX-XXX}
+      allow read, write: if codeId.matches('^[A-Z0-9]{3}-[A-Z0-9]{3}$');
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
