@@ -361,8 +361,7 @@ let rosterQuery = "";
 
 function viewRoster() {
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const dueTrainers = store.all("trainers")
-    .filter((t) => !t.lastPaidAt || t.lastPaidAt < nowM.getTime()).length;
+  const dueTrainers = store.all("trainers").filter((t) => !trainerStatus(t).active).length;
 
   screen.innerHTML = `
     <!-- Mobile Search & Filters -->
@@ -461,9 +460,14 @@ function viewRoster() {
 }
 
 // Trainer cards — same visual language as member cards
+// Salary coverage: each renewal covers exactly one month
+function trainerStatus(t) {
+  const until = t.lastPaidAt ? (() => { const d = new Date(t.lastPaidAt); d.setMonth(d.getMonth() + 1); return d.getTime(); })() : 0;
+  return { active: Date.now() < until, until };
+}
 function trainerCard(t) {
-  const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const paid = t.lastPaidAt && t.lastPaidAt >= nowM.getTime();
+  const st = trainerStatus(t);
+  const paid = st.active;
   return `
   <div data-trainer="${t.id}" class="bg-surface cyber-border ${paid ? "" : "border-s-2 !border-s-alert"} rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer group active:scale-[0.98]">
     <div class="relative shrink-0">
@@ -473,11 +477,14 @@ function trainerCard(t) {
     <div class="flex-1 min-w-0">
       <div class="flex justify-between items-start gap-2">
         <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
-        <span class="font-label text-xs tracking-widest ${paid ? "text-primary" : "text-alert"} shrink-0" dir="ltr">${fmt.money(t.salary)}/mo</span>
+        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded ${paid ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"} border font-bold">${paid ? "🟢 فعّال ACTIVE" : "🔴 منتهي EXPIRED"}</span>
       </div>
-      <p class="font-body text-xs mt-0.5 ${paid ? "text-primary" : "text-alert"}">
-        ${paid ? `✅ آخر تجديد: ${fmt.date(t.lastPaidAt, currentLang())}` : "⏰ مستحق — لم يُجدد هذا الشهر"}
+      <p class="font-body text-xs mt-1 ${paid ? "text-primary" : "text-alert"}">
+        ${st.active
+          ? `🟢 الاشتراك فعّال — التجديد القادم: ${fmt.date(st.until, currentLang())}`
+          : `🔴 انتهت باقة الراتب${st.until ? ` بتاريخ ${fmt.date(st.until, currentLang())}` : ""} — يتطلب تجديد`}
       </p>
+      <p class="font-body text-[11px] text-muted mt-0.5" dir="ltr">${fmt.money(t.salary)}/mo</p>
       <div class="flex gap-2 mt-2 flex-wrap">
         <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">📅 بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
         <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">💵 يوم الدفع: ${t.payDay || 1}</span>
@@ -486,8 +493,8 @@ function trainerCard(t) {
     </div>
     <div class="shrink-0 flex flex-col gap-1">
       <button data-info-btn title="File / الملف" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
-      ${paid ? `<button data-edit-t="${t.id}" title="Edit" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>`
-             : `<button data-pay="${t.id}" title="Renew / تجديد" class="bg-primary text-black rounded-xl p-1.5 hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>`}
+      <button data-edit-t="${t.id}" title="Edit" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+      <button data-pay="${t.id}" title="Renew / تجديد" class="${paid ? "hidden" : ""} bg-primary text-black rounded-xl p-1.5 hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>
     </div>
   </div>`;
 }
@@ -1022,7 +1029,7 @@ function viewLedger() {
   // ---- Trainer salary reminders (current real month) ----
   const trainers = store.all("trainers");
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const due = trainers.filter((t) => !t.lastPaidAt || t.lastPaidAt < nowM.getTime());
+  const due = trainers.filter((t) => !trainerStatus(t).active);
   const dueTotal = due.reduce((s, t) => s + Number(t.salary || 0), 0);
   const dueBanner = due.length ? `
     <div class="bg-alert/10 border border-alert/40 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
