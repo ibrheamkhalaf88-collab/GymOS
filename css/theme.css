@@ -141,6 +141,21 @@ input:-webkit-autofill:focus {
   caret-color: #ccff00;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* ===== GLOBAL RULE: every text field is BLACK with VOLT text ===== */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
+select,
+textarea {
+  background-color: #000000 !important;
+  color: #ccff00 !important;
+}
+/* internal segments of date inputs (dd/mm/yyyy) */
+input::-webkit-datetime-edit { background: transparent; color: #ccff00; }
+input::-webkit-datetime-edit-fields-wrapper { background: transparent; }
+input::-webkit-datetime-edit-year-field,
+input::-webkit-datetime-edit-month-field,
+input::-webkit-datetime-edit-day-field { color: #ccff00; }
+input::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.6); cursor: pointer; }
 select.dp-field option { background: #000000; color: #ccff00; }
 
 /* ---- Toasts ---- */
