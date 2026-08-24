@@ -897,15 +897,16 @@ function viewLedger() {
   const profit = revenue - expenses;
   const ledger = ledgerAll.filter(inMonth);
 
-  const monthLabel = `${EN_MONTHS[base.getMonth()]} ${base.getFullYear()}`;
+  const mNum = String(base.getMonth() + 1).padStart(2, "0");
+  const monthLabel = `${mNum} · ${EN_MONTHS[base.getMonth()]} ${base.getFullYear()}`;
   const monthLabelAr = `${AR_MONTHS[base.getMonth()]} ${arDigits(base.getFullYear())}`;
 
-  // Quick-jump options: last 12 months
+  // Quick-jump options: last 12 months (numbered)
   let jumpOptions = "";
   for (let o = 0; o >= -11; o--) {
     const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + o);
     const sel = o === (ledgerOffset || 0) ? "selected" : "";
-    jumpOptions += `<option value="${o}" ${sel}>${AR_MONTHS[d.getMonth()]} ${d.getFullYear()} · ${EN_MONTHS[d.getMonth()]}</option>`;
+    jumpOptions += `<option value="${o}" ${sel}>${d.getMonth() + 1} · ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}</option>`;
   }
 
   screen.innerHTML = `
