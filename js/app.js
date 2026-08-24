@@ -862,123 +862,103 @@ function openDeviceDetail(id) {
 /* ============================================================
    LEDGER  (docs/design/ledger_v2)
    ============================================================ */
+function monthExpenses() {
+  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
+  return store.all("ledger")
+    .filter((l) => l.type === "expense" && l.date >= start.getTime())
+    .reduce((s, l) => s + Number(l.amount || 0), 0);
+}
+
 function viewLedger() {
   const s = store.stats();
   const ledger = store.all("ledger");
-
-  const dom = new Date().getDate();
-  const dim = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const eom = Math.round((s.revenueThisMonth / dom) * dim);
-  const arpu = s.activeMembers ? s.revenueThisMonth / s.activeMembers : 0;
+  const expenses = monthExpenses();
+  const profit = s.revenueThisMonth - expenses;
 
   screen.innerHTML = `
-  <!-- Massive MRR Display -->
-  <section id="mrrHero" class="glass-card rounded-lg p-6 flex flex-col items-center justify-center relative overflow-hidden active:scale-[0.98] transition-transform cursor-pointer" title="Open Monthly Reports">
-    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
-    <div class="text-center z-10">
-      <h2 class="font-label uppercase tracking-widest text-muted mb-2 text-xs">Monthly Recurring Revenue <br/><span class="arabic-sub">الإيرادات الشهرية المتكررة</span></h2>
-      <div class="font-headline text-5xl md:text-[72px] text-primary neon-text tracking-tighter flex items-center gap-2 tabular-nums" dir="ltr">
-        <span>$</span><span>${nf.format(Math.round(s.revenueThisMonth))}</span>
-        <span class="material-symbols-outlined ${s.revenueGrowthPct >= 0 ? "text-primary" : "text-alert"} text-3xl md:text-4xl" style="font-variation-settings:'FILL' 1;">trending_${s.revenueGrowthPct >= 0 ? "up" : "down"}</span>
-      </div>
-      <p class="text-frost-fixed-dim text-sm mt-2 flex items-center justify-center gap-1" dir="ltr">
-        <span class="material-symbols-outlined text-[16px]">${s.revenueGrowthPct >= 0 ? "arrow_upward" : "arrow_downward"}</span>
-        ${s.revenueGrowthPct >= 0 ? "+" : "-"}${Math.abs(s.revenueGrowthPct)}% vs Last Month
+  <!-- The three big boxes -->
+  <div class="grid grid-cols-3 gap-3">
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+      <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>Revenue</span><span dir="rtl" class="font-arabic">الإيرادات</span>
       </p>
+      <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-primary mt-2" dir="ltr">${fmt.money(s.revenueThisMonth)}</p>
+      <span class="material-symbols-outlined text-primary opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">trending_up</span>
     </div>
-    <span class="material-symbols-outlined absolute -bottom-4 -right-4 text-[120px] text-primary/5 pointer-events-none">account_balance</span>
-  </section>
-
-  <!-- Bento Grid for Metrics -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden">
-      <span class="font-label uppercase tracking-widest text-muted text-[10px]">Active Members<br/><span class="arabic-sub">أعضاء نشطون</span></span>
-      <div class="font-headline font-bold text-2xl text-white tabular-nums mt-4">${nf.format(s.activeMembers)}</div>
-      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-white/10">group</span>
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+      <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>Expenses</span><span dir="rtl" class="font-arabic">المصروفات</span>
+      </p>
+      <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-alert mt-2" dir="ltr">${fmt.money(expenses)}</p>
+      <span class="material-symbols-outlined text-alert opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">payments</span>
     </div>
-    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden border-error/30">
-      <span class="font-label uppercase tracking-widest text-error text-[10px]">Failed Payments<br/><span class="arabic-sub">مدفوعات فاشلة</span></span>
-      <div class="font-headline font-bold text-2xl text-error tabular-nums mt-4">${s.failedPayments}</div>
-      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-error/10">warning</span>
-    </div>
-    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1">
-      <span class="font-label uppercase tracking-widest text-muted text-[10px]">ARPU<br/><span class="arabic-sub">متوسط الإيراد للمستخدم</span></span>
-      <div class="font-headline font-bold text-2xl text-white tabular-nums mt-4" dir="ltr">$${arpu.toFixed(2)}</div>
-      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-white/10">payments</span>
-    </div>
-    <div class="glass-card rounded-lg p-4 flex flex-col justify-between active:scale-95 transition-transform relative overflow-hidden col-span-2 md:col-span-1 bg-surface-container-high border-primary/50 neon-shadow">
-      <span class="font-label uppercase tracking-widest text-primary text-[10px]">EOM Projection<br/><span class="arabic-sub">توقعات نهاية الشهر</span></span>
-      <div class="font-headline font-bold text-2xl text-primary tabular-nums mt-4" dir="ltr">$${Math.round(eom / 1000)}K</div>
-      <span class="material-symbols-outlined absolute bottom-2 right-2 text-[48px] text-primary/10">insights</span>
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+      <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>Profit</span><span dir="rtl" class="font-arabic">صافي الربح</span>
+      </p>
+      <p class="font-display font-bold text-3xl md:text-4xl tabular-nums ${profit >= 0 ? "text-white" : "text-alert"} mt-2" dir="ltr">${fmt.money(profit)}</p>
+      <span class="material-symbols-outlined text-white opacity-20 text-5xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">savings</span>
     </div>
   </div>
 
-  <!-- Cashflow Comparison Chart -->
-  <section class="glass-card rounded-lg p-6">
-    <div class="flex justify-between items-end mb-6">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-sm">Cashflow <span class="text-muted">Vs Prev</span><br/><span class="arabic-sub text-muted">التدفق النقدي مقابل السابق</span></h3>
-      <div class="flex gap-4 text-[10px] font-label uppercase tracking-widest text-muted">
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary neon-shadow"></span> Current</div>
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-surface-variant border border-outline"></span> Previous</div>
-      </div>
-    </div>
-    <div class="h-48 flex items-end justify-between gap-2 pt-4 relative" dir="ltr">
-      <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-        <div class="border-b border-outline-variant w-full h-0"></div>
-        <div class="border-b border-outline-variant w-full h-0"></div>
-        <div class="border-b border-outline-variant w-full h-0"></div>
-        <div class="border-b border-outline-variant w-full h-0"></div>
-      </div>
-      ${cashflowBars()}
-    </div>
-    <div class="flex justify-between text-[10px] font-label uppercase tracking-widest text-muted mt-2" dir="ltr">
-      <span>W1</span><span>W2</span><span>W3</span><span>W4</span><span>W5</span>
-    </div>
-  </section>
+  <!-- Quick actions -->
+  <div class="flex flex-wrap gap-3">
+    <button id="addTxBtn" class="flex-1 min-w-[140px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
+      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> NEW / <span class="font-arabic normal-case">حركة</span>
+    </button>
+    <button id="addSalaryBtn" class="flex-1 min-w-[140px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+      <span class="material-symbols-outlined text-[20px]">badge</span> SALARY / <span class="font-arabic normal-case">راتب مدرب</span>
+    </button>
+    <button id="reportsBtn" title="Monthly reports" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
+      <span class="material-symbols-outlined">insights</span>
+    </button>
+  </div>
 
   <!-- Live Transaction Feed -->
   <section class="flex flex-col gap-2">
-    <div class="flex justify-between items-center px-2">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-sm">Live Ledger <br/><span class="arabic-sub text-muted inline-block">سجل حي</span></h3>
-      <button id="addTxBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
-        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW
-      </button>
-    </div>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-sm px-1">Live Ledger <br/><span class="arabic-sub text-muted inline-block">سجل الحركات — كل داخلة وخارجة</span></h3>
     <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50">
-      ${ledger.length ? ledger.slice(0, 12).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">No transactions / لا توجد حركات</p>`}
+      ${ledger.length ? ledger.slice(0, 15).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">No transactions / لا توجد حركات</p>`}
     </div>
   </section>`;
 
   $("#addTxBtn").onclick = openTxModal;
-  $("#mrrHero").onclick = () => show("reports");
+  $("#addSalaryBtn").onclick = openSalaryModal;
+  $("#reportsBtn").onclick = () => show("reports");
 }
 
-function weekBuckets(n) {
-  const buckets = [];
-  const nowWeekStart = (() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    return d.getTime();
-  })();
-  for (let i = n - 1; i >= 0; i--) buckets.push({ start: nowWeekStart - i * 7 * DAY, end: nowWeekStart - (i - 1) * 7 * DAY });
-  return buckets;
+// Trainer salary quick-expense
+function openSalaryModal() {
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">Trainer Salary / راتب مدرب</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تسجيل راتب كأحد المصروفات</p>
+    <form id="salaryForm" class="flex flex-col gap-3">
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Trainer name / اسم المدرب</label>
+        <input name="trainer" required class="dp-field mt-1" placeholder="Coach Ahmad..." /></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.amount} ($)</label>
+        <input name="amount" type="number" min="0.5" step="0.5" required class="dp-field mt-1" dir="ltr" /></div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#salaryForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const name = fd.get("trainer").trim();
+    store.insert("ledger", {
+      type: "expense",
+      amount: Number(fd.get("amount")),
+      description: `Salary: ${name} / راتب: ${name}`,
+      category: "salary",
+      date: Date.now(),
+    });
+    mod.close();
+    showToast("Salary logged / تم تسجيل الراتب");
+  });
 }
-
-function cashflowBars() {
-  const weeks = weekBuckets(5);
-  const ledger = store.all("ledger");
-  const data = weeks.map(({ start, end }) => ({
-    cur: ledger.filter((l) => l.type === "revenue" && l.date >= start && l.date < end).reduce((s, l) => s + Number(l.amount || 0), 0),
-    prev: ledger.filter((l) => l.type === "expense" && l.date >= start && l.date < end).reduce((s, l) => s + Number(l.amount || 0), 0),
-  }));
-  const max = Math.max(...data.flatMap((d) => [d.cur, d.prev]), 1);
-  return data.map(({ cur, prev }) => `
-    <div class="flex-1 flex items-end gap-1 h-full z-10">
-      <div class="w-1/2 bg-surface-variant border border-outline rounded-t-sm" style="height:${Math.max(4, (prev / max) * 100)}%"></div>
-      <div class="w-1/2 bg-primary neon-shadow rounded-t-sm bar-animate" style="--target-height:${Math.max(4, (cur / max) * 100)}%; height:${Math.max(4, (cur / max) * 100)}%"></div>
-    </div>`).join("");
-}
-
 function txRow(l) {
   const isIn = l.type === "revenue";
   const isPOS = isIn && (l.category === "pos" || l.category === "other-income");
