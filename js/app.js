@@ -515,9 +515,14 @@ function openMemberModal(id = null) {
               : "✅ Active / فعال"}
           </p>
         </div>
-        <button type="button" data-toggle-freeze class="shrink-0 px-4 py-2 rounded-xl border text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95 ${m.status === "frozen" ? "border-primary text-primary hover:bg-primary hover:text-black" : "border-frost-fixed text-frost-fixed hover:bg-frost-fixed hover:text-black"}">
-          ${m.status === "frozen" ? "▶ Resume / استئناف" : "❄️ Freeze / تجميد"}
-        </button>
+        <div class="flex shrink-0 items-center gap-2">
+          <button type="button" data-edit-prices title="Edit plan prices / تعديل أسعار الباقات" class="px-4 py-2 rounded-xl border border-primary text-primary hover:bg-primary hover:text-black text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95">
+            🏷️ ${prices[m?.plan] != null ? "$" + prices[m.plan] : "Prices"}
+          </button>
+          <button type="button" data-toggle-freeze class="px-4 py-2 rounded-xl border text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95 ${m.status === "frozen" ? "border-primary text-primary hover:bg-primary hover:text-black" : "border-frost-fixed text-frost-fixed hover:bg-frost-fixed hover:text-black"}">
+            ${m.status === "frozen" ? "▶ Resume / استئناف" : "❄️ Freeze / تجميد"}
+          </button>
+        </div>
       </div>` : ""}
       ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Start Date / تاريخ البداية</label>
         <input name="startDate" type="date" value="${new Date().toLocaleDateString("en-CA")}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1" /></div>`}
@@ -538,15 +543,23 @@ function openMemberModal(id = null) {
       if (p != null) $('[name="paidAmount"]', mod.el).value = p;
     });
   }
-  // Inline price editor
-  $("#editPricesBtn", mod.el).addEventListener("click", () => openPlanPrices(() => {
-    // refresh option labels with the new prices after editing
+  // Inline price editor (gear icon + 🏷️ button both use this)
+  const refreshPlanOptions = () => {
     const sel = $('select[name="plan"]', mod.el);
+    if (!sel) return;
     const current = sel.value;
     const fresh = planPrices();
     sel.innerHTML = PLANS.map((p) =>
       `<option value="${p.key}" ${p.key === current ? "selected" : ""}>${p.en} / ${p.ar} — $${fresh[p.key]}</option>`).join("");
-  }));
+    // also refresh the 🏷️ price chip next to Freeze
+    const chip = mod.el.querySelector("[data-edit-prices]");
+    if (chip && m) {
+      const v = fresh[current];
+      chip.innerHTML = `🏷️ ${v != null ? "$" + v : "Prices"}`;
+    }
+  };
+  $("#editPricesBtn", mod.el).addEventListener("click", () => openPlanPrices(refreshPlanOptions));
+  mod.el.querySelector("[data-edit-prices]")?.addEventListener("click", () => openPlanPrices(refreshPlanOptions));
 
   // Freeze / resume subscription (days pause while frozen)
   const freezeBtn = mod.el.querySelector("[data-toggle-freeze]");
