@@ -504,6 +504,20 @@ function openMemberModal(id = null) {
         ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / الأيام</label>
           <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1 w-24" /></div>`}
       </div>
+      ${m && effStatus(m) !== "expired" ? `
+      <div class="flex items-center justify-between bg-surface-container rounded-xl p-3">
+        <div>
+          <p class="text-[10px] uppercase tracking-widest text-muted font-headline">Subscription / الاشتراك</p>
+          <p class="font-headline text-sm uppercase mt-0.5 ${m.status === "frozen" ? "text-frost-fixed" : "text-primary"}">
+            ${m.status === "frozen"
+              ? `❄️ Frozen / مجمد${m.remainingDays != null ? ` <span class="normal-case text-xs text-muted">— ${m.remainingDays} يوم متوقف</span>` : ""}`
+              : "✅ Active / فعال"}
+          </p>
+        </div>
+        <button type="button" data-toggle-freeze class="shrink-0 px-4 py-2 rounded-xl border text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95 ${m.status === "frozen" ? "border-primary text-primary hover:bg-primary hover:text-black" : "border-frost-fixed text-frost-fixed hover:bg-frost-fixed hover:text-black"}">
+          ${m.status === "frozen" ? "▶ Resume / استئناف" : "❄️ Freeze / تجميد"}
+        </button>
+      </div>` : ""}
       ${m ? "" : `<div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Start Date / تاريخ البداية</label>
         <input name="startDate" type="date" value="${new Date().toLocaleDateString("en-CA")}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1" /></div>`}
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paidAmount} ($)</label>
@@ -526,12 +540,33 @@ function openMemberModal(id = null) {
   // Inline price editor
   $("#editPricesBtn", mod.el).addEventListener("click", () => openPlanPrices(() => {
     // refresh option labels with the new prices after editing
-    const sel = $("#plan", mod.el);
+    const sel = $('select[name="plan"]', mod.el);
     const current = sel.value;
     const fresh = planPrices();
     sel.innerHTML = PLANS.map((p) =>
       `<option value="${p.key}" ${p.key === current ? "selected" : ""}>${p.en} / ${p.ar} — $${fresh[p.key]}</option>`).join("");
   }));
+
+  // Freeze / resume subscription (days pause while frozen)
+  const freezeBtn = mod.el.querySelector("[data-toggle-freeze]");
+  if (freezeBtn) freezeBtn.onclick = () => {
+    const cur = store.get("members", id);
+    if (cur.status === "frozen") {
+      const rem = Number(cur.remainingDays || 0);
+      store.update("members", id, {
+        status: cur.plan === "trial" ? "trial" : "active",
+        expiresAt: Date.now() + rem * DAY,
+        remainingDays: null,
+        frozenAt: null,
+      });
+      showToast(`▶ Resumed — ${rem} days restored / تم الاستئناف`);
+    } else {
+      const rem = Math.max(0, Math.ceil((cur.expiresAt - Date.now()) / DAY));
+      store.update("members", id, { status: "frozen", frozenAt: Date.now(), remainingDays: rem });
+      showToast(`❄️ Frozen — ${rem} days paused / تم التجميد وعدم احتساب الأيام`);
+    }
+    mod.close();
+  };
 
   $("#memberForm", mod.el).addEventListener("submit", (e) => {
     e.preventDefault();
