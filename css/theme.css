@@ -126,6 +126,21 @@ input, select, textarea { color-scheme: dark; }
   filter: invert(1) brightness(1.6);
   cursor: pointer;
 }
+/* Date & time controls: force pure-black background */
+input[type="date"], input[type="datetime-local"],
+input[type="time"], input[type="month"] {
+  background-color: #000000;
+  color: #ccff00;
+}
+/* Kill Chrome/Edge autofill white-yellow paint */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #000000 inset;
+  -webkit-text-fill-color: #ccff00;
+  caret-color: #ccff00;
+  transition: background-color 9999s ease-in-out 0s;
+}
 select.dp-field option { background: #000000; color: #ccff00; }
 
 /* ---- Toasts ---- */
