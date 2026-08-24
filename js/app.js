@@ -387,7 +387,16 @@ function viewRoster() {
       <button id="newTrainerBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
         <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW TRAINER / مدرب جديد
       </button>
-    </div>` : ""}
+    </div>` : `
+    <!-- Trainers & salary actions -->
+    <div class="flex flex-wrap gap-2">
+      <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
+      </button>
+      <button id="addTrainerBtn" class="flex-1 min-w-[150px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-3 rounded-xl shadow-neon hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ➕ ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
+      </button>
+    </div>`}
 
     <!-- Roster List (members or trainers by filter) -->
     <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
@@ -455,7 +464,8 @@ function viewRoster() {
     rosterFilter = order[(order.indexOf(rosterFilter) + 1) % order.length];
     showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
   };
-  $("#addSalaryBtn").onclick = openSalaryModal;
+  $("#addSalaryBtn")?.addEventListener("click", openSalaryModal);
+  $("#addTrainerBtn").onclick = () => openTrainerForm();
   $("#newTrainerBtn")?.addEventListener("click", () => openTrainerForm());
 }
 
