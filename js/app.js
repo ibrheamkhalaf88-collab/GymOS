@@ -372,46 +372,51 @@ function viewRoster() {
         <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
       </div>
       <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
-        ${["active", "expired", "trial", "frozen"].map((f) => `
+        ${["active", "expired", "trial", "frozen", "trainers"].map((f) => `
           <button data-filter="${f}" class="roster-filter whitespace-nowrap px-4 py-1.5 rounded-full border font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center
             ${f === rosterFilter
               ? "border-primary bg-primary/10 text-primary"
               : "border-outline-variant bg-surface-container text-muted hover:text-white"}">
             <span>${FILTER_EMOJI[f] || ""} ${f.toUpperCase()}</span>
-            <span class="text-[8px] opacity-70">${i18n.t.statuses[f]}</span>
+            <span class="text-[8px] opacity-70">${i18n.t.statuses[f] || (f === "trainers" ? "مدربون" : f)}</span>
           </button>`).join("")}
       </div>
     </div>
 
-    <!-- Trainers & salary actions -->
-    <div class="flex flex-wrap gap-2">
-      <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
+    ${rosterFilter === "trainers" ? `
+    <div class="flex justify-end">
+      <button id="newTrainerBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
+        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW TRAINER / مدرب جديد
       </button>
-    </div>
+    </div>` : ""}
 
-    <!-- Roster List -->
-    <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
-
-    <!-- Trainers section — same card style as members -->
-    <div class="flex items-center justify-between mt-2">
-      <h2 class="font-headline font-bold text-sm uppercase text-muted flex gap-2 items-center">
-        👥 Trainers <span class="opacity-40">/</span> <span class="font-arabic opacity-70">المدربون</span>
-        <span id="trainersCount" class="text-[10px] bg-surface-container-high border border-outline-variant rounded-full px-2 py-0.5"></span>
-      </h2>
-      <button id="addTrainerInlineBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
-        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW
-      </button>
-    </div>
-    <div id="trainerGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
+    <!-- Roster List (members or trainers by filter) -->
+    <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
 
   const renderList = () => {
+    const grid = $("#rosterGrid");
+
+    // ── TRAINERS view ──
+    if (rosterFilter === "trainers") {
+      const trainers = store.all("trainers");
+      grid.innerHTML = trainers.length ? trainers.map(trainerCard).join("")
+        : `<div class="col-span-full text-center text-muted py-12 text-sm">📭 ما في مدربين — ضيف من NEW فوق</div>`;
+      grid.querySelectorAll("[data-trainer]").forEach((c) =>
+        c.addEventListener("click", () => openTrainerDetails(c.dataset.trainer)));
+      grid.querySelectorAll("[data-pay]").forEach((b) =>
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          payTrainer(store.get("trainers", b.dataset.pay));
+        }));
+      return;
+    }
+
+    // ── MEMBERS view ──
     const q = rosterQuery.trim().toLowerCase();
     let members = store.all("members");
     if (rosterFilter) members = members.filter((m) => effStatus(m) === rosterFilter);
     if (q) members = members.filter((m) => m.name.toLowerCase().includes(q) || String(m.phone).includes(q));
 
-    const grid = $("#rosterGrid");
     grid.innerHTML = members.length ? members.map(memberCard).join("")
       : `<div class="col-span-full text-center text-muted py-12 text-sm">😴 No members found / ما في أعضاء</div>`;
 
@@ -447,35 +452,15 @@ function viewRoster() {
   $("#addMemberBtn").onclick = openMemberModal;
   $("#deskSearch").addEventListener("input", (e) => { rosterQuery = e.target.value; renderList(); });
   $("#deskFilter").onclick = () => {
-    const order = ["active", "expired", "trial", "frozen", ""];
+    const order = ["active", "expired", "trial", "frozen", "trainers", ""];
     rosterFilter = order[(order.indexOf(rosterFilter) + 1) % order.length];
     showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
   };
   $("#addSalaryBtn").onclick = openSalaryModal;
-  renderTrainerCards();
+  $("#newTrainerBtn")?.addEventListener("click", () => openTrainerForm());
 }
 
 // Trainer cards — same visual language as member cards
-function renderTrainerCards() {
-  const grid = document.getElementById("trainerGrid");
-  if (!grid) return;
-  const trainers = store.all("trainers");
-  const countEl = document.getElementById("trainersCount");
-  if (countEl) countEl.textContent = `${trainers.length}`;
-  grid.innerHTML = trainers.length ? trainers.map(trainerCard).join("")
-    : `<div class="col-span-full text-center text-muted py-10 text-sm">📭 ما في مدربين — ضيف أول مدرب من NEW فوق</div>`;
-
-  grid.querySelectorAll("[data-trainer]").forEach((c) =>
-    c.addEventListener("click", () => openTrainerDetails(c.dataset.trainer)));
-  grid.querySelectorAll("[data-pay]").forEach((b) =>
-    b.addEventListener("click", (e) => {
-      e.stopPropagation();
-      payTrainer(store.get("trainers", b.dataset.pay));
-    }));
-  grid.querySelectorAll("[data-edit-t]").forEach((b) =>
-    b.addEventListener("click", (e) => { e.stopPropagation(); openTrainerForm(b.dataset.editT); }));
-}
-
 function trainerCard(t) {
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
   const paid = t.lastPaidAt && t.lastPaidAt >= nowM.getTime();
@@ -509,7 +494,7 @@ function trainerCard(t) {
 
 const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
   elite: "ELITE TIER", standard: "STANDARD TIER", trial: "GUEST" };
-const FILTER_EMOJI = { active: "✅", expired: "⛔", trial: "🎁", frozen: "❄️" };
+const FILTER_EMOJI = { active: "✅", expired: "⛔", trial: "🎁", frozen: "❄️", trainers: "👥" };
 
 function memberAvatar(m, st) {
   if (m.photo) {
