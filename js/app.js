@@ -510,7 +510,7 @@ function openMemberModal(id = null) {
 
   // Auto-fill paid amount from the selected plan price (add mode only)
   if (!m) {
-    $("#plan", mod.el).addEventListener("change", (e) => {
+    $('select[name="plan"]', mod.el).addEventListener("change", (e) => {
       const p = planPrices()[e.target.value];
       if (p != null) $('[name="paidAmount"]', mod.el).value = p;
     });
