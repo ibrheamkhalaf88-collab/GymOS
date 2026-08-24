@@ -486,10 +486,13 @@ function viewRoster() {
 
 // Trainer cards — same visual language as member cards
 // Salary coverage: each renewal covers exactly one month.
-// Contract ended? (endDate passed) → trainer is ENDED: grey, no reminders
+// Never-paid trainers are covered from their START date (first month free-flow),
+// so they stay green until the first salary due-date actually arrives.
 function trainerStatus(t) {
   if (t.contractEnd && Date.now() > t.contractEnd) return { active: false, ended: true, until: t.contractEnd };
-  const until = t.lastPaidAt ? (() => { const d = new Date(t.lastPaidAt); d.setMonth(d.getMonth() + 1); return d.getTime(); })() : 0;
+  const base = t.lastPaidAt ?? t.startedAt ?? Date.now();
+  const d = new Date(base); d.setMonth(d.getMonth() + 1);
+  const until = d.getTime();
   return { active: Date.now() < until, ended: false, until };
 }
 function trainerCard(t) {
@@ -505,7 +508,7 @@ function trainerCard(t) {
     <div class="flex-1 min-w-0">
       <div class="flex justify-between items-start gap-2">
         <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
-        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "🟢 فعّال ACTIVE" : contractOver ? "📄 انتهى العقد" : "🔴 منتهي EXPIRED"}</span>
+        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "🟢 فعّال ACTIVE" : contractOver ? "⚫ انتهى العقد ENDED" : "⏰ موعد الراتب DUE"}</span>
       </div>
       <p class="font-body text-xs mt-1 ${(paid && !contractOver) ? "text-primary" : "text-alert"}">
         ${contractOver
