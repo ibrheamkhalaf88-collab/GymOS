@@ -29,7 +29,6 @@ self.addEventListener("fetch", (e) => {
   if (url.hostname.includes("googleapis.com") || url.hostname.includes("gstatic.com")) return;
   if (url.origin !== location.origin) return;
 
-  const file = url.pathname.split("/").pop();
 
   // Pages: network-first so updates land immediately, fall back offline
   if (url.pathname.endsWith(".html") || url.pathname === "/") {

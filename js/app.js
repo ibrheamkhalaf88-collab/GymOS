@@ -112,7 +112,7 @@ document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click",
 $("#mNotifBtn").addEventListener("click", () => {
   const t = i18n.t;
   const list = store.all("notifications");
-  const m = openModal(`
+  openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight mb-4">${t.systemFeed}</h3>
     <div class="flex flex-col gap-2">
       ${list.map((n) => `
@@ -444,7 +444,7 @@ function memberCard(m) {
   const st = effStatus(m);
   const daysLeft = Math.ceil((m.expiresAt - Date.now()) / DAY);
 
-  let statusLine = "";
+  let statusLine;
   if (st === "expired") statusLine = `<p class="font-body text-xs text-error mt-0.5">EXPIRED - ${Math.abs(daysLeft)} DAYS</p>`;
   else if (st === "trial") statusLine = `<p class="font-body text-xs text-frost-fixed mt-0.5">TRIAL PASS - DAY ${daysLeft}</p>`;
   else if (st === "frozen") statusLine = `<p class="font-body text-xs text-muted mt-0.5">FROZEN / مجمد</p>`;
@@ -906,12 +906,6 @@ function openDeviceDetail(id) {
     const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "سيتم حذف الجهاز نهائياً", confirmText: "Delete", danger: true });
     if (ok) { store.remove("devices", id); showToast("Deleted / تم الحذف"); }
   };
-}
-function monthExpenses() {
-  const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0);
-  return store.all("ledger")
-    .filter((l) => l.type === "expense" && l.date >= start.getTime())
-    .reduce((s, l) => s + Number(l.amount || 0), 0);
 }
 
 /* ============================================================

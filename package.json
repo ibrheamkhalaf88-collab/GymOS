@@ -1,28 +1,33 @@
-{
-  "name": "gymos",
-  "version": "1.0.0",
-  "description": "Digital Pulse — Gym & Facility Management App (Web + Android)",
-  "main": "index.html",
-  "scripts": {
-    "dev": "npx serve -l 5173 .",
-    "sync": "node scripts/sync-www.js",
-    "cap:init": "npx cap init",
-    "cap:add:android": "npx cap add android",
-    "apk": "npm run sync && npx cap sync android && cd android && gradlew.bat assembleDebug"
-  },
-  "keywords": [
-    "gym",
-    "management",
-    "pwa",
-    "android",
-    "firebase"
-  ],
-  "license": "MIT",
-  "dependencies": {
-    "@capacitor/android": "^6.2.1",
-    "@capacitor/core": "^6.2.1"
-  },
-  "devDependencies": {
-    "@capacitor/cli": "^6.2.1"
-  }
+﻿{
+    "name":  "gymos",
+    "version":  "1.0.0",
+    "description":  "Digital Pulse â€” Gym \u0026 Facility Management App (Web + Android)",
+    "main":  "index.html",
+    "scripts":  {
+                    "dev":  "npx serve -l 5173 .",
+                    "sync":  "node scripts/sync-www.js",
+                    "cap:init":  "npx cap init",
+                    "cap:add:android":  "npx cap add android",
+                    "apk":  "npm run sync \u0026\u0026 npx cap sync android \u0026\u0026 cd android \u0026\u0026 gradlew.bat assembleDebug",
+                    "test":  "node --test",
+                    "lint":  "eslint ."
+                },
+    "keywords":  [
+                     "gym",
+                     "management",
+                     "pwa",
+                     "android",
+                     "firebase"
+                 ],
+    "license":  "MIT",
+    "dependencies":  {
+                         "@capacitor/android":  "^6.2.1",
+                         "@capacitor/core":  "^6.2.1"
+                     },
+    "devDependencies":  {
+                            "@capacitor/cli":  "^6.2.1",
+                            "@eslint/js":  "^10.0.1",
+                            "eslint":  "^10.9.1",
+                            "globals":  "^17.11.0"
+                        }
 }

@@ -1,0 +1,14 @@
+﻿node_modules
+www
+android
+_archive
+.claude
+.git
+.github
+docs
+tests
+Dockerfile
+docker-compose.yml
+.dockerignore
+*.log
+.env*

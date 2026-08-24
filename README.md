@@ -59,6 +59,33 @@ Demo admin login: `admin@example.com` / `admin2040` — demo code: `7Q2-K9D`
 
 Full setup (Firebase, rules, deploy, APK): see **[SETUP.md](SETUP.md)** (عربي).
 
+## 🐳 Docker
+
+```bash
+docker compose up --build       # → http://localhost:8080
+```
+
+Hardened nginx:alpine image with security headers
+(CSP, X-Frame-Options DENY, nosniff), gzip and immutable asset caching.
+
+## 🛡️ Security & quality
+
+- **PBKDF2-SHA256** password hashing (100k iterations + per-user salt) — [`js/db.js`](js/db.js)
+- **Anti-injection / anti-XSS layer** — every input sanitized in [`js/validate.js`](js/validate.js); all renders escaped
+- **Brute-force lockout** on client login (5 tries → 15 min)
+- **Server-side rules** — [`firestore.rules`](firestore.rules) (least privilege, admin-only registry)
+- **Tests** — `npm test` (node:test, validation + crypto vectors)
+- **Lint** — `npm lint` (ESLint flat config)
+- Full details: [SECURITY.md](SECURITY.md)
+
+## 🔄 CI/CD (GitHub Actions)
+
+| Workflow | What it does |
+|----------|--------------|
+| **CI — Quality Gates** | ESLint → unit tests → Docker build → push image to GHCR |
+| **Deploy Web** | GitHub Pages on every push to `main` |
+| **Build Android APK** | Capacitor + Gradle APK artifact (release on tags) |
+
 ## 📁 Project structure
 
 ```

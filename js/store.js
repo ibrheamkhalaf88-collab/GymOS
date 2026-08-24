@@ -32,7 +32,9 @@ function queueCloudSave() {
       if (!lic || !lic.code) return;
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) return;
-      await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: exportAll().data });
+      const dump = {};
+      COLLECTIONS.forEach((c) => { dump[c] = read(c); });
+      await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
     } catch (err) { console.warn("[GymOS] cloud save skipped:", err && err.message); }
   }, 1500);
 }

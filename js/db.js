@@ -5,16 +5,43 @@
 // ============================================================
 
 import { db, auth, onlineMode } from "./firebase-config.js";
+import {
+  sanitizeCode, validatePassword,
+  loginLockRemaining, recordFailedAttempt, resetAttempts,
+} from "./validate.js";
 
 // Firestore SDK is loaded LAZILY (dynamic import) so DEMO mode works
 // fully offline — a static import here would kill both activation and
 // admin pages whenever gstatic is unreachable.
 const FS = () => import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
-// ---- Client password hashing (SHA-256, no plaintext stored) ----
-async function sha256(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text)));
+// ---- Password hashing: PBKDF2-SHA256 (100k iterations + random salt).
+// Legacy records with a bare SHA-256 hash keep working and upgrade
+// transparently on the next successful login.
+const PBKDF2_ITER = 100000;
+
+function bytesToHex(buf) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
+export function randomSalt() {
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+}
+export async function derivePasswordHash(password, saltHex, iterations = PBKDF2_ITER) {
+  const keyMat = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(String(password)), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt: hexToBytes(saltHex), iterations, hash: "SHA-256" },
+    keyMat, 256);
+  return bytesToHex(bits);
+}
+async function sha256(text) { // legacy fallback only
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(text)));
+  return bytesToHex(buf);
 }
 
 // ---- Code format: XXX-XXX (unambiguous alphabet) ----
@@ -203,31 +230,59 @@ function demoSeed() {
   // ---------- Website client accounts (code + password) ----------
   // First-time: the buyer sets a password right after activation.
   async setClientPassword(code, password) {
-    const id = normalizeCode(code);
+    const id = sanitizeCode(code);
     if (!id) return false;
-    const passHash = await sha256(password);
+    if (!validatePassword(password)) throw new Error("Weak password / كلمة سر ضعيفة");
+    const passSalt = randomSalt();
+    const passHash = await derivePasswordHash(password, passSalt);
     if (onlineMode()) {
       const { doc, updateDoc } = await FS();
-      await updateDoc(doc(db, "codes", id), { passHash });
+      await updateDoc(doc(db, "codes", id), { passHash, passSalt });
     } else {
       const list = demoAll();
       const item = list.find((c) => c.code === id);
-      if (item) { item.passHash = passHash; demoSave(list); }
+      if (item) { item.passHash = passHash; item.passSalt = passSalt; demoSave(list); }
     }
     localStorage.setItem("dp_cloud", "1");
     return true;
   },
 
-  // Login with code + password from any browser
+  // Login with code + password from any browser (rate-limited)
   async verifyClientLogin(code, password) {
-    const id = normalizeCode(code);
-    if (!id) return { ok: false, error: "INVALID_FORMAT" };
+    const lockSecs = loginLockRemaining();
+    if (lockSecs > 0) return { ok: false, error: "RATE_LIMITED", secs: lockSecs };
+
+    const id = sanitizeCode(code);
+    if (!id || !validatePassword(password)) {
+      recordFailedAttempt();
+      return { ok: false, error: "WRONG_PASSWORD" };
+    }
     const rec = await this.get(id);
-    if (!rec) return { ok: false, error: "NOT_FOUND" };
-    if (!rec.used) return { ok: false, error: "NOT_ACTIVATED" };
+    if (!rec) { recordFailedAttempt(); return { ok: false, error: "NOT_FOUND" }; }
+    if (!rec.used) { recordFailedAttempt(); return { ok: false, error: "NOT_ACTIVATED" }; }
     if (!rec.passHash) return { ok: false, error: "NO_PASSWORD" };
-    const h = await sha256(password);
-    if (rec.passHash !== h) return { ok: false, error: "WRONG_PASSWORD" };
+
+    let ok = false;
+    let upgrade = null;
+    if (rec.passSalt) {
+      ok = rec.passHash === await derivePasswordHash(password, rec.passSalt);
+    } else {
+      // legacy plain SHA-256 → verify then transparently upgrade to PBKDF2
+      ok = rec.passHash === await sha256(password);
+      if (ok) {
+        const salt = randomSalt();
+        upgrade = { passSalt: salt, passHash: await derivePasswordHash(password, salt) };
+      }
+    }
+    if (!ok) { recordFailedAttempt(); return { ok: false, error: "WRONG_PASSWORD" }; }
+
+    resetAttempts();
+    if (upgrade && onlineMode()) {
+      try {
+        const { doc, updateDoc } = await FS();
+        await updateDoc(doc(db, "codes", id), upgrade);
+      } catch {}
+    }
     return { ok: true, record: rec };
   },
 
