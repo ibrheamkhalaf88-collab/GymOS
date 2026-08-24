@@ -1247,8 +1247,8 @@ function openTrainerForm(id = null) {
       </div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Started working / تاريخ بدء العمل</label>
         <input name="startedAt" type="date" value="${iso(cur?.startedAt)}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1"/></div>
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Contract end / تاريخ انتهاء العقد (اختياري)</label>
-        <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : ""}" class="dp-field mt-1"/></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Contract end / تاريخ انتهاء العقد (شهر من اليوم — قابل للتعديل)</label>
+        <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : iso(Date.now() + 30 * 86400000)}" class="dp-field mt-1"/></div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Phone (optional)</label>
         <input name="phone" dir="ltr" value="${cur ? escapeHtml(cur.phone || "") : ""}" class="dp-field mt-1" /></div>
       <div class="flex gap-3 pt-2">
