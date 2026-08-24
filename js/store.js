@@ -52,32 +52,18 @@ function seedData(col) {
     }
     case "devices": {
       const day = 86400000;
-      const mk = (o) => ({ health: "online", category: "cardio", location: "", issue: "",
-        cost: 0, paid: 0, maintenanceStatus: "completed", ...o });
+      const now = Date.now();
       return [
-        mk({ id: "d1", code: "TRD-01", name: "Treadmill Alpha", type: "directions_run", category: "cardio",
-          location: "Cardio Matrix", health: "online", lastServiceAt: Date.now() - day * 12 }),
-        mk({ id: "d2", code: "TRD-02", name: "Treadmill Alpha", type: "directions_run", category: "cardio",
-          location: "Cardio Matrix", health: "online", lastServiceAt: Date.now() - day * 12 }),
-        mk({ id: "d3", code: "TRD-03", name: "Treadmill Alpha", type: "directions_run", category: "cardio",
-          location: "Cardio Matrix", health: "degraded", lastServiceAt: Date.now() - day * 60,
-          issue: "Belt tension low — speed sensor warnings" }),
-        mk({ id: "d4", code: "TRD-04", name: "Treadmill 04", type: "directions_run", category: "cardio",
-          location: "Cardio Matrix", health: "offline", maintenanceStatus: "in-repair",
-          lastServiceAt: Date.now() - day * 30, cost: 350, paid: 150,
-          issue: "Motor belt tension low. Drive error code E-42." }),
-        mk({ id: "d5", code: "CBL-A", name: "Cable Tower A", type: "fitness_center", category: "strength",
-          location: "Strength / Free", health: "offline", maintenanceStatus: "in-repair",
-          lastServiceAt: Date.now() - day * 45,
-          issue: "Frayed cable on right pulley system. Unsafe for use." }),
-        mk({ id: "d6", code: "SPN-12", name: "Spin Bike 12", type: "pedal_bike", category: "cardio",
-          location: "Spin Studio", health: "online", maintenanceStatus: "pending",
-          lastServiceAt: Date.now() - day * 20,
-          issue: "Routine lubrication and resistance check due today." }),
-        mk({ id: "d7", code: "LEG-02", name: "Leg Press 02", type: "fitness_center", category: "strength",
-          location: "Strength / Free", lastServiceAt: Date.now() - day * 25, cost: 220, paid: 220 }),
-        mk({ id: "d8", code: "SAU-01", name: "Sauna Heater", type: "hot_tub", category: "amenities",
-          location: "Amenities", lastServiceAt: Date.now() - day * 90 }),
+        { id: "d1", name: "Treadmill 04", maintenanceStatus: "in-repair", cost: 350,
+          createdAt: now - day * 2, updatedAt: now - day },
+        { id: "d2", name: "Cable Tower A", maintenanceStatus: "in-repair", cost: 120,
+          createdAt: now - day * 4, updatedAt: now - day * 2 },
+        { id: "d3", name: "Spin Bike 12", maintenanceStatus: "in-repair", cost: 60,
+          createdAt: now - day, updatedAt: now - day },
+        { id: "d4", name: "Leg Press 02", maintenanceStatus: "completed", cost: 220,
+          repairedAt: now - day * 5, createdAt: now - day * 10, updatedAt: now - day * 5 },
+        { id: "d5", name: "Rowing Machine", maintenanceStatus: "completed", cost: 90,
+          repairedAt: now - day * 12, createdAt: now - day * 20, updatedAt: now - day * 12 },
       ];
     }
     case "ledger": {

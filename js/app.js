@@ -656,135 +656,55 @@ function openRenewModal(id) {  const m = store.get("members", id);
 }
 
 /* ============================================================
-   HARDWARE  (docs/design/hardware_v2)
+   HARDWARE — simple repair tracker (same theme)
+   Flow: add device + repair price -> when fixed press DONE ->
+   invoice is auto-deducted and moved to the Ledger.
    ============================================================ */
-const DEV_ICONS = { directions_run: "directions_run", fitness_center: "fitness_center", pedal_bike: "pedal_bike", hot_tub: "hot_tub" };
-
-let hwTab = "cardio";
 function viewHardware() {
   const devices = store.all("devices");
-  const online = devices.filter((d) => d.health === "online").length;
-  const offlineCount = devices.length - online;
-  const pct = devices.length ? Math.round((online / devices.length) * 100) : 100;
-
-  const attention = [
-    ...devices.filter((d) => d.maintenanceStatus === "in-repair"),
-    ...devices.filter((d) => d.maintenanceStatus === "pending"),
-  ].slice(0, 3);
-
-  const tabs = [
-    ["cardio", "Cardio Matrix", "مصفوفة القلب"],
-    ["strength", "Strength / Free", "القوة / الحر"],
-    ["amenities", "Amenities", "وسائل الراحة"],
-  ];
-  if (!tabs.some(([k]) => k === hwTab)) hwTab = "cardio";
-  const listDevices = devices.filter((d) => (d.category || "cardio") === hwTab);
+  const pending = devices.filter((d) => d.maintenanceStatus !== "completed");
+  const done = devices.filter((d) => d.maintenanceStatus === "completed");
+  const invoiced = done.reduce((s, d) => s + Number(d.cost || 0), 0);
 
   screen.innerHTML = `
-    <!-- Page Title & Overall Health -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div class="flex items-start justify-between">
       <div>
         <h1 class="font-headline text-3xl tracking-tighter text-on-surface uppercase mb-1">Hardware Status</h1>
-        <p class="arabic-sub text-muted text-sm" dir="rtl">حالة الأجهزة</p>
-      </div>
-      <!-- Health Donut -->
-      <div class="bg-surface-container rounded-2xl p-4 border border-outline-variant flex items-center gap-4 w-full md:w-auto">
-        <div class="relative w-16 h-16 flex items-center justify-center shrink-0">
-          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-            <path class="text-surface-container-high" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
-            <path class="text-primary drop-shadow-[0_0_4px_rgba(195,244,0,0.5)]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="${pct}, 100" stroke-width="3"></path>
-          </svg>
-          <div class="absolute flex flex-col items-center">
-            <span class="font-headline font-bold text-lg leading-none text-primary">${pct}%</span>
-          </div>
-        </div>
-        <div>
-          <h3 class="font-label uppercase tracking-widest text-xs text-muted">Facility Health</h3>
-          <p class="arabic-sub text-[10px] text-muted mb-1" dir="rtl">صحة المنشأة</p>
-          <div class="flex gap-2 text-xs">
-            <span class="text-primary flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> ${online} Active</span>
-            <span class="text-error flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-error"></span> ${offlineCount} Offline</span>
-          </div>
-        </div>
+        <p class="arabic-sub text-muted text-sm" dir="rtl">حالة الأجهزة والتصليح</p>
       </div>
     </div>
 
-    <!-- Critical Alerts (Bento style) -->
-    ${attention.length ? `
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      ${attention.map((d, i) => {
-        const sched = d.maintenanceStatus === "pending";
-        const accentCls = sched ? "border-l-frost-fixed" : "border-l-alert";
-        const dotCls = sched ? "bg-frost-fixed" : "bg-error animate-pulse shadow-neon-alert";
-        const labelTxt = sched ? "Scheduled maint" : (i === 0 ? "Critical Failure" : "Maintenance Req");
-        const labelCls = sched ? "text-frost-fixed" : "text-error";
-        const iconName = sched ? "update" : "build";
-        const iconCls = sched ? "text-frost-fixed" : "text-error";
-        const wmIcon = d.type && DEV_ICONS[d.type] ? DEV_ICONS[d.type] : "settings_input_component";
-        const wmCls = sched ? "text-frost-fixed" : "";
-        const actionLabel = sched ? "Mark Complete" : (i === 0 ? "Dispatch Tech" : "Log Repair");
-        return `
-        <div data-alert="${d.id}" class="bg-surface rounded-lg border-l-2 ${accentCls} border border-outline-variant p-4 relative overflow-hidden group hover:bg-surface-hover transition-all active:scale-95 cursor-pointer">
-          <div class="absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity ${wmCls}">
-            <span class="material-symbols-outlined" style="font-size:8rem;font-variation-settings:'FILL' 1;">${wmIcon}</span>
-          </div>
-          <div class="flex justify-between items-start mb-4 relative z-10">
-            <div>
-              <div class="flex items-center gap-2 mb-1">
-                <span class="w-2 h-2 rounded-full ${dotCls}"></span>
-                <span class="font-label text-[10px] ${labelCls} uppercase tracking-widest">${labelTxt}</span>
-              </div>
-              <h3 class="font-headline font-bold text-xl uppercase">${escapeHtml(d.code)}</h3>
-              <p class="arabic-sub text-xs text-muted" dir="rtl">${escapeHtml(d.name)}</p>
-            </div>
-            <span class="material-symbols-outlined ${iconCls}">${iconName}</span>
-          </div>
-          <div class="relative z-10 mt-6">
-            <p class="text-sm text-muted mb-2">${escapeHtml(d.issue || "Requires inspection")}</p>
-            <button data-act="${d.id}" class="w-full bg-surface-container-high text-on-surface py-2 rounded-md font-label text-xs uppercase tracking-widest border border-outline-variant hover:bg-outline-variant transition-colors ${sched ? "text-frost-fixed" : ""}">${actionLabel}</button>
-          </div>
-        </div>`;
-      }).join("")}
-    </section>` : ""}
-
-    <!-- Category Tabs -->
-    <div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 border-b border-outline-variant">
-      ${tabs.map(([k, en, ar]) => `
-        <button data-hwtab="${k}" class="px-4 py-2 rounded-t-lg font-headline uppercase tracking-tight shrink-0 transition-colors
-          ${k === hwTab
-            ? "bg-surface-container-highest border-b-2 border-primary text-primary font-bold"
-            : "text-muted hover:bg-surface-container hover:text-white"}">
-          <div class="flex flex-col items-start">
-            <span>${en}</span>
-            <span class="arabic-sub text-[10px] normal-case" dir="rtl">${ar}</span>
-          </div>
-        </button>`).join("")}
+    <!-- slim counters -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-surface cyber-border rounded-lg p-4 text-center">
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">In Repair</p>
+        <p class="font-display font-bold text-3xl text-alert tabular-nums mt-1">${pending.length}</p>
+        <p class="arabic-sub text-[10px]" dir="rtl">قيد التصليح</p>
+      </div>
+      <div class="bg-surface cyber-border rounded-lg p-4 text-center">
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">Repaired</p>
+        <p class="font-display font-bold text-3xl text-primary tabular-nums mt-1">${done.length}</p>
+        <p class="arabic-sub text-[10px]" dir="rtl">تم التصليح</p>
+      </div>
+      <div class="bg-surface cyber-border rounded-lg p-4 text-center">
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">Total Invoices</p>
+        <p class="font-display font-bold text-3xl text-frost-fixed tabular-nums mt-1" dir="ltr">${fmt.money(invoiced)}</p>
+      </div>
     </div>
 
-    <!-- Machine List (Table/Grid) -->
-    <div class="bg-surface-container rounded-2xl border border-outline-variant overflow-hidden">
-      <div class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant bg-surface font-label text-xs uppercase tracking-widest text-muted">
-        <div class="col-span-5 md:col-span-4">Unit / ID</div>
-        <div class="col-span-4 md:col-span-3">Status</div>
-        <div class="col-span-3 md:col-span-3 hidden md:block">Last Service</div>
-        <div class="col-span-3 md:col-span-2 text-right">Action</div>
-      </div>
-      ${listDevices.length ? listDevices.map(deviceRow).join("")
-        : `<div class="p-8 text-center text-muted text-sm">No units in this category / لا توجد أجهزة</div>`}
-    </div>`;
+    <!-- device list -->
+    <div id="deviceList" class="flex flex-col gap-3"></div>`;
 
-  screen.querySelectorAll("[data-hwtab]").forEach((b) =>
-    b.addEventListener("click", () => { hwTab = b.dataset.hwtab; viewHardware(); }));
-  screen.querySelectorAll("[data-device], [data-alert]").forEach((r) =>
-    r.addEventListener("click", () => openDeviceDetail(r.dataset.device || r.dataset.alert)));
-  screen.querySelectorAll("[data-act]").forEach((btn) =>
-    btn.addEventListener("click", (e) => {
+  const list = $("#deviceList");
+  list.innerHTML = devices.length ? devices.map(deviceCard).join("")
+    : `<div class="text-center text-muted py-12 text-sm">No devices yet / لا توجد أجهزة</div>`;
+
+  list.querySelectorAll("[data-device]").forEach((c) =>
+    c.addEventListener("click", () => openDeviceDetail(c.dataset.device)));
+  list.querySelectorAll("[data-done]").forEach((b) =>
+    b.addEventListener("click", (e) => {
       e.stopPropagation();
-      const d = store.get("devices", btn.dataset.act);
-      if (d.maintenanceStatus === "pending") {
-        store.update("devices", d.id, { maintenanceStatus: "completed", health: "online", lastServiceAt: Date.now(), issue: "" });
-        showToast("Marked complete / تم إنجاز الصيانة");
-      } else openDeviceDetail(d.id);
+      markRepaired(store.get("devices", b.dataset.done));
     }));
 
   $("#pageActions").innerHTML = `
@@ -794,38 +714,43 @@ function viewHardware() {
   $("#addDeviceBtn").onclick = openDeviceModal;
 }
 
-function deviceRow(d) {
-  const degraded = d.health === "degraded";
-  const offline = d.health === "offline";
-  const lastSvc = d.lastServiceAt ? fmt.timeAgo(d.lastServiceAt, currentLang()) : "—";
+// Completes a repair: marks device + pushes its invoice to the Ledger as an expense
+function markRepaired(d) {
+  const cost = Number(d.cost || 0);
+  store.update("devices", d.id, { maintenanceStatus: "completed", repairedAt: Date.now(), updatedAt: Date.now() });
+  if (cost > 0) {
+    store.insert("ledger", {
+      type: "expense",
+      amount: cost,
+      description: `Repair: ${d.name}`,
+      category: "maintenance",
+      date: Date.now(),
+    });
+  }
+  showToast(cost > 0
+    ? `Repaired — ${fmt.money(cost)} moved to Ledger / تم التصليح وخُصمتها من المالية`
+    : "Repaired / تم التصليح");
+}
+
+function deviceCard(d) {
+  const isDone = d.maintenanceStatus === "completed";
   return `
-  <div data-device="${d.id}" class="grid grid-cols-12 gap-4 p-4 border-b border-outline-variant items-center cursor-pointer transition-colors
-    ${degraded ? "bg-[#1a1710] hover:bg-[#221e15]" : "hover:bg-surface-container-high"}">
-    <div class="col-span-5 md:col-span-4 flex items-center gap-3 min-w-0">
-      <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0
-        ${degraded ? "bg-[#332b1a] border border-[#4d4026]" : "bg-surface"}">
-        <span class="material-symbols-outlined ${degraded ? "text-yellow-500" : "text-on-surface"}">${DEV_ICONS[d.type] || "settings_input_component"}</span>
-      </div>
-      <div class="min-w-0">
-        <div class="font-headline font-bold truncate">${escapeHtml(d.code || "—")}</div>
-        <div class="text-xs text-muted truncate">${escapeHtml(d.name)}</div>
-      </div>
+  <div data-device="${d.id}" class="bg-surface cyber-border rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer active:scale-[0.99] fade-up">
+    <div class="w-11 h-11 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined ${isDone ? "text-primary" : "text-alert"}">${isDone ? "check_circle" : "build"}</span>
     </div>
-    <div class="col-span-4 md:col-span-3 flex items-center gap-2">
-      ${degraded
-        ? `<span class="w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)] animate-pulse"></span><span class="font-body text-sm text-yellow-500">Degraded</span>`
-        : offline
-          ? `<span class="w-2 h-2 rounded-full bg-error shadow-neon-alert"></span><span class="font-body text-sm text-error">Offline</span>`
-          : `<span class="w-2 h-2 rounded-full bg-primary shadow-neon"></span><span class="font-body text-sm">Online</span>`}
+    <div class="flex-1 min-w-0">
+      <h3 class="font-headline font-bold uppercase truncate">${escapeHtml(d.name)}</h3>
+      <p class="text-xs mt-0.5 ${isDone ? "text-primary" : "text-alert"}">
+        ${isDone
+          ? `Invoice / فاتورة: ${fmt.money(d.cost)} • ${(d.repairedAt || d.updatedAt || d.createdAt) ? fmt.date(d.repairedAt || d.updatedAt || d.createdAt, currentLang()) : "—"}`
+          : `Under repair / قيد التصليح`}
+      </p>
     </div>
-    <div class="col-span-3 md:col-span-3 hidden md:block text-sm ${degraded ? "text-yellow-500/70" : "text-muted"}">
-      ${lastSvc}
-    </div>
-    <div class="col-span-3 md:col-span-2 text-right">
-      <button class="p-2 rounded-md hover:bg-surface transition-colors active:scale-95">
-        <span class="material-symbols-outlined text-muted">more_vert</span>
-      </button>
-    </div>
+    <span class="font-headline font-bold tabular-nums shrink-0" dir="ltr">${Number(d.cost) > 0 ? fmt.money(d.cost) : "—"}</span>
+    ${!isDone ? `<button data-done="${d.id}" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1">
+      <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">task_alt</span> DONE
+    </button>` : ""}
   </div>`;
 }
 
@@ -833,47 +758,10 @@ function deviceFormHtml(d) {
   const t = i18n.t;
   return `
     <form id="deviceForm" class="flex flex-col gap-3">
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Unit Code</label>
-          <input name="code" placeholder="TRD-05" value="${d ? escapeHtml(d.code || "") : ""}" class="dp-field mt-1" /></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.deviceName}</label>
-          <input name="name" required value="${d ? escapeHtml(d.name) : ""}" class="dp-field mt-1" /></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Category</label>
-          <select name="category" class="dp-field mt-1">
-            <option value="cardio" ${d?.category === "cardio" ? "selected" : ""}>Cardio Matrix</option>
-            <option value="strength" ${d?.category === "strength" ? "selected" : ""}>Strength / Free</option>
-            <option value="amenities" ${d?.category === "amenities" ? "selected" : ""}>Amenities</option>
-          </select></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Icon</label>
-          <select name="type" class="dp-field mt-1">
-            <option value="directions_run" ${d?.type === "directions_run" ? "selected" : ""}>Treadmill</option>
-            <option value="fitness_center" ${d?.type === "fitness_center" ? "selected" : ""}>Strength</option>
-            <option value="pedal_bike" ${d?.type === "pedal_bike" ? "selected" : ""}>Bike</option>
-            <option value="hot_tub" ${d?.type === "hot_tub" ? "selected" : ""}>Other</option>
-          </select></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Health</label>
-          <select name="health" class="dp-field mt-1">
-            <option value="online" ${!d || d.health === "online" ? "selected" : ""}>Online</option>
-            <option value="degraded" ${d?.health === "degraded" ? "selected" : ""}>Degraded</option>
-            <option value="offline" ${d?.health === "offline" ? "selected" : ""}>Offline</option>
-          </select></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.maintenanceStatus}</label>
-          <select name="maintenanceStatus" class="dp-field mt-1">
-            ${Object.entries(t.maintStates).map(([k, v]) => `<option value="${k}" ${(d?.maintenanceStatus || "completed") === k ? "selected" : ""}>${v}</option>`).join("")}
-          </select></div>
-      </div>
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.issue}</label>
-        <textarea name="issue" rows="2" class="dp-field mt-1">${d ? escapeHtml(d.issue || "") : ""}</textarea></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.cost} ($)</label>
-          <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" /></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.paid} ($)</label>
-          <input name="paid" type="number" min="0" step="0.5" value="${d ? d.paid || 0 : 0}" class="dp-field mt-1" /></div>
-      </div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.deviceName}</label>
+        <input name="name" required value="${d ? escapeHtml(d.name) : ""}" class="dp-field mt-1" placeholder="Treadmill 04..." /></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Repair Price / سعر التصليح ($)</label>
+        <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" dir="ltr" /></div>
       <div class="flex gap-3 pt-2">
         <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
         <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
@@ -886,22 +774,13 @@ function readDeviceForm(mod, d, id) {
   $("#deviceForm", mod.el).addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const data = Object.fromEntries(fd.entries());
-    data.cost = Number(data.cost) || 0;
-    data.paid = Number(data.paid) || 0;
-    data.updatedAt = Date.now();
-    if (!data.code) {
-      const prefix = { directions_run: "TRD", fitness_center: "STR", pedal_bike: "BIK", hot_tub: "AMN" }[data.type] || "DEV";
-      const siblings = store.all("devices").filter((x) => (x.type || "") === data.type).length + 1;
-      data.code = `${prefix}-${String(siblings).padStart(2, "0")}`;
-    }
+    const data = {
+      name: fd.get("name").trim(),
+      cost: Number(fd.get("cost")) || 0,
+      updatedAt: Date.now(),
+    };
     if (d) store.update("devices", id, data);
-    else store.insert("devices", { ...data, lastServiceAt: Date.now() });
-
-    const prev = d ? Number(d.cost) : 0;
-    if (data.cost > prev && data.cost > 0) {
-      store.insert("ledger", { type: "expense", amount: data.cost - prev, description: `Maintenance: ${data.name}`, category: "maintenance", date: Date.now() });
-    }
+    else store.insert("devices", { ...data, maintenanceStatus: "in-repair" });
     mod.close();
     showToast(d ? "Saved / تم الحفظ" : "Device added / تمت إضافة الجهاز");
   });
@@ -911,7 +790,7 @@ function openDeviceModal() {
   const t = i18n.t;
   const mod = openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.addDevice}</h3>
-    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إضافة جهاز جديد للمتابعة</p>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إضافة جهاز للتصليح</p>
     ${deviceFormHtml(null)}`);
   readDeviceForm(mod, null, null);
 }
@@ -919,39 +798,38 @@ function openDeviceModal() {
 function openDeviceDetail(id) {
   const t = i18n.t;
   const d = store.get("devices", id);
-  const paidAll = Number(d.paid || 0) >= Number(d.cost || 0) && Number(d.cost) > 0;
+  const isDone = d.maintenanceStatus === "completed";
   const mod = openModal(`
     <div class="flex justify-between items-start mb-5">
       <div>
-        <h3 class="font-headline font-bold uppercase text-lg">${escapeHtml(d.code)} · ${escapeHtml(d.name)}</h3>
-        <p class="text-sm text-muted">${t.maintStates[d.maintenanceStatus]} · Health: ${d.health}</p>
+        <h3 class="font-headline font-bold uppercase text-lg">${escapeHtml(d.name)}</h3>
+        <p class="text-sm ${isDone ? "text-primary" : "text-alert"}">${isDone ? "Repaired / تم التصليح" : "Under repair / قيد التصليح"}</p>
       </div>
-      <span class="material-symbols-outlined text-primary text-3xl">${DEV_ICONS[d.type] || "settings_input_component"}</span>
+      <span class="material-symbols-outlined ${isDone ? "text-primary" : "text-alert"} text-3xl">${isDone ? "check_circle" : "build"}</span>
     </div>
-    ${d.issue ? `<p class="text-sm text-muted mb-4">${escapeHtml(d.issue)}</p>` : ""}
-    ${Number(d.cost) > 0 ? `
-    <div class="flex justify-around bg-surface-container rounded-xl p-3 mb-5 text-center text-sm">
-      <div><p class="text-[10px] uppercase tracking-widest text-muted">${t.cost}</p><p class="font-headline font-bold" dir="ltr">${fmt.money(d.cost)}</p></div>
-      <div><p class="text-[10px] uppercase tracking-widest text-muted">${t.paid}</p><p class="font-headline font-bold ${paidAll ? "text-primary" : "text-alert"}" dir="ltr">${fmt.money(d.paid)}</p></div>
-    </div>` : ""}
+    <div class="grid grid-cols-2 gap-3 text-sm mb-5">
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Repair price / سعر التصليح</p><p class="font-headline" dir="ltr">${fmt.money(d.cost)}</p></div>
+      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${isDone ? "Deducted / خُصمت من الأرباح" : "Waiting / بالانتظار"}</p><p class="font-headline">${isDone ? "✓ Ledger" : "—"}</p></div>
+    </div>
     <div class="flex gap-3">
       <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
-      <button data-edit class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.edit}</button>
+      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">DONE ✓</button>`
+                : `<button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable">${t.edit}</button>`}
     </div>`);
-  mod.el.querySelector("[data-edit]").onclick = () => {
+  const editBtn = mod.el.querySelector("[data-edit]");
+  if (editBtn) editBtn.onclick = () => {
     mod.close();
-    const m2 = openModal(`
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-5">${t.edit} — ${escapeHtml(d.code)}</h3>
-      ${deviceFormHtml(d)}`);
+    const m2 = openModal(`<h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-5">${t.edit} — ${escapeHtml(d.name)}</h3>${deviceFormHtml(d)}`);
     readDeviceForm(m2, d, id);
   };
+  const fixedBtn = mod.el.querySelector("[data-fixed]");
+  if (fixedBtn) fixedBtn.onclick = () => { mod.close(); markRepaired(d); };
   mod.el.querySelector("[data-del]").onclick = async () => {
     mod.close();
     const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "سيتم حذف الجهاز نهائياً", confirmText: "Delete", danger: true });
     if (ok) { store.remove("devices", id); showToast("Deleted / تم الحذف"); }
   };
 }
-
 /* ============================================================
    LEDGER  (docs/design/ledger_v2)
    ============================================================ */
