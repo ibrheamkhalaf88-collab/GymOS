@@ -518,7 +518,6 @@ function trainerCard(t) {
       <div class="flex gap-2 mt-2 flex-wrap">
         <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">📅 بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
         ${t.contractEnd ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest ${contractOver ? "text-alert border-alert/30" : "text-muted"} text-[10px] font-label tracking-wider uppercase border border-outline-variant">⏳ ينتهي: ${fmt.date(t.contractEnd, currentLang())}</span>` : ""}
-        <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">💵 يوم الدفع: ${t.payDay || 1}</span>
         ${t.phone ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant" dir="ltr">📞 ${escapeHtml(t.phone)}</span>` : ""}
       </div>
     </div>
@@ -1196,10 +1195,6 @@ function openTrainerDetails(id) {
         <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Last renewed / آخر تجديد</p>
         <p class="font-headline">${t.lastPaidAt ? fmt.date(t.lastPaidAt, currentLang()) : "لم يُجدد بعد"}</p>
       </div>
-      <div class="bg-surface-container rounded-xl p-3">
-        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Pay day / يوم الدفع</p>
-        <p class="font-headline">${t.payDay || 1}</p>
-      </div>
       ${t.contractEnd ? `
       <div class="bg-surface-container rounded-xl p-3 col-span-2">
         <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Contract end / انتهاء العقد</p>
@@ -1242,11 +1237,9 @@ function openTrainerForm(id = null) {
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Monthly salary ($)</label>
           <input name="salary" type="number" min="0" step="10" value="${cur ? cur.salary : 300}" class="dp-field mt-1" dir="ltr"/></div>
-        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Pay day (1-28)</label>
-          <input name="payDay" type="number" min="1" max="28" value="${cur ? cur.payDay || 1 : 1}" class="dp-field mt-1" dir="ltr"/></div>
+        <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Started / بدأ العمل</label>
+          <input name="startedAt" type="date" value="${iso(cur?.startedAt)}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1"/></div>
       </div>
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Started working / تاريخ بدء العمل</label>
-        <input name="startedAt" type="date" value="${iso(cur?.startedAt)}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1"/></div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Contract end / تاريخ انتهاء العقد (شهر من اليوم — قابل للتعديل)</label>
         <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : iso(Date.now() + 30 * 86400000)}" class="dp-field mt-1"/></div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Phone (optional)</label>
@@ -1266,7 +1259,6 @@ function openTrainerForm(id = null) {
       name,
       salary: sanitizeAmount(fd.get("salary")),
       phone: sanitizePhone(fd.get("phone")),
-      payDay: clampDays(fd.get("payDay"), 1, 28),
     };
     const sd = fd.get("startedAt");
     if (sd) data.startedAt = new Date(`${sd}T00:00:00`).getTime();
