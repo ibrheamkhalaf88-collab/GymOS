@@ -139,10 +139,12 @@ export function uid(prefix = "id") {
 // ---------- Plans & prices (editable by the admin) ----------
 const PLAN_PRICES_KEY = "dp_plan_prices";
 
+// Pricing per marketing-strategy skill: charm endings (<$100 rule),
+// middle-tier anchoring (Pro positioned as best value), entry "Half" tier
 export const PLANS = [
-  { key: "regular", en: "Regular", ar: "عادي", defaultPrice: 25 },
-  { key: "pro", en: "Pro", ar: "اخترافي", defaultPrice: 45 },
-  { key: "half", en: "Half", ar: "نص", defaultPrice: 15 },
+  { key: "half", en: "Half", ar: "نص", defaultPrice: 9 },
+  { key: "regular", en: "Regular", ar: "عادي", defaultPrice: 29 },
+  { key: "pro", en: "Pro", ar: "اخترافي", defaultPrice: 49 },
 ];
 
 export function planPrices() {
