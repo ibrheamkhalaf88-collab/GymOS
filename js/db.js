@@ -5,10 +5,11 @@
 // ============================================================
 
 import { db, auth, onlineMode } from "./firebase-config.js";
-import {
-  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs,
-  signInWithEmailAndPassword, signOut, onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// Firestore SDK is loaded LAZILY (dynamic import) so DEMO mode works
+// fully offline — a static import here would kill both activation and
+// admin pages whenever gstatic is unreachable.
+const FS = () => import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
 // ---- Code format: XXX-XXX (unambiguous alphabet) ----
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -50,36 +51,48 @@ function demoSeed() {
   demoSave(seed);
 }
 
-// =========================== PUBLIC API ===========================
-export const codesDb = {
-  mode: () => (onlineMode() ? "online" : "demo"),
-
   // ---------- Admin session ----------
-  onAuth(cb) {
-    if (onlineMode()) {
-      return onAuthStateChanged(auth, (user) => cb(user ? user.email : null));
-    }
-    cb(sessionStorage.getItem("dp_demo_admin") === "1" ? "demo-admin" : null);
-    return () => {};
-  },
+  const _authListeners = new Set();
+  function _notifyDemo() {
+    const email = sessionStorage.getItem("dp_demo_admin") === "1" ? "demo-admin" : null;
+    _authListeners.forEach((cb) => cb(email));
+  }
 
-  async adminSignIn(email, password) {
-    if (onlineMode()) {
-      await signInWithEmailAndPassword(auth, email, password);
-      return;
-    }
-    const { appConfig } = await import("./config.js");
-    if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
-      throw new Error("This email is not the admin email / هذا البريد ليس بريد المدير");
-    }
-    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة مرور خاطئة");
-    sessionStorage.setItem("dp_demo_admin", "1");
-  },
+  export const codesDb = {
+    mode: () => (onlineMode() ? "online" : "demo"),
 
-  async adminSignOut() {
-    if (onlineMode()) { await signOut(auth); return; }
-    sessionStorage.removeItem("dp_demo_admin");
-  },
+    // ---------- Admin session ----------
+    onAuth(cb) {
+      _authListeners.add(cb);
+      if (onlineMode()) {
+        FS().then(({ onAuthStateChanged }) =>
+          onAuthStateChanged(auth, (user) => cb(user ? user.email : null)));
+        return () => {};
+      }
+      cb(sessionStorage.getItem("dp_demo_admin") === "1" ? "demo-admin" : null);
+      return () => {};
+    },
+
+    async adminSignIn(email, password) {
+      if (onlineMode()) {
+        const { signInWithEmailAndPassword } = await FS();
+        await signInWithEmailAndPassword(auth, email, password);
+        return;
+      }
+      const { appConfig } = await import("./config.js");
+      if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
+        throw new Error("This email is not the admin email / هذا البريد ليس بريد المدير");
+      }
+      if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة مرور خاطئة");
+      sessionStorage.setItem("dp_demo_admin", "1");
+      _notifyDemo();
+    },
+
+    async adminSignOut() {
+      if (onlineMode()) { const { signOut } = await FS(); await signOut(auth); return; }
+      sessionStorage.removeItem("dp_demo_admin");
+      _notifyDemo();
+    },
 
   // ---------- CRUD ----------
   async create({ tier = "standard", days = 365, note = "", custom = "" } = {}) {
@@ -94,6 +107,7 @@ export const codesDb = {
       revoked: false,
     };
     if (onlineMode()) {
+      const { doc, setDoc } = await FS();
       await setDoc(doc(db, "codes", code), record);
     } else {
       demoSeed();
@@ -109,6 +123,7 @@ export const codesDb = {
     const id = normalizeCode(code);
     if (!id) return null;
     if (onlineMode()) {
+      const { doc, getDoc } = await FS();
       const snap = await getDoc(doc(db, "codes", id));
       return snap.exists() ? { id: snap.id, ...snap.data() } : null;
     }
@@ -118,6 +133,7 @@ export const codesDb = {
 
   async list() {
     if (onlineMode()) {
+      const { collection, getDocs } = await FS();
       const snap = await getDocs(collection(db, "codes"));
       return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     }
@@ -129,6 +145,7 @@ export const codesDb = {
     const id = normalizeCode(code);
     if (!id) return;
     if (onlineMode()) {
+      const { doc, deleteDoc } = await FS();
       await deleteDoc(doc(db, "codes", id));
     } else {
       demoSave(demoAll().filter((c) => c.code !== id));
@@ -139,6 +156,7 @@ export const codesDb = {
     const id = normalizeCode(code);
     if (!id) return;
     if (onlineMode()) {
+      const { doc, updateDoc } = await FS();
       await updateDoc(doc(db, "codes", id), { revoked });
     } else {
       const list = demoAll();
@@ -165,6 +183,7 @@ export const codesDb = {
       usedDeviceName: deviceInfo.deviceName,
     };
     if (onlineMode()) {
+      const { doc, updateDoc } = await FS();
       await updateDoc(doc(db, "codes", id), patch);
     } else {
       const list = demoAll();
