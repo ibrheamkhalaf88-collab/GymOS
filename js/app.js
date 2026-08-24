@@ -717,16 +717,20 @@ function viewHardware() {
 // Completes a repair: marks device + pushes its invoice to the Ledger as an expense
 function markRepaired(d) {
   const cost = Number(d.cost || 0);
-  store.update("devices", d.id, { maintenanceStatus: "completed", repairedAt: Date.now(), updatedAt: Date.now() });
-  if (cost > 0) {
-    store.insert("ledger", {
+  let ledgerId = d.ledgerId || null;
+  if (cost > 0 && !ledgerId) {
+    const tx = store.insert("ledger", {
       type: "expense",
       amount: cost,
       description: `Repair: ${d.name}`,
       category: "maintenance",
       date: Date.now(),
     });
+    ledgerId = tx.id;
   }
+  store.update("devices", d.id, {
+    maintenanceStatus: "completed", repairedAt: Date.now(), updatedAt: Date.now(), ledgerId,
+  });
   showToast(cost > 0
     ? `Repaired — ${fmt.money(cost)} moved to Ledger / تم التصليح وخُصمتها من المالية`
     : "Repaired / تم التصليح");
@@ -760,8 +764,9 @@ function deviceFormHtml(d) {
     <form id="deviceForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.deviceName}</label>
         <input name="name" required value="${d ? escapeHtml(d.name) : ""}" class="dp-field mt-1" placeholder="Treadmill 04..." /></div>
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Repair Price / سعر التصليح ($)</label>
-        <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" dir="ltr" /></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Repair Price / سعر التصليح ($)${d && d.maintenanceStatus === "completed" ? " — actual / الفعلي" : ""}</label>
+        <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" dir="ltr" />
+        ${d && d.maintenanceStatus === "completed" ? `<p class="text-[10px] text-muted mt-1">تغيير السعر يحدّث فاتورة المالية تلقائياً</p>` : ""}</div>
       <div class="flex gap-3 pt-2">
         <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
         <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
@@ -779,10 +784,34 @@ function readDeviceForm(mod, d, id) {
       cost: Number(fd.get("cost")) || 0,
       updatedAt: Date.now(),
     };
-    if (d) store.update("devices", id, data);
-    else store.insert("devices", { ...data, maintenanceStatus: "in-repair" });
+    const wasDone = d && d.maintenanceStatus === "completed";
+    if (d) {
+      store.update("devices", id, data);
+      // Keep the ledger invoice in sync when the amount changes after completion
+      if (wasDone) {
+        if (d.ledgerId) {
+          if (data.cost > 0) {
+            store.update("ledger", d.ledgerId, { amount: data.cost, description: `Repair: ${data.name}` });
+          } else {
+            store.remove("ledger", d.ledgerId);
+            store.update("devices", id, { ledgerId: null });
+          }
+        } else if (data.cost > 0) {
+          const tx = store.insert("ledger", {
+            type: "expense", amount: data.cost,
+            description: `Repair: ${data.name}`, category: "maintenance",
+            date: d.repairedAt || Date.now(),
+          });
+          store.update("devices", id, { ledgerId: tx.id });
+        }
+      }
+    } else {
+      store.insert("devices", { ...data, maintenanceStatus: "in-repair" });
+    }
     mod.close();
-    showToast(d ? "Saved / تم الحفظ" : "Device added / تمت إضافة الجهاز");
+    showToast(wasDone
+      ? "Saved — invoice updated / تم الحفظ وتحديث الفاتورة"
+      : d ? "Saved / تم الحفظ" : "Device added / تمت إضافة الجهاز");
   });
 }
 
