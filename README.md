@@ -1,9 +1,10 @@
-# ⚡ Digital Pulse — Cyber Athletic Gym Manager
+# ⚡ GymOS — Cyber Athletic Gym Manager
 
 > Professional membership, device & finance management for modern gyms —
 > bilingual (EN/AR · RTL), license-activated, installable as an Android app.
 
-A full-stack-flavored **portfolio project**: vanilla JS SPA with a Firebase-powered
+**GymOS** (powered by the *Digital Pulse* activation system) is a full-stack-flavored
+**portfolio project**: vanilla JS SPA with a Firebase-powered
 activation-code licensing system, local-first data, PWA support and a CI-built Android APK.
 
 <p align="center">
