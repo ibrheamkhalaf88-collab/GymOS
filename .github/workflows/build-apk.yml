@@ -88,10 +88,11 @@ jobs:
 
       - name: Rename exe
         shell: pwsh
+        working-directory: desktop
         run: |
           New-Item -ItemType Directory -Force output | Out-Null
           $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
-          Copy-Item $exe.FullName output/DigitalPulse-Windows-Portable.exe
+          Copy-Item $exe.FullName ../output/DigitalPulse-Windows-Portable.exe
 
       - name: Upload Windows exe artifact
         uses: actions/upload-artifact@v4
