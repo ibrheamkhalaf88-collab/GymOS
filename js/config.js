@@ -16,7 +16,7 @@ export const appConfig = {
   adminDisplayName: "ADM_ROOT",
 
   // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر)
-  demoAdminPassword: "admin2040",
+  demoAdminPassword: "ibrheam",
 
   // 🗄️ MongoDB REST API — ضع رابط السيرفر هنا للتشغيل السحابي
   // مثال: "https://gymos-api.onrender.com/api"
