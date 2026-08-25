@@ -1,7 +1,35 @@
 ﻿services:
-  gymos:
+  # ── MongoDB ──
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+
+  # ── GymOS REST API ──
+  api:
+    build:
+      context: ./server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      MONGO_URI: mongodb://mongo:27017/gymos
+      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin2040}
+      PORT: 3000
+    depends_on:
+      - mongo
+
+  # ── Web (static + nginx) ──
+  web:
     build: .
+    restart: unless-stopped
     ports:
       - "8080:80"
-    restart: unless-stopped
-    container_name: gymos-web
+    depends_on:
+      - api
+
+volumes:
+  mongo-data:
