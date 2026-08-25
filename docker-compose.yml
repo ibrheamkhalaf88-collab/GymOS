@@ -1,4 +1,4 @@
-﻿services:
+services:
   # ── MongoDB ──
   mongo:
     image: mongo:7
