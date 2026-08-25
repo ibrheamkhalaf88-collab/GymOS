@@ -9,7 +9,8 @@
 | الخدمة | الرابط | الحالة |
 |--------|--------|--------|
 | **الموقع (ويب + لوحة الأدمين)** | https://ibrheamkhalaf88-collab.github.io/GymOS/ | 🟢 شغال ومنشور |
-| **تطبيق الأندرويد (APK)** | [GitHub Actions → Artifacts](https://github.com/ibrheamkhalaf88-collab/GymOS/actions/workflows/build-apk.yml) | 🟢 يُبنى تلقائياً بكل push |
+| **تطبيق الأندرويد (APK)** | [GitHub Releases — رابط مباشر](https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest) | 🟢 يُبنى تلقائياً بكل push |
+| **نسخة سطح المكتب (Windows exe)** | [GitHub Releases — رابط مباشر](https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest) | 🟢 Electron portable |
 | **السيرفر (الباك إند API)** | Render.com ← Blueprint جاهز بالملف `render.yaml` | 🟡 بانتظار إنشاء حسابك |
 | **قاعدة البيانات** | MongoDB Atlas M0 (مجاني) | 🟡 بانتظار إنشاء حسابك |
 | مستودع الكود | https://github.com/ibrheamkhalaf88-collab/GymOS | 🟢 main |
@@ -100,6 +101,12 @@
 مشروع Capacitor/Gradle جاهز — لا تعدّله يدوياً، يتحدّث بأمر `npm run sync`.
 - الـ APK النهائي يخرج منه: `android/app/build/outputs/apk/debug/`
 - `capacitor.config.json` (بالجذر) — إعدادات الغلاف: appId `com.digitalpulse.gym`
+
+### 💻 سطح المكتب — مجلد `desktop/`
+غلاف Electron لنسخة ويندوز (portable exe بدون تثبيت):
+- `main.js` — يقدّم ملفات `www/` عبر بروتوكول `app://` آمن
+- `package.json` — إعدادات electron-builder
+- يُبنى تلقائياً في workflow ويرفق بالـ Releases باسم `DigitalPulse-Windows-Portable.exe`
 
 ### 🔁 التشغيل الآلي — `.github/workflows/`
 | الملف | وظيفته |
