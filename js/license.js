@@ -37,6 +37,7 @@ export const license = {
   isActive() {
     const l = this.get();
     if (!l) return false;
+    if (l.expiresAt === 0) return true; // lifetime / دائم
     // Expired licenses are invalid
     return Date.now() < l.expiresAt;
   },
@@ -44,17 +45,19 @@ export const license = {
   daysLeft() {
     const l = this.get();
     if (!l) return 0;
+    if (l.expiresAt === 0) return Infinity; // lifetime
     return Math.max(0, Math.ceil((l.expiresAt - Date.now()) / 86400000));
   },
 
   save(record) {
     const activatedAt = Date.now();
+    const days = Number(record.days) || 0;
     const data = {
       code: record.code,
       tier: record.tier || "standard",
       owner: String(record.owner || ""),
       activatedAt,
-      expiresAt: activatedAt + (Number(record.days) || 365) * 86400000,
+      expiresAt: days > 0 ? activatedAt + days * 86400000 : 0, // 0 = lifetime
       deviceId: deviceId(),
       deviceName: deviceName(),
     };

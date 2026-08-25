@@ -228,7 +228,7 @@ function viewDashboard() {
       <div class="flex flex-col">
         <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)}</p>
         <p class="font-display font-bold text-xs text-white mt-1 uppercase">
-          <span>${license.daysLeft()} Days Left</span><span class="ml-1 opacity-70">يوم متبقي</span>
+          <span>${license.daysLeft() === Infinity ? "♾️ LIFETIME" : license.daysLeft() + " Days Left"}</span><span class="ml-1 opacity-70">${license.daysLeft() === Infinity ? "دائم" : "يوم متبقي"}</span>
         </p>
       </div>
       <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
@@ -1715,7 +1715,7 @@ function viewProfile() {
               <div>
                 <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
                 <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
-                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${license.daysLeft()} Days / يومًا</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${license.daysLeft() === Infinity ? "♾️ دائم / LIFETIME" : license.daysLeft() + " Days / يومًا"}</p>
               </div>
               <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             </div>

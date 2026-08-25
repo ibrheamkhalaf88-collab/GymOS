@@ -146,15 +146,15 @@
               <form id="genForm" class="w-full space-y-4 mb-8 text-left">
                 <div class="w-full">
                   <label class="font-label tracking-widest text-muted uppercase mb-1 block">Tier Level / <span class="normal-case font-arabic">الباقة</span></label>
-                  <select name="tier" class="dp-field">
-                    <option value="standard">Standard Access / عادية</option>
-                    <option value="vip">VIP Clearance / مميزة</option>
-                    <option value="guest">Guest Node / زائر</option>
+                  <select name="tier" id="tierSelect" class="dp-field">
+                    <option value="monthly">📅 Monthly / شهرية</option>
+                    <option value="yearly">🗓️ Yearly / سنوية</option>
+                    <option value="lifetime">♾️ Permanent / دائمة</option>
                   </select>
                 </div>
-                <div class="w-full">
+                <div class="w-full" id="durationWrap">
                   <label class="font-label tracking-widest text-muted uppercase mb-1 block">Duration (Hours) / <span class="normal-case font-arabic">المدة بالساعات</span></label>
-                  <input name="hours" type="number" min="24" step="24" value="24" class="dp-field tabular-nums" />
+                  <input name="hours" id="hoursInput" type="number" min="24" step="24" value="720" class="dp-field tabular-nums" />
                 </div>
                 <div class="w-full">
                   <label class="font-label tracking-widest text-muted uppercase mb-1 block">Customer / <span class="normal-case font-arabic">اسم العميل</span></label>

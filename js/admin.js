@@ -79,19 +79,31 @@ $("#lockdownBtn").addEventListener("click", async () => {
 });
 
 // ---------- Generate ----------
+const TIER_HOURS = { monthly: 720, yearly: 8760, lifetime: 0 };
+
+$("#tierSelect").addEventListener("change", (e) => {
+  const h = TIER_HOURS[e.target.value] ?? 720;
+  $("#hoursInput").value = h || 720;
+  $("#durationWrap").style.display = e.target.value === "lifetime" ? "none" : "";
+});
+
 $("#genForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const hours = Number(fd.get("hours")) || 24;
-  const days = Math.max(1, Math.round(hours / 24));
+  const tier = fd.get("tier");
+  let days;
+  if (tier === "lifetime") {
+    days = 0; // sentinel: never expires
+  } else {
+    const hours = Number(fd.get("hours")) || TIER_HOURS[tier] || 720;
+    days = Math.max(1, Math.round(hours / 24));
+  }
   try {
-    const rec = await codesDb.create({
-      tier: fd.get("tier"),
-      days,
-      owner: sanitizeText(fd.get("owner"), 40) || "",
-    });
+    const rec = await codesDb.create({ tier, days, owner: sanitizeText(fd.get("owner"), 40) || "" });
     e.target.reset();
-    e.target.hours.value = 24;
+    $("#tierSelect").value = tier;
+    $("#hoursInput").value = TIER_HOURS[tier] || 720;
+    $("#durationWrap").style.display = tier === "lifetime" ? "none" : "";
     showGenerated(rec);
     await refresh();
     showToast(`Code ${rec.code} created / تم إنشاء الكود`);
@@ -125,6 +137,7 @@ async function refresh() {
 
 function remainingText(c) {
   if (c.revoked) return { txt: "00:00:00", cls: "text-error opacity-75" };
+  if (!Number(c.days)) return { txt: "♾️ LIFETIME", cls: "text-primary font-bold" };
   const start = c.usedAt || c.createdAt;
   const rem = start + (c.days || 0) * DAY - Date.now();
   if (rem <= 0) return { txt: "00:00:00", cls: "text-muted" };
@@ -154,7 +167,7 @@ function renderTable() {
   $("#statUsedToday").textContent =
     allCodes.filter((c) => c.used && c.usedAt >= startOfToday.getTime()).length;
   $("#statDead").textContent =
-    allCodes.filter((c) => c.revoked || (c.createdAt + (c.days || 0) * DAY < now)).length;
+    allCodes.filter((c) => c.revoked || (Number(c.days) > 0 && c.createdAt + (c.days || 0) * DAY < now)).length;
 
   $("#tableEmpty").classList.toggle("hidden", rows.length > 0);
   tbody.innerHTML = rows.map((c) => {
