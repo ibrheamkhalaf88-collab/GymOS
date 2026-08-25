@@ -36,7 +36,14 @@ function requireSecret(name, minLen = 16) {
 const JWT_SECRET = requireSecret("JWT_SECRET", 16);
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin2040";
-const ALLOWED_ORIGIN = (process.env.ALLOWED_ORIGIN || "").trim(); // e.g. https://user.github.io
+// Comma-separated web origins, e.g. "https://user.github.io,https://mydomain.com"
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+// Capacitor Android/iOS WebView origins (the mobile app)
+const APP_ORIGINS = new Set([
+  "https://localhost", "http://localhost",
+  "capacitor://localhost", "ionic://localhost",
+]);
 
 const sign = (payload, exp = "30d") => jwt.sign(payload, JWT_SECRET, { expiresIn: exp });
 
@@ -105,7 +112,11 @@ const clearIp = (ip) => attempts.delete(ip);
 /* ---------------- App ---------------- */
 const app = express();
 app.set("trust proxy", 1); // correct req.ip behind Render/nginx
-app.use(cors(ALLOWED_ORIGIN ? { origin: ALLOWED_ORIGIN } : {}));
+app.use(cors({
+  origin: (origin, cb) =>
+    cb(null, !origin || !ALLOWED_ORIGINS.length ||
+      ALLOWED_ORIGINS.includes(origin) || APP_ORIGINS.has(origin)),
+}));
 app.use(express.json({ limit: "2mb" }));
 app.use(morgan("tiny"));
 

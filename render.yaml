@@ -19,6 +19,6 @@ services:
       - key: ADMIN_PASSWORD
         sync: false                  # تكتبه يدوياً وقت النشر (ibrheam مثلاً)
       - key: ALLOWED_ORIGIN
-        value: https://ibrheamkhalaf88-collab.github.io
+        value: https://ibrheamkhalaf88-collab.github.io   # أصول الويب مفصولة بفواصل؛ تطبيق الأندرويد مسموح تلقائياً
       - key: MONGO_URI
         sync: false                  # الصق رابط Atlas هنا
