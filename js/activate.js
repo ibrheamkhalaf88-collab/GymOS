@@ -194,10 +194,24 @@ form.addEventListener("submit", async (e) => {
     });
 
     if (!result.ok) {
+      // Already-activated code? → seamlessly switch to LOGIN and ask for its password
+      if (result.error === "ALREADY_USED") {
+        if (pageMode === "activate") {
+          pageMode = "login";
+          passBlock.classList.remove("hidden");
+          manualBlock.classList.add("hidden");
+          document.getElementById("verifyLabel").textContent = "LOGIN";
+          modeToggle.textContent = "🔑 First time? Activate with your code / تفعيل بكود جديد";
+        }
+        msg.style.color = "#CCFF00";
+        msg.textContent = "🔐 هذا الكود مفعّل من قبل — أدخل كلمة السر تبعته للدخول / Code already activated — enter its password";
+        document.getElementById("clientPass").focus();
+        setLoading(false);
+        return;
+      }
       const errors = {
         INVALID_FORMAT: "Invalid code format / صيغة الكود غير صحيحة",
         NOT_FOUND: "Code not found — check it or request a new one / الكود غير موجود",
-        ALREADY_USED: "This code was already activated on another device / هذا الكود مستخدم من قبل على جهاز آخر",
         REVOKED: "This code has been revoked / تم إيقاف هذا الكود",
       };
       fail(errors[result.error] || "Activation failed / فشل التفعيل");
