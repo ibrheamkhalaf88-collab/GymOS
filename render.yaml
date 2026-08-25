@@ -1,0 +1,24 @@
+# Render.com Blueprint — one-click deploy for GymOS API
+# بعد ربط الحساب: يبقى بس تعبئة قيمتين (MONGO_URI + ADMIN_PASSWORD)
+services:
+  - type: web
+    name: gymos-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true          # سر قوي تلقائي
+      - key: ADMIN_EMAIL
+        value: admin@example.com     # غيّره لبريدك الحقيقي
+      - key: ADMIN_PASSWORD
+        sync: false                  # تكتبه يدوياً وقت النشر (ibrheam مثلاً)
+      - key: ALLOWED_ORIGIN
+        value: https://ibrheamkhalaf88-collab.github.io
+      - key: MONGO_URI
+        sync: false                  # الصق رابط Atlas هنا
