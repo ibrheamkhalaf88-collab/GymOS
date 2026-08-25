@@ -261,6 +261,19 @@ app.patch("/api/codes/:code/owner", authAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Admin resets a client's website password → returns one-time temp password
+app.patch("/api/codes/:code/reset-password", authAdmin, async (req, res, next) => {
+  try {
+    const code = normCode(req.params.code);
+    const temp = Array.from({ length: 6 }, () =>
+      ALPHA[Math.floor(Math.random() * ALPHA.length)]).join("");
+    const passHash = await bcrypt.hash(temp, 10);
+    const r = await Code.updateOne({ code }, { passHash });
+    if (!r.matchedCount) return res.status(404).json({ error: "NOT_FOUND" });
+    res.json({ ok: true, tempPassword: temp }); // send to client via WhatsApp
+  } catch (e) { next(e); }
+});
+
 /* ---------------- Error boundary + boot ---------------- */
 app.use((_q, res) => res.status(404).json({ error: "NOT_FOUND" }));
 app.use((err, _q, res, _n) => {

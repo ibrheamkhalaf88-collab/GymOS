@@ -91,5 +91,12 @@
 
   <script src="vendor/chart.umd.min.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script>
+    // PWA offline support
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () =>
+        navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>

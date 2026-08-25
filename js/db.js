@@ -149,6 +149,23 @@ export const codesDb = {
     if (item) { item.revoked = revoked; demoSave(list); }
   },
 
+  // Admin: reset a client's website password → returns temp password
+  async resetClientPassword(code) {
+    const id = normalizeCode(code);
+    if (!id) throw new Error("INVALID_FORMAT");
+    const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const temp = Array.from({ length: 6 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join("");
+    if (onlineMode()) {
+      const r = await api(`/api/codes/${id}/reset-password`, { method: "PATCH", admin: true });
+      return { temp: r.tempPassword };
+    }
+    demoSeed();
+    const list = demoAll();
+    const item = list.find((c) => c.code === id);
+    if (item) { item.passHash = "demo"; item.plainPassword = temp; demoSave(list); }
+    return { temp };
+  },
+
   async activate(code, deviceInfo) {
     const id = sanitizeCode(code);
     if (!id) return { ok: false, error: "INVALID_FORMAT" };

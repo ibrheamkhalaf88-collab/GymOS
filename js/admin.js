@@ -188,6 +188,7 @@ function renderTable() {
       <td class="p-4 text-right">
         <div class="flex justify-end gap-2">
           <button data-view="${c.id}" title="Details" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-xl">visibility</span></button>
+          <button data-resetpw="${c.id}" title="Reset client password / تصفير كلمة سر العميل" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-xl">key_off</span></button>
           ${!c.used ? `
             ${c.revoked
               ? `<button data-restore="${c.id}" title="Restore" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-xl">history</span></button>`
@@ -201,6 +202,34 @@ function renderTable() {
 
   tbody.querySelectorAll("[data-view]").forEach((b) =>
     b.addEventListener("click", () => viewCode(b.dataset.view)));
+  tbody.querySelectorAll("[data-resetpw]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const c = allCodes.find((x) => x.id === b.dataset.resetpw);
+      if (!c) return;
+      const ok = await confirmDialog({
+        titleEn: `Reset password for ${c.code}?`,
+        titleAr: "تصفير كلمة سر العميل؟ ستحصل على كلمة مؤقتة تبعثها له",
+        confirmText: "Reset", danger: true,
+      });
+      if (!ok) return;
+      try {
+        const { temp } = await codesDb.resetClientPassword(c.code);
+        openModal(`
+          <div class="text-center mb-4">
+            <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">🔑 Temporary password / كلمة سر مؤقتة</p>
+            <p class="font-headline text-4xl font-bold text-primary tracking-[0.2em]" dir="ltr">${temp}</p>
+            <p class="font-arabic text-muted text-xs mt-3" dir="rtl">ابعثها للعميل — رح يقدر يغيرها من البروفايل بعد الدخول</p>
+          </div>
+          <div class="flex gap-2 justify-center">
+            <button id="cpTmp" class="px-4 py-2 rounded-lg border border-outline-variant text-xs font-headline uppercase tracking-widest hover:border-primary hover:text-primary transition-colors">Copy</button>
+            <a href="https://wa.me/?text=${encodeURIComponent(`🔑 Your new GymOS password: ${temp}\nCode: ${c.code}\nغيّرها من البروفايل بعد الدخول`)}}" target="_blank" rel="noopener" class="px-4 py-2 rounded-lg bg-primary/10 border border-primary/40 text-primary text-xs font-headline uppercase tracking-widest">WhatsApp</a>
+          </div>`, {}).el.querySelector("#cpTmp").onclick =
+          async () => { try { await navigator.clipboard.writeText(temp); showToast("Copied / تم النسخ"); } catch {} };
+        showToast("Password reset / تم تصفير كلمة السر");
+      } catch (e) {
+        showToast(escapeHtml(e.message || "Failed"), "err");
+      }
+    }));
   tbody.querySelectorAll("[data-revoke]").forEach((b) =>
     b.addEventListener("click", async () => { await codesDb.setRevoked(b.dataset.revoke, true); refresh(); showToast("Revoked / تم الإيقاف"); }));
   tbody.querySelectorAll("[data-restore]").forEach((b) =>
