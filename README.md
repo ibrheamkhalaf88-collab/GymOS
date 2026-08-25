@@ -22,7 +22,7 @@ activation-code licensing system, local-first data, PWA support and a CI-built A
 |------|---------|
 | 🧭 **Onboarding** | 4 bilingual slides (pure-black cyber style), auto-skip for returning users |
 | 🔑 **License system** | Online activation codes (`XXX-XXX`) stored in Firestore; one device per code; revoke/restore; validity days per tier |
-| 🛡️ **Admin console** | Email-gated (`admin.html`): generate keys, live registry table, stats, JSON export/import, WhatsApp share |
+| 🛡️ **Admin console** | Email-gated (`ibrheam.html`): generate keys, live registry table, stats, JSON export/import, WhatsApp share |
 | 👥 **Member roster** | Search, status filters (active/expired/trial/frozen), member cards, renewals with auto ledger entries |
 | 🖥️ **Hardware** | Device health board: pending / in-repair / completed + cost vs paid tracking |
 | 💰 **Ledger** | MRR hero metric, bento KPIs, cashflow bars (in/out), transaction feed |
@@ -92,7 +92,7 @@ Hardened nginx:alpine image with security headers
 ├── index.html            # Onboarding (4 slides)
 ├── activate.html         # License activation (digit inputs)
 ├── app.html              # Main SPA shell
-├── admin.html            # Codes admin console
+├── ibrheam.html            # Codes admin console
 ├── js/
 │   ├── config.js         # App + Firebase + admin settings
 │   ├── firebase-config.js# FB init (CDN ES modules)

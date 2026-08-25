@@ -6,7 +6,7 @@ const ROOT = path.join(__dirname, "..");
 const DEST = path.join(ROOT, "www");
 
 const FILES = [
-  "index.html", "activate.html", "app.html", "admin.html",
+  "index.html", "activate.html", "app.html", "ibrheam.html",
   "manifest.webmanifest", "sw.js",
 ];
 const DIRS = ["js", "css", "vendor", "assets"];
