@@ -226,7 +226,7 @@ function viewDashboard() {
         </p>
       </div>
       <div class="flex flex-col">
-        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)}</p>
+        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} <span class="text-primary">· ${tierLabel(lic.tier)}</span></p>
         <p class="font-display font-bold text-xs text-white mt-1 uppercase">
           <span>${license.daysLeft() === Infinity ? "♾️ LIFETIME" : license.daysLeft() + " Days Left"}</span><span class="ml-1 opacity-70">${license.daysLeft() === Infinity ? "دائم" : "يوم متبقي"}</span>
         </p>
@@ -535,6 +535,19 @@ function trainerCard(t) {
 
 const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS",
   elite: "ELITE TIER", standard: "STANDARD TIER", trial: "GUEST" };
+// License tier labels (activation-code packages)
+const LICENSE_TIER = {
+  monthly: ["📅", "MONTHLY", "شهرية"],
+  yearly:  ["🗓️", "YEARLY", "سنوية"],
+  lifetime:["♾️", "LIFETIME", "دائمة"],
+  standard:["🔑", "STANDARD", "عادية"],
+  vip:     ["💎", "VIP", "مميزة"],
+  guest:   ["👤", "GUEST", "زائر"],
+};
+const tierLabel = (tier) => {
+  const m = LICENSE_TIER[tier];
+  return m ? `${m[0]} ${m[1]} / ${m[2]}` : `${tier}`;
+};
 const FILTER_EMOJI = { active: "✅", expired: "⛔", trial: "🎁", frozen: "❄️", trainers: "👥" };
 
 function memberAvatar(m, st) {
@@ -1709,6 +1722,14 @@ function viewProfile() {
                 <p class="text-primary font-headline text-sm mt-1">${escapeHtml(lic.owner || "—")}</p>
               </div>
               <span class="material-symbols-outlined text-primary text-lg">badge</span>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Tier / <span class="font-arabic normal-case">الباقة</span></p>
+                <p class="text-primary font-headline text-sm mt-1">${tierLabel(lic.tier)}</p>
+              </div>
+              <span class="material-symbols-outlined text-primary text-lg">workspace_premium</span>
             </div>
             <div class="h-px bg-outline-variant w-full"></div>
             <div class="flex items-center justify-between">
