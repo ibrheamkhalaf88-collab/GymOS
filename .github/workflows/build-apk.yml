@@ -92,16 +92,16 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force output | Out-Null
           $exe = Get-ChildItem dist/*.exe | Select-Object -First 1
-          Copy-Item $exe.FullName ../output/DigitalPulse-Windows-Portable.exe
+          Copy-Item $exe.FullName output/DigitalPulse-Windows-Portable.exe
 
       - name: Upload Windows exe artifact
         uses: actions/upload-artifact@v4
         with:
           name: DigitalPulse-windows-exe
-          path: output/DigitalPulse-Windows-Portable.exe
+          path: desktop/output/DigitalPulse-Windows-Portable.exe
 
       - name: Attach Windows exe to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: output/DigitalPulse-Windows-Portable.exe
+          files: desktop/output/DigitalPulse-Windows-Portable.exe
