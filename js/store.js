@@ -20,9 +20,26 @@ function write(col, list) {
 }
 
 // ---- Website cloud sync (online mode only) ----
-// After login/activation with a password, every change is pushed to
-// Firestore gyms/{CODE} so the owner can continue from any browser.
+// After login/activation with a password, every change is pushed to the
+// cloud so the owner can continue from any browser.
+// NOTE: only a *minimal* subset is sent to the cloud (no member photos,
+// no volatile checkin/notification logs) to keep cloud storage very small.
 let _cloudTimer = null;
+
+function cloudDump() {
+  const dump = {};
+  COLLECTIONS.forEach((c) => {
+    if (c === "checkins" || c === "notifications") return; // logs stay local-only
+    const list = read(c);
+    if (c === "members") {
+      dump[c] = list.map(({ photo, ...m }) => m); // drop heavy base64 photos
+    } else {
+      dump[c] = list;
+    }
+  });
+  return dump;
+}
+
 function queueCloudSave() {
   if (localStorage.getItem("dp_cloud") !== "1") return;
   clearTimeout(_cloudTimer);
@@ -32,8 +49,7 @@ function queueCloudSave() {
       if (!lic || !lic.code) return;
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) return;
-      const dump = {};
-      COLLECTIONS.forEach((c) => { dump[c] = read(c); });
+      const dump = cloudDump();
       await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
     } catch (err) { console.warn("[GymOS] cloud save skipped:", err && err.message); }
   }, 1500);
@@ -236,6 +252,18 @@ export const store = {
     if (!dump || !dump.data) throw new Error("Invalid backup file");
     Object.entries(dump.data).forEach(([col, list]) => {
       if (COLLECTIONS.includes(col)) write(col, Array.isArray(list) ? list : []);
+    });
+  },
+
+  // Cloud restore: only fill collections that are empty locally, so the
+  // owner's existing device data (e.g. member photos) is never overwritten.
+  importMerged(dump) {
+    if (!dump || !dump.data) throw new Error("Invalid backup file");
+    Object.entries(dump.data).forEach(([col, list]) => {
+      if (!COLLECTIONS.includes(col)) return;
+      if (localStorage.getItem(PREFIX + col) === null) {
+        write(col, Array.isArray(list) ? list : []);
+      }
     });
   },
 

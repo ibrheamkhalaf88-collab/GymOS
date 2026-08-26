@@ -8,7 +8,7 @@ export const appConfig = {
   brandAr: "النبض الرقمي",
 
   // إصدار التطبيق — لازم يطابق versionName بالـ APK ويتحدث مع كل إصدار جديد
-  appVersion: "1.1.2",
+  appVersion: "1.1.3",
 
   // للدعم والتواصل (يظهر في شاشة التفعيل)
   supportPhone: "+972 568 802 803",

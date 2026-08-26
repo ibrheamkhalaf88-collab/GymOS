@@ -137,7 +137,7 @@ async function restoreCloudData(code) {
   try {
     const cloud = await codesDb.loadGym(code);
     if (cloud && cloud.data) {
-      store.importAll({ data: cloud.data });
+      store.importMerged({ data: cloud.data });
       showToast("☁️ Your data loaded from the website DB / تحمّلت بياناتك من قاعدة الموقع");
     }
   } catch { /* offline-safe */ }
