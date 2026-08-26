@@ -53,3 +53,7 @@ yarn-error.log*
 tmp/
 temp/
 *.tmp
+supabase-cli.zip
+supabase-bin/
+deploy.log
+output/
