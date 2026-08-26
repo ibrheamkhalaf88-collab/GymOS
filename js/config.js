@@ -18,10 +18,9 @@ export const appConfig = {
   // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر)
   demoAdminPassword: "ibrheam",
 
-  // 🗄️ MongoDB REST API — ضع رابط السيرفر هنا للتشغيل السحابي
-  // مثال: "https://gymos-api.onrender.com/api"
-  // اتركه فارغاً "" للوضع التجريبي المحلي (بدون قاعدة بيانات)
-  apiUrl: "",
+  // 🗄️ Supabase Edge Function API — التشغيل السحابي (بدون فيزا)
+  // مثال: "https://<project>.functions.supabase.co/gymos-api"
+  apiUrl: "https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api",
 
   language: "en",
 };

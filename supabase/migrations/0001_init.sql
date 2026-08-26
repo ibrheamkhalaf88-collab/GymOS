@@ -1,5 +1,5 @@
 -- ============================================================
--- GymOS — Supabase schema
+-- GymOS Supabase schema
 -- Replaces the old MongoDB collections (codes, gyms).
 -- Run this in Supabase → SQL Editor, or it is applied automatically
 -- by the deploy script.

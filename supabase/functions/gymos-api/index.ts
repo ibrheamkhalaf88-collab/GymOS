@@ -8,12 +8,12 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE, JWT_SECRET,
 //   ADMIN_EMAIL, ADMIN_PASSWORD, ALLOWED_ORIGIN
 // ============================================================
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import bcrypt from "npm:bcryptjs@2.4.3";
-import { create, verify, getNumericDate } from "https://deno.land/x/djwt@v9/mod.ts";
+import jwt from "npm:jsonwebtoken";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE") ?? "";
+const SUPABASE_URL = Deno.env.get("SB_URL") ?? "";
+const SUPABASE_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE") ?? "";
 const JWT_SECRET = Deno.env.get("JWT_SECRET") ?? "dev-insecure-change-me";
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") || "admin@example.com").toLowerCase();
 const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "admin2040";
@@ -36,16 +36,13 @@ const normCode = (raw: string) =>
 const randomCode = () =>
   "XXX-XXX".replace(/X/g, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]);
 
-const signJwt = (payload: Record<string, unknown>, admin = false) =>
-  create({ alg: "HS256", typ: "JWT" }, {
-    ...payload,
-    exp: getNumericDate(admin ? 60 * 60 * 12 : 60 * 60 * 24 * 30),
-  }, JWT_SECRET);
+const signJwt = (payload: Record<string, unknown>, admin = false): string =>
+  jwt.sign(payload, JWT_SECRET, { expiresIn: admin ? "12h" : "30d" });
 
 function verifyJwt(token: string): Record<string, unknown> | null {
   try {
     const clean = token.replace(/^Bearer\s+/i, "");
-    return (verify(clean, JWT_SECRET, { alg: "HS256" }) as Record<string, unknown>);
+    return jwt.verify(clean, JWT_SECRET) as Record<string, unknown>;
   } catch { return null; }
 }
 
@@ -241,7 +238,7 @@ async function handler(req: Request): Promise<Response> {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       let code = normCode(body?.custom);
       if (!code) {
-        do { code = randomCode(); } while ((await sb.from("codes").select("code").eq("code", code).maybeSingle()).data);
+        do { code = normCode(randomCode()); } while ((await sb.from("codes").select("code").eq("code", code).maybeSingle()).data);
       }
       const tier = ["monthly", "yearly", "lifetime"].includes(body?.tier) ? body.tier : "monthly";
       const insert = {
