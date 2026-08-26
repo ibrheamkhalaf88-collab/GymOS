@@ -7,6 +7,9 @@ export const appConfig = {
   brand: "DIGITAL PULSE",
   brandAr: "النبض الرقمي",
 
+  // إصدار التطبيق — لازم يطابق versionName بالـ APK ويتحدث مع كل إصدار جديد
+  appVersion: "1.1.2",
+
   // للدعم والتواصل (يظهر في شاشة التفعيل)
   supportPhone: "+972 568 802 803",
   supportWhatsApp: "972568802803", // بدون + أو مسافات

@@ -8,11 +8,53 @@ import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
 import { sanitizeName, sanitizeAmount, sanitizePhone } from "./validate.js";
+import { appConfig } from "./config.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
+
+// ---------- Force update (native APK only) ----------
+await enforceUpdateIfNeeded();
+
+async function enforceUpdateIfNeeded() {
+  const isNative = !!(window.Capacitor && window.Capacitor.isNative);
+  if (!isNative) return;
+  try {
+    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { headers: { "Accept": "application/vnd.github+json" } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const latest = String(data.tag_name || "").replace(/^v/, "");
+    if (!latest) return;
+    if (cmpVersion(latest, appConfig.appVersion) > 0) {
+      const apk = (data.assets || []).find((a) => /apk/i.test(a.name || ""));
+      showUpdateOverlay(apk ? apk.browser_download_url : "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
+      throw new Error("UPDATE_REQUIRED");
+    }
+  } catch (e) {
+    if (e && e.message === "UPDATE_REQUIRED") throw e;
+  }
+}
+
+function cmpVersion(a, b) {
+  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x > y) return 1; if (x < y) return -1;
+  }
+  return 0;
+}
+
+function showUpdateOverlay(apkUrl) {
+  document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
+    '<div style="font-size:72px;color:#ccff00">⬇</div>' +
+    '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
+    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
+    '<a href="' + (apkUrl || "#") + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
+    '<p style="font-size:11px;color:#777;margin:8px 0 0">Update / حدّث التطبيق</p>' +
+    '</div>';
+}
 
 // ---------- Guards ----------
 if (!license.isActive()) location.replace("activate.html");
