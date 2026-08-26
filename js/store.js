@@ -6,17 +6,26 @@
 
 const PREFIX = "dp_";
 const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
+const TOMB_KEY = "dp_tombstones";
 
 const listeners = new Map();
+let _suppressCloud = false;
 
 function read(col) {
   try { return JSON.parse(localStorage.getItem(PREFIX + col)) || []; }
   catch { return []; }
 }
+function readTomb() {
+  try { return JSON.parse(localStorage.getItem(TOMB_KEY)) || {}; }
+  catch { return {}; }
+}
+function writeTomb(t) { localStorage.setItem(TOMB_KEY, JSON.stringify(t)); }
+function tsOf(it) { return Number(it && it.updatedAt) || Number(it && it.createdAt) || 0; }
+
 function write(col, list) {
   localStorage.setItem(PREFIX + col, JSON.stringify(list));
   emit(col, list);
-  queueCloudSave();
+  if (!_suppressCloud) queueCloudSave();
 }
 
 // ---- Website cloud sync (online mode only) ----
@@ -37,6 +46,7 @@ function cloudDump() {
       dump[c] = list;
     }
   });
+  dump._tombstones = readTomb();
   return dump;
 }
 
@@ -54,6 +64,112 @@ function queueCloudSave() {
     } catch (err) { console.warn("[GymOS] cloud save skipped:", err && err.message); }
   }, 1500);
 }
+// ---------- Multi-device sync engine ----------
+// Pulls the cloud state, merges item-by-item with the local state by
+// updatedAt (newer wins; deletions propagate via tombstones), writes the
+// merged result locally (only if changed), then pushes it back. The server
+// also merges, so two devices editing at the same time never clobber.
+let _syncing = false;
+let _syncTimer = null;
+
+function mergeTombstones(a, b) {
+  const out = { ...(a || {}) };
+  Object.keys(b || {}).forEach((c) => {
+    out[c] = out[c] || {};
+    Object.keys(b[c]).forEach((id) => {
+      const t = Number(b[c][id]) || 0;
+      if (!out[c][id] || t > out[c][id]) out[c][id] = t;
+    });
+  });
+  return out;
+}
+
+function mergeStates(local, cloud, tombstones) {
+  const result = {};
+  COLLECTIONS.forEach((c) => {
+    if (c === "checkins" || c === "notifications") {
+      result[c] = local[c] || []; // local-only logs
+      return;
+    }
+    const tomb = tombstones[c] || {};
+    const ex = local[c] || [];
+    const inc = cloud[c] || [];
+    const map = new Map();
+    const ids = new Set([...ex.map((x) => x.id), ...inc.map((x) => x.id)]);
+    ids.forEach((id) => {
+      const e = ex.find((x) => x.id === id);
+      const i = inc.find((x) => x.id === id);
+      let winner;
+      if (!e) winner = i;
+      else if (!i) winner = e;
+      else winner = tsOf(i) > tsOf(e) ? i : e; // tie → keep local
+      const t = tomb[id];
+      if (t && tsOf(winner) <= t) return; // deleted
+      if (winner && !winner.photo) {
+        const other = winner === e ? i : e;
+        if (other && other.photo) winner = { ...winner, photo: other.photo };
+      }
+      if (winner) map.set(id, winner);
+    });
+    result[c] = [...map.values()];
+  });
+  return result;
+}
+
+async function syncNow() {
+  if (_syncing) return;
+  if (localStorage.getItem("dp_cloud") !== "1") return;
+  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  if (!lic || !lic.code) return;
+  _syncing = true;
+  try {
+    const { codesDb } = await import("./db.js");
+    if (!codesDb.saveGym) return;
+    const local = cloudDump();
+    const cloudRes = await codesDb.loadGym(lic.code);
+    const cloud = cloudRes && cloudRes.data ? cloudRes.data : null;
+    let merged, mergedTomb;
+    if (cloud) {
+      mergedTomb = mergeTombstones(local._tombstones, cloud._tombstones);
+      merged = mergeStates(local, cloud, mergedTomb);
+    } else {
+      merged = local;
+      mergedTomb = local._tombstones;
+    }
+    _suppressCloud = true;
+    COLLECTIONS.forEach((c) => {
+      if (!(c in merged)) return;
+      const next = merged[c];
+      if (JSON.stringify(read(c)) !== JSON.stringify(next)) write(c, next);
+    });
+    writeTomb(mergedTomb);
+    _suppressCloud = false;
+    const push = {};
+    COLLECTIONS.forEach((c) => { if (c in merged) push[c] = merged[c]; });
+    push._tombstones = mergedTomb;
+    await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+  } catch (e) {
+    console.warn("[GymOS] sync failed:", e && e.message);
+  } finally {
+    _suppressCloud = false;
+    _syncing = false;
+  }
+}
+
+function startSync() {
+  if (_syncTimer) return;
+  if (localStorage.getItem("dp_cloud") !== "1") return;
+  syncNow();
+  _syncTimer = setInterval(syncNow, 20000);
+  const onVis = () => { if (document.visibilityState === "visible") syncNow(); };
+  document.addEventListener("visibilitychange", onVis);
+  window.addEventListener("focus", syncNow);
+}
+
+function stopSync() {
+  if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
+}
+
 function emit(col, list) {
   (listeners.get(col) || new Set()).forEach((cb) => cb(list));
 }
@@ -200,7 +316,7 @@ export const store = {
   },
 
   insert(col, data) {
-    const item = { id: uid(col[0]), createdAt: Date.now(), ...data };
+    const item = { id: uid(col[0]), createdAt: Date.now(), updatedAt: Date.now(), ...data };
     const list = this.all(col);
     list.unshift(item);
     write(col, list);
@@ -230,6 +346,10 @@ export const store = {
   remove(col, id) {
     const list = this.all(col);
     const filtered = list.filter((x) => x.id !== id);
+    const t = readTomb();
+    t[col] = t[col] || {};
+    t[col][id] = Date.now();
+    writeTomb(t);
     write(col, filtered);
   },
 
@@ -255,17 +375,9 @@ export const store = {
     });
   },
 
-  // Cloud restore: only fill collections that are empty locally, so the
-  // owner's existing device data (e.g. member photos) is never overwritten.
-  importMerged(dump) {
-    if (!dump || !dump.data) throw new Error("Invalid backup file");
-    Object.entries(dump.data).forEach(([col, list]) => {
-      if (!COLLECTIONS.includes(col)) return;
-      if (localStorage.getItem(PREFIX + col) === null) {
-        write(col, Array.isArray(list) ? list : []);
-      }
-    });
-  },
+  startSync,
+  stopSync,
+  syncNow,
 
   // ---------- Derived stats ----------
   stats() {

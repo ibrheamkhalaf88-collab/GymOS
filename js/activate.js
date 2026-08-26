@@ -135,11 +135,8 @@ async function askSetPassword(record) {
 async function restoreCloudData(code) {
   if (!isOnline) return;
   try {
-    const cloud = await codesDb.loadGym(code);
-    if (cloud && cloud.data) {
-      store.importMerged({ data: cloud.data });
-      showToast("☁️ Your data loaded from the website DB / تحمّلت بياناتك من قاعدة الموقع");
-    }
+    await store.syncNow();
+    showToast("☁️ البيانات متزامنة مع باقي الأجهزة / synced across devices");
   } catch { /* offline-safe */ }
 }
 
@@ -179,7 +176,8 @@ form.addEventListener("submit", async (e) => {
       }
       license.save(res.record);
       localStorage.setItem("dp_license_mode", codesDb.mode());
-      localStorage.setItem("dp_cloud", isOnline ? "1" : "0");
+      const L = license.get();
+      localStorage.setItem("dp_cloud", (isOnline && L.data_enabled) ? "1" : "0");
       await restoreCloudData(res.record.code);
       markDigits("success");
       showToast(`👋 Welcome back! / أهلاً بعودتك`);
@@ -213,6 +211,7 @@ form.addEventListener("submit", async (e) => {
         INVALID_FORMAT: "Invalid code format / صيغة الكود غير صحيحة",
         NOT_FOUND: "Code not found — check it or request a new one / الكود غير موجود",
         REVOKED: "This code has been revoked / تم إيقاف هذا الكود",
+        DEVICE_LIMIT: "Device limit reached for this code / تم الوصول لحد الأجهزة المسموح بها لهذا الكود",
       };
       fail(errors[result.error] || "Activation failed / فشل التفعيل");
       markDigits("error");

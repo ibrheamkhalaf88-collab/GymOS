@@ -247,7 +247,10 @@ setInterval(() => { if (!$("#adminPanel").classList.contains("hidden")) renderTa
 function viewCode(id) {
   const c = allCodes.find((x) => x.id === id);
   if (!c) return;
-  openModal(`
+  const dataOn = c.data_enabled !== false;
+  const syncOn = c.sync_enabled !== false;
+  const devices = Array.isArray(c.devices) ? c.devices : [];
+  const mod = openModal(`
     <div class="text-center mb-6">
       <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">Access Code</p>
       <p class="font-headline text-4xl font-bold text-primary tracking-[0.15em]" dir="ltr">${c.code}</p>
@@ -261,7 +264,65 @@ function viewCode(id) {
       ${c.used ? `
         <div class="col-span-2 bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Activated on</p><p class="font-headline" dir="ltr">${escapeHtml(c.usedDeviceName || "")} — ${fmt.date(c.usedAt)}</p></div>` : ""}
       ${c.note ? `<div class="col-span-2 bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Note</p><p>${escapeHtml(c.note)}</p></div>` : ""}
+    </div>
+
+    <div class="mt-5 space-y-3">
+      <div>
+        <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">Devices / الأجهزة (${devices.length}/${c.device_limit})</p>
+        <div class="space-y-1">
+          ${devices.length ? devices.map((d) => `<div class="flex justify-between items-center text-sm bg-black/30 rounded-lg px-3 py-2"><span class="font-headline">${escapeHtml(d.name || "—")}</span><span class="text-muted text-[11px]" dir="ltr">${fmt.date(d.at)}</span></div>`).join("") : '<p class="text-muted text-xs">No devices activated yet / لا يوجد</p>'}
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
+        <div>
+          <p class="font-headline">☁️ Data transfer / نقل الداتا</p>
+          <p class="text-[10px] text-muted">Store in cloud / حفظ بالسحابة</p>
+        </div>
+        <button data-toggle="data" class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${dataOn ? "bg-primary text-black" : "bg-surface-container-highest text-muted"}">${dataOn ? "ON" : "OFF"}</button>
+      </div>
+
+      <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
+        <div>
+          <p class="font-headline">🔄 Sync / مزامنة</p>
+          <p class="text-[10px] text-muted">Share across devices / مشاركة بين الأجهزة</p>
+        </div>
+        <button data-toggle="sync" class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${syncOn ? "bg-primary text-black" : "bg-surface-container-highest text-muted"}">${syncOn ? "ON" : "OFF"}</button>
+      </div>
+
+      <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
+        <div>
+          <p class="font-headline">Device limit / حد الأجهزة</p>
+          <p class="text-[10px] text-muted">Max activated devices</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input id="devLimit" type="number" min="1" max="20" value="${c.device_limit}" class="w-16 bg-black/50 rounded px-2 py-1 text-center font-headline"/>
+          <button id="saveLimit" class="px-4 py-1.5 rounded-full bg-primary text-black text-xs font-bold">Save</button>
+        </div>
+      </div>
     </div>`);
+
+  mod.el.querySelector('[data-toggle="data"]').onclick = async (e) => {
+    await codesDb.setDataEnabled(c.code, !dataOn);
+    c.data_enabled = !dataOn;
+    e.target.textContent = c.data_enabled ? "ON" : "OFF";
+    e.target.className = `px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${c.data_enabled ? "bg-primary text-black" : "bg-surface-container-highest text-muted"}`;
+    refresh();
+  };
+  mod.el.querySelector('[data-toggle="sync"]').onclick = async (e) => {
+    await codesDb.setSyncEnabled(c.code, !syncOn);
+    c.sync_enabled = !syncOn;
+    e.target.textContent = c.sync_enabled ? "ON" : "OFF";
+    e.target.className = `px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${c.sync_enabled ? "bg-primary text-black" : "bg-surface-container-highest text-muted"}`;
+    refresh();
+  };
+  mod.el.querySelector("#saveLimit").onclick = async () => {
+    const v = Number(mod.el.querySelector("#devLimit").value) || 3;
+    await codesDb.setDeviceLimit(c.code, v);
+    c.device_limit = v;
+    showToast("Limit updated / تم تحديث الحد");
+    refresh();
+  };
 }
 
 // ---------- Search + filter + export ----------

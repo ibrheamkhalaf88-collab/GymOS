@@ -59,6 +59,10 @@ function showUpdateOverlay(apkUrl) {
 // ---------- Guards ----------
 if (!license.isActive()) location.replace("activate.html");
 
+// Start multi-device sync only when cloud data + sync are enabled
+const _lic = license.get();
+if (_lic && _lic.data_enabled && _lic.sync_enabled) store.startSync();
+
 // ---------- Helpers ----------
 const DAY = 86400000;
 function effStatus(m) {
@@ -1680,6 +1684,22 @@ function viewProfile() {
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Import</button>
           </div>
           <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secCloudSync">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">☁️ Cloud Sync / <span class="font-arabic normal-case">مزامنة سحابية</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">Backup &amp; sync now / رفع نسخة الآن</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Sync</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secExport">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Export Backup / <span class="font-arabic normal-case">تصدير نسخة</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">Download facility data JSON</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Export</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secReset">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Reset Data</p>
@@ -1881,6 +1901,8 @@ function viewProfile() {
     localStorage.setItem("dp_haptic", e.target.checked ? "1" : "0"));
   $("#secChangePw").onclick = openChangePassword;
   $("#secRestore").onclick = () => $("#importFile").click();
+  $("#secCloudSync").onclick = cloudSyncNow;
+  $("#secExport").onclick = exportData;
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
     const ok = await confirmDialog({ titleEn: "Reset all data to demo?", titleAr: "إعادة تعيين كل البيانات للبيانات التجريبية؟", confirmText: "Reset", danger: true });
@@ -1938,6 +1960,14 @@ function openChangePassword() {
 async function codesDbChange(code, cur, next) {
   const { codesDb } = await import("./db.js");
   return codesDb.changeClientPassword(code, cur, next);
+}
+
+async function cloudSyncNow() {
+  const L = license.get();
+  if (!L || !L.data_enabled) { showToast("Cloud sync disabled for this code / السحابة معطّلة لهذا الكود", "err"); return; }
+  showToast("Syncing… / جارٍ المزامنة…");
+  try { await store.syncNow(); showToast("☁️ Synced / تمت المزامنة"); }
+  catch { showToast("Sync failed / فشلت المزامنة", "err"); }
 }
 
 function exportData() {

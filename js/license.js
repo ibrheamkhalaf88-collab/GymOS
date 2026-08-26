@@ -60,6 +60,9 @@ export const license = {
       expiresAt: days > 0 ? activatedAt + days * 86400000 : 0, // 0 = lifetime
       deviceId: deviceId(),
       deviceName: deviceName(),
+      data_enabled: record.data_enabled !== false,
+      sync_enabled: record.sync_enabled !== false,
+      device_limit: Number(record.device_limit) || 3,
     };
     localStorage.setItem(LICENSE_KEY, JSON.stringify(data));
     return data;

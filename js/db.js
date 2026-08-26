@@ -149,6 +149,37 @@ export const codesDb = {
     if (item) { item.revoked = revoked; demoSave(list); }
   },
 
+  // Admin: toggle cloud data transfer for a code
+  async setDataEnabled(code, val) {
+    const id = normalizeCode(code);
+    if (!id) return;
+    if (onlineMode()) { await api(`/api/codes/${id}/data`, { method: "PATCH", admin: true, body: { data_enabled: !!val } }); return; }
+    const list = demoAll();
+    const item = list.find((c) => c.code === id);
+    if (item) { item.data_enabled = !!val; demoSave(list); }
+  },
+
+  // Admin: toggle multi-device sync for a code
+  async setSyncEnabled(code, val) {
+    const id = normalizeCode(code);
+    if (!id) return;
+    if (onlineMode()) { await api(`/api/codes/${id}/sync`, { method: "PATCH", admin: true, body: { sync_enabled: !!val } }); return; }
+    const list = demoAll();
+    const item = list.find((c) => c.code === id);
+    if (item) { item.sync_enabled = !!val; demoSave(list); }
+  },
+
+  // Admin: set max activated devices for a code
+  async setDeviceLimit(code, val) {
+    const id = normalizeCode(code);
+    if (!id) return;
+    const lim = Math.max(1, Math.min(20, Math.floor(Number(val) || 3)));
+    if (onlineMode()) { await api(`/api/codes/${id}/limit`, { method: "PATCH", admin: true, body: { device_limit: lim } }); return; }
+    const list = demoAll();
+    const item = list.find((c) => c.code === id);
+    if (item) { item.device_limit = lim; demoSave(list); }
+  },
+
   // Admin: reset a client's website password → returns temp password
   async resetClientPassword(code) {
     const id = normalizeCode(code);
@@ -201,7 +232,10 @@ export const codesDb = {
     if (!validatePassword(password)) return { ok: false, error: "WRONG_PASSWORD" };
     if (onlineMode()) {
       try {
-        const r = await api("/api/auth/login", { method: "POST", body: { code: id, password } });
+        const r = await api("/api/auth/login", {
+          method: "POST",
+          body: { code: id, password, deviceId: localStorage.getItem("dp_device_id") || "" },
+        });
         sessionStorage.setItem("dp_jwt", r.token);
         sessionStorage.setItem("dp_code", r.record.code);
         return { ok: true, record: r.record };
@@ -220,7 +254,8 @@ export const codesDb = {
   async setClientPassword(code, password) {
     const id = sanitizeCode(code);
     if (!id || !validatePassword(password)) throw new Error("Weak password / كلمة سر ضعيفة");
-    localStorage.setItem("dp_cloud", "1");
+    const L = JSON.parse(localStorage.getItem("dp_license") || "{}");
+    localStorage.setItem("dp_cloud", (onlineMode() && L.data_enabled) ? "1" : "0");
     if (onlineMode()) {
       const r = await api("/api/auth/set-password", { method: "POST", body: { code: id, password } });
       sessionStorage.setItem("dp_jwt", r.token);
