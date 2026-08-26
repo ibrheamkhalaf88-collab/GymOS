@@ -812,18 +812,24 @@ function openRenewModal(id) {  const m = store.get("members", id);
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.amount} ($)</label>
           <input name="amount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
       </div>
-      <div class="flex gap-3 pt-2">
+      <p class="text-[11px] text-muted font-headline uppercase tracking-widest">${t.renew} — Basis / أساس التجديد</p>
+      <div class="flex flex-col gap-2">
+        <button type="button" data-base="expiry" class="py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew} — من تاريخ الانتهاء (From expiry)</button>
+        <button type="button" data-base="today" class="py-3 rounded-xl border border-primary-fixed text-primary-fixed font-headline font-bold uppercase text-sm pressable">${t.renew} — من اليوم (From today)</button>
+      </div>
+      <div class="flex gap-3 pt-1">
         <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
-        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew}</button>
       </div>
     </form>`);
   mod.el.querySelector("[data-close]").onclick = mod.close;
-  $("#renewForm", mod.el).addEventListener("submit", (e) => {
+  $("#renewForm", mod.el).addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-base]");
+    if (!btn) return;
     e.preventDefault();
-    const fd = new FormData(e.target);
+    const fd = new FormData($("#renewForm", mod.el));
     const days = Number(fd.get("days")) || 30;
     const amount = Number(fd.get("amount")) || 0;
-    const base = Math.max(Date.now(), m.expiresAt);
+    const base = btn.dataset.base === "today" ? Date.now() : m.expiresAt;
     store.update("members", id, { expiresAt: base + days * DAY, status: m.plan === "trial" ? "trial" : "active" });
     if (amount > 0) {
       store.insert("ledger", { type: "revenue", amount, description: `Renewal: ${m.name}`, category: "subscriptions", date: Date.now() });
