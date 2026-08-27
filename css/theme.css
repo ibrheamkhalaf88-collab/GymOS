@@ -83,9 +83,9 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: #111111; }
-::-webkit-scrollbar-thumb { background: #333333; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #555555; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--frost); }
 
 /* ---- Digit inputs (activation) ----
    Base styles live in activate.html (page-scoped, matches Stitch design).
@@ -106,20 +106,20 @@ body {
 /* ---- Forms ---- */
 .dp-field {
   width: 100%;
-  background: #000000;
-  border: 1px solid #333333;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 1rem;
   padding: 0.85rem 1rem;
-  color: #ccff00;
+  color: var(--volt);
   font-family: inherit;
   outline: none;
   transition: all 0.15s ease;
 }
 .dp-field:focus {
-  border-color: #ccff00;
+  border-color: var(--volt);
   box-shadow: 0 0 0 1px rgba(204, 255, 0, 0.3);
 }
-.dp-field::placeholder { color: #666666; }
+.dp-field::placeholder { color: var(--frost); }
 /* Native controls follow the dark theme (date pickers, select arrows…) */
 input, select, textarea { color-scheme: dark; }
 .dp-field::-webkit-calendar-picker-indicator {
@@ -129,16 +129,16 @@ input, select, textarea { color-scheme: dark; }
 /* Date & time controls: force pure-black background */
 input[type="date"], input[type="datetime-local"],
 input[type="time"], input[type="month"] {
-  background-color: #000000;
-  color: #ccff00;
+  background-color: var(--bg);
+  color: var(--volt);
 }
 /* Kill Chrome/Edge autofill white-yellow paint */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #000000 inset;
-  -webkit-text-fill-color: #ccff00;
-  caret-color: #ccff00;
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset;
+  -webkit-text-fill-color: var(--volt);
+  caret-color: var(--volt);
   transition: background-color 9999s ease-in-out 0s;
 }
 
@@ -146,17 +146,17 @@ input:-webkit-autofill:focus {
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]),
 select,
 textarea {
-  background-color: #000000 !important;
-  color: #ccff00 !important;
+  background-color: var(--bg) !important;
+  color: var(--volt) !important;
 }
 /* internal segments of date inputs (dd/mm/yyyy) */
-input::-webkit-datetime-edit { background: transparent; color: #ccff00; }
+input::-webkit-datetime-edit { background: transparent; color: var(--volt); }
 input::-webkit-datetime-edit-fields-wrapper { background: transparent; }
 input::-webkit-datetime-edit-year-field,
 input::-webkit-datetime-edit-month-field,
-input::-webkit-datetime-edit-day-field { color: #ccff00; }
+input::-webkit-datetime-edit-day-field { color: var(--volt); }
 input::-webkit-calendar-picker-indicator { filter: invert(1) brightness(1.6); cursor: pointer; }
-select.dp-field option { background: #000000; color: #ccff00; }
+select.dp-field option { background: var(--bg); color: var(--volt); }
 
 /* ---- Toasts ---- */
 #toast-root {
@@ -170,9 +170,9 @@ select.dp-field option { background: #000000; color: #ccff00; }
 }
 .toast {
   display: flex; align-items: center; gap: 0.65rem;
-  background: #171717;
-  border: 1px solid #333333;
-  border-inline-start: 3px solid #ccff00;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--volt);
   border-radius: 0.9rem;
   padding: 0.75rem 1rem;
   font-size: 0.85rem;
@@ -180,9 +180,9 @@ select.dp-field option { background: #000000; color: #ccff00; }
   animation: slideIn 0.2s ease-out both;
   pointer-events: auto;
 }
-.toast.err { border-inline-start-color: #ff3366; }
-.toast.ok .material-symbols-outlined { color: #ccff00; }
-.toast.err .material-symbols-outlined { color: #ff3366; }
+.toast.err { border-inline-start-color: var(--alert); }
+.toast.ok .material-symbols-outlined { color: var(--volt); }
+.toast.err .material-symbols-outlined { color: var(--alert); }
 
 /* ---- Modals ---- */
 .modal-backdrop {
@@ -197,8 +197,8 @@ select.dp-field option { background: #000000; color: #ccff00; }
 .modal-panel {
   width: 100%; max-width: 480px;
   max-height: 90vh; overflow-y: auto;
-  background: #171717;
-  border: 1px solid #333333;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 2rem 2rem 0 0;
   animation: slideIn 0.22s ease-out both;
 }
@@ -208,9 +208,9 @@ select.dp-field option { background: #000000; color: #ccff00; }
 
 /* ---- Status pips ---- */
 .pip { width: 0.5rem; height: 0.5rem; border-radius: 9999px; display: inline-block; }
-.pip-volt { background: #ccff00; box-shadow: 0 0 8px rgba(204, 255, 0, 0.6); }
-.pip-alert { background: #ff3366; box-shadow: 0 0 8px rgba(255, 51, 102, 0.6); }
-.pip-frost { background: #d1e5f3; }
+.pip-volt { background: var(--volt); box-shadow: 0 0 8px rgba(204, 255, 0, 0.6); }
+.pip-alert { background: var(--alert); box-shadow: 0 0 8px rgba(255, 51, 102, 0.6); }
+.pip-frost { background: var(--frost); }
 
 /* ---- Bilingual label pattern ---- */
 .bi-label {
@@ -223,12 +223,24 @@ select.dp-field option { background: #000000; color: #ccff00; }
 .arabic-sub { font-family: "Tajawal", sans-serif; opacity: 0.7; font-size: 0.85em; }
 .neon-text-pink { text-shadow: 0 0 8px rgba(255, 51, 102, 0.5); }
 .alert-glow { box-shadow: 0 0 15px rgba(255, 51, 102, 0.5); }
-.cyber-card { background-color: #171717; border: 1px solid #333333; }
+.cyber-card { background-color: var(--surface); border: 1px solid var(--border); }
 .grid-bg {
   background-image:
-    linear-gradient(to right, #1e2113 1px, transparent 1px),
-    linear-gradient(to bottom, #1e2113 1px, transparent 1px);
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 .bar-chart-fill { background: linear-gradient(to top, rgba(195, 244, 0, 0.1) 0%, rgba(195, 244, 0, 0.8) 100%); }
 .bar-chart-fill-pink { background: linear-gradient(to top, rgba(255, 51, 102, 0.1) 0%, rgba(255, 51, 102, 0.8) 100%); }
+
+/* ---- Reduced motion for accessibility ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .fade-up { opacity: 1 !important; transform: none !important; }
+  .glass-card { backdrop-filter: none !important; }
+}

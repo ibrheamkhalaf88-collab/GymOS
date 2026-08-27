@@ -14,9 +14,9 @@ import jwt from "npm:jsonwebtoken";
 
 const SUPABASE_URL = Deno.env.get("SB_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE") ?? "";
-const JWT_SECRET = Deno.env.get("JWT_SECRET") ?? "dev-insecure-change-me";
-const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") || "admin@example.com").toLowerCase();
-const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "admin2040";
+const JWT_SECRET = Deno.env.get("JWT_SECRET") ?? "f29a3868e3eb5e8d975a3b1443370eb00242db5d2c24065aaefd0fbc3bb4252d"; // dev fallback — set JWT_SECRET Function Secret in production
+const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") || "ibrheamshady@gmail.com").toLowerCase();
+const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "E20062006kh@"; // dev fallback — set Function Secret in production
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGIN") || "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const APP_ORIGINS = new Set([
@@ -33,11 +33,13 @@ const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 // For gym data, sync-on codes share one row (device_id ''); sync-off codes
 // keep an isolated per-device row keyed by the real device id.
-async function effectiveDeviceId(p: any): Promise<string> {
-  if (!p || !p.code) return "";
-  const { data: rec } = await sb.from("codes").select("sync_enabled").eq("code", p.code).maybeSingle();
-  const sync = rec ? (rec.sync_enabled !== false) : true;
-  return sync ? "" : (String(p.deviceId || "").slice(0, 80));
+async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean }> {
+  if (!p || !p.code) return { sync: true, data: true };
+  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled").eq("code", p.code).maybeSingle();
+  return {
+    sync: rec ? (rec.sync_enabled !== false) : true,
+    data: rec ? (rec.data_enabled !== false) : true,
+  };
 }
 const normCode = (raw: string) =>
   String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
@@ -124,6 +126,18 @@ const failIp = (ip: string) => {
 };
 const clearIp = (ip: string) => attempts.delete(ip);
 
+// per-code activation rate limit (NAT-safe: keyed by code, not by shared IP)
+const actAttempts = new Map<string, { n: number; t: number }>();
+const tooManyCode = (code: string) => {
+  const a = actAttempts.get(code);
+  return !!a && a.n >= 20 && Date.now() - a.t < LOCK_MS;
+};
+const failCode = (code: string) => {
+  const a = actAttempts.get(code) || { n: 0, t: Date.now() };
+  a.n += 1; a.t = Date.now(); actAttempts.set(code, a);
+};
+const clearCode = (code: string) => actAttempts.delete(code);
+
 const clientIp = (req: Request) =>
   req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
 
@@ -140,6 +154,7 @@ function corsHeaders(origin?: string | null) {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
+    "Cache-Control": "no-store",
   };
 }
 
@@ -169,9 +184,12 @@ async function handler(req: Request): Promise<Response> {
   const idx = path.indexOf("/api");
   if (idx >= 0) path = path.slice(idx);
 
-  const body = req.method === "GET" || req.method === "HEAD"
-    ? null
-    : await req.json().catch(() => null);
+  let body: any = null;
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    const raw = await req.text();
+    if (raw.length > 2_000_000) return json({ error: "PAYLOAD_TOO_LARGE" }, 413, origin);
+    try { body = raw ? JSON.parse(raw) : null; } catch { body = null; }
+  }
 
   try {
     /* health */
@@ -182,10 +200,12 @@ async function handler(req: Request): Promise<Response> {
     /* client activate */
     if (req.method === "POST" && path === "/api/auth/activate") {
       const code = normCode(body?.code);
+      if (tooManyCode(code)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
       const { data: rec, error } = await sb
         .from("codes").select("*").eq("code", code).maybeSingle();
-      if (error || !rec) return json({ error: "NOT_FOUND" }, 404, origin);
+      if (error || !rec) { failCode(code); return json({ error: "NOT_FOUND" }, 404, origin); }
       if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
+      clearCode(code);
       const devId = String(body?.deviceId || "").slice(0, 80);
       const devName = String(body?.deviceName || "").slice(0, 40);
       const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
@@ -258,7 +278,9 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "GET" && path === "/api/gym") {
       const p = authJwt(req);
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
-      const deviceId = await effectiveDeviceId(p);
+      const flags = await codeFlags(p);
+      if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
+      const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: g } = await sb.from("gyms").select("*").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
       return json(g ? { savedAt: g.saved_at ? new Date(g.saved_at).getTime() : null, data: g.data } : null, 200, origin);
     }
@@ -269,7 +291,9 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "PUT" && path === "/api/gym") {
       const p = authJwt(req);
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
-      const deviceId = await effectiveDeviceId(p);
+      const flags = await codeFlags(p);
+      if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
+      const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: cur } = await sb.from("gyms").select("data").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
       const merged = mergeGymData(cur?.data || {}, body?.data || {});
       const { error } = await sb.from("gyms").upsert(
@@ -281,12 +305,14 @@ async function handler(req: Request): Promise<Response> {
 
     /* admin login */
     if (req.method === "POST" && path === "/api/admin/login") {
+      const ip = clientIp(req);
+      if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
       const email = String(body?.email || "").toLowerCase().trim();
       if (email !== ADMIN_EMAIL || String(body?.password || "") !== ADMIN_PASSWORD) {
-        failIp(clientIp(req));
+        failIp(ip);
         return json({ error: "WRONG_CREDENTIALS" }, 401, origin);
       }
-      clearIp(clientIp(req));
+      clearIp(ip);
       return json({ ok: true, token: await signJwt({ admin: true }, true) }, 200, origin);
     }
 

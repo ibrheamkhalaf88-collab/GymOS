@@ -3,11 +3,20 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Glow layer (wider, semi-transparent) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="7"
+        android:strokeColor="#55ccff00"
+        android:strokeWidth="11"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M16,56 L36,56 L46,36 L58,80 L68,32 L76,56 L92,56" />
+        android:pathData="M18,54 L36,54 L44,54 L50,30 L58,78 L66,30 L72,54 L90,54" />
+    <!-- Main pulse line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#ccff00"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18,54 L36,54 L44,54 L50,30 L58,78 L66,30 L72,54 L90,54" />
 </vector>

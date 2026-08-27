@@ -140,7 +140,8 @@ function render() {
 function finish() {
   localStorage.setItem(KEY_SEEN, "1");
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-  location.replace(lic && lic.active ? "app.html" : "activate.html");
+  const isActive = lic && (lic.expiresAt === 0 || (lic.expiresAt && Date.now() < lic.expiresAt));
+  location.replace(isActive ? "app.html" : "activate.html");
 }
 
 // Routing: returning users skip onboarding
@@ -150,7 +151,7 @@ function finish() {
     let target = "activate.html";
     try {
       const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-      if (lic && lic.active && (!lic.expiresAt || Date.now() < lic.expiresAt)) target = "app.html";
+      if (lic && (lic.expiresAt === 0 || (lic.expiresAt && Date.now() < lic.expiresAt))) target = "app.html";
     } catch {}
     location.replace(target);
     return;

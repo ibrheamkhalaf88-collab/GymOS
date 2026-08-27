@@ -156,18 +156,24 @@ async function syncNow() {
   }
 }
 
+let _onVis = null;
+let _onFocus = null;
+
 function startSync() {
   if (_syncTimer) return;
   if (localStorage.getItem("dp_cloud") !== "1") return;
   syncNow();
   _syncTimer = setInterval(syncNow, 20000);
-  const onVis = () => { if (document.visibilityState === "visible") syncNow(); };
-  document.addEventListener("visibilitychange", onVis);
-  window.addEventListener("focus", syncNow);
+  _onVis = () => { if (document.visibilityState === "visible") syncNow(); };
+  _onFocus = () => syncNow();
+  document.addEventListener("visibilitychange", _onVis);
+  window.addEventListener("focus", _onFocus);
 }
 
 function stopSync() {
   if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
+  if (_onVis) { document.removeEventListener("visibilitychange", _onVis); _onVis = null; }
+  if (_onFocus) { window.removeEventListener("focus", _onFocus); _onFocus = null; }
 }
 
 function emit(col, list) {

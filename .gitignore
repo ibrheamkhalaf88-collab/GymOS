@@ -57,3 +57,12 @@ supabase-cli.zip
 supabase-bin/
 deploy.log
 output/
+
+# Local handover (contains secrets, keep on device only)
+HANDOVER.md
+CREDENTIALS.md
+
+# Deploy scripts with secrets
+deploy-fn-only.ps1
+probe.ps1
+run_deploy.ps1

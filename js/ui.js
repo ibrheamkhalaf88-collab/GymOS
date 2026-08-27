@@ -2,6 +2,12 @@
 // UI helpers — toasts, modals, formatting
 // ============================================================
 
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 export function showToast(message, type = "ok", ms = 2600) {
   let root = document.getElementById("toast-root");
   if (!root) {
@@ -11,9 +17,11 @@ export function showToast(message, type = "ok", ms = 2600) {
   }
   const el = document.createElement("div");
   el.className = `toast ${type === "err" ? "err" : "ok"}`;
+  const icon = type === "err" ? "error" : "check_circle";
+  const prefix = type === "err" ? "⚠️ " : "✅ ";
   el.innerHTML = `
-    <span class="material-symbols-outlined text-[18px]">${type === "err" ? "error" : "check_circle"}</span>
-    <span>${type === "err" ? "⚠️ " : "✅ "}${message}</span>`;
+    <span class="material-symbols-outlined text-[18px]">${icon}</span>
+    <span>${prefix}${escapeHtml(message)}</span>`;
   root.appendChild(el);
   setTimeout(() => {
     el.style.opacity = "0";

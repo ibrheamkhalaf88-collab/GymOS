@@ -46,12 +46,22 @@ function cmpVersion(a, b) {
   return 0;
 }
 
+function sanitizeUrl(url) {
+  if (!url) return "#";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
+  } catch {}
+  return "#";
+}
+
 function showUpdateOverlay(apkUrl) {
+  const safeUrl = sanitizeUrl(apkUrl);
   document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
     '<div style="font-size:72px;color:#ccff00">⬇</div>' +
     '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
     '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
-    '<a href="' + (apkUrl || "#") + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
+    '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
     '<p style="font-size:11px;color:#777;margin:8px 0 0">Update / حدّث التطبيق</p>' +
     '</div>';
 }
@@ -126,7 +136,7 @@ export function show(tab, keepScroll = false) {
     if (icon) icon.style.fontVariationSettings = active ? "'FILL' 1" : "'FILL' 0";
   });
 
-  $("#pageActions").innerHTML = "";
+  if ($("#pageActions")) $("#pageActions").innerHTML = "";
   screen.innerHTML = "";
   ({ dashboard: viewDashboard, roster: viewRoster, hardware: viewHardware,
      ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab])();
@@ -410,8 +420,8 @@ function viewRoster() {
   const dueTrainers = store.all("trainers").filter((t) => !trainerStatus(t).active && !trainerStatus(t).ended).length;
 
   screen.innerHTML = `
-    <!-- Mobile Search & Filters -->
-    <div class="md:hidden flex flex-col gap-4">
+    <!-- Search & Filters (all screens) -->
+    <div class="flex flex-col gap-4">
       <div class="relative">
         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted">search</span>
         <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
@@ -506,27 +516,14 @@ function viewRoster() {
 
   renderList();
 
-  // Desktop header actions (search + filter + add)
+  // Desktop header actions (add only — search & filter are in the screen)
   $("#pageActions").innerHTML = `
-    <div class="relative">
-      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted">search</span>
-      <input id="deskSearch" placeholder="SEARCH ID OR NAME..." class="bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-2 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all w-64 placeholder:text-muted/50"/>
-    </div>
-    <button id="deskFilter" class="bg-surface-container border border-outline-variant p-2 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 text-white">
-      <span class="material-symbols-outlined">filter_list</span>
-    </button>
     <button id="addMemberBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white transition-colors active:scale-95 flex items-center gap-2">
       <span class="material-symbols-outlined text-[20px]">person_add</span> ADD MEMBER
     </button>`;
   $("#addMemberBtn").onclick = openMemberModal;
-  $("#deskSearch").addEventListener("input", (e) => { rosterQuery = e.target.value; renderList(); });
-  $("#deskFilter").onclick = () => {
-    const order = ["active", "expired", "trial", "frozen", "trainers", ""];
-    rosterFilter = order[(order.indexOf(rosterFilter) + 1) % order.length];
-    showToast(rosterFilter ? `FILTER: ${rosterFilter.toUpperCase()}` : "FILTER: ALL", "ok");
-  };
   $("#addSalaryBtn")?.addEventListener("click", openSalaryModal);
-  $("#addTrainerBtn").onclick = () => openTrainerForm();
+  $("#addTrainerBtn")?.addEventListener("click", () => openTrainerForm());
   $("#newTrainerBtn")?.addEventListener("click", () => openTrainerForm());
 }
 

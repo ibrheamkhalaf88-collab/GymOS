@@ -15,11 +15,11 @@ export const appConfig = {
   supportWhatsApp: "972568802803", // بدون + أو مسافات
 
   // صلاحية المدير — يجب أن يطابق البريد في server/.env
-  adminEmail: "admin@example.com",
+  adminEmail: "ibrheamshady@gmail.com",
   adminDisplayName: "ADM_ROOT",
 
-  // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر)
-  demoAdminPassword: "ibrheam",
+  // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر) — تم توليدها تلقائياً، غيّرها بعد أول دخول
+  demoAdminPassword: "E20062006kh@",
 
   // 🗄️ Supabase Edge Function API — التشغيل السحابي (بدون فيزا)
   // مثال: "https://<project>.functions.supabase.co/gymos-api"
