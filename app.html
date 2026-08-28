@@ -17,6 +17,11 @@
   <link rel="stylesheet" href="css/theme.css" />
 </head>
 <body class="bg-background text-text-main antialiased overflow-x-hidden min-h-screen flex flex-col md:flex-row pb-[85px] md:pb-0">
+  <div id="loadingOverlay" class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center gap-4">
+    <div class="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+    <p class="font-headline tracking-widest text-primary text-xs uppercase">Loading…</p>
+  </div>
+  <div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-[9998] bg-alert text-white text-center py-2 font-headline text-xs uppercase tracking-widest">Offline — لا يوجد اتصال</div>
 
   <!-- Mobile TopAppBar -->
   <header class="md:hidden sticky top-0 w-full z-50 bg-black border-b border-outline-variant flex justify-between items-center h-16 px-4">
@@ -90,6 +95,9 @@
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
   </button>
 
+  <script>
+    (function(){ function setOffline(on){ document.getElementById('offlineBanner').classList.toggle('hidden', !on); } window.addEventListener('online', ()=>setOffline(false)); window.addEventListener('offline', ()=>setOffline(true)); setOffline(!navigator.onLine); window.addEventListener('load', ()=>{ var o=document.getElementById('loadingOverlay'); if(o) setTimeout(()=>o.remove(), 400); }); setTimeout(function(){ var o=document.getElementById('loadingOverlay'); if(o) o.remove(); }, 5000); })();
+  </script>
   <script type="module" src="js/app.js"></script>
   <script>
     // PWA offline support

@@ -26,7 +26,12 @@
 </style>
 </head>
 <body class="bg-[#000000] text-white h-full w-full overflow-x-hidden antialiased selection:bg-[#CCFF00] selection:text-black">
+<div id="loadingOverlay" class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center gap-4"><div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div><p class="font-headline tracking-widest text-[#CCFF00] text-xs uppercase">Loading…</p></div>
+<div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-[9998] bg-[#FF3366] text-white text-center py-2 font-headline text-xs uppercase">Offline — لا يوجد اتصال</div>
 <div id="slideRoot" class="min-h-[max(884px,100dvh)] flex flex-col"></div>
+<script>
+(function(){ function setOffline(on){ var b=document.getElementById('offlineBanner'); if(b) b.classList.toggle('hidden', !on); } window.addEventListener('online', ()=>setOffline(false)); window.addEventListener('offline', ()=>setOffline(true)); setOffline(!navigator.onLine); window.addEventListener('load', ()=>{ var o=document.getElementById('loadingOverlay'); if(o) setTimeout(()=>o.remove(),400); }); setTimeout(function(){ var o=document.getElementById('loadingOverlay'); if(o) o.remove(); },5000);})();
+</script>
 <script src="js/onboarding.js"></script>
 </body>
 </html>
