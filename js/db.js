@@ -119,7 +119,11 @@ export const codesDb = {
       owner: sanitizeText(owner, 40), note: sanitizeText(note, 200),
     };
     if (onlineMode()) {
-      return api("/api/codes", { method: "POST", admin: true, body: { ...rec, custom: sanitizeCode(custom) || "" } });
+      try {
+        return await api("/api/codes", { method: "POST", admin: true, body: { ...rec, custom: sanitizeCode(custom) || "" } });
+      } catch {
+        if (sessionStorage.getItem("dp_demo_admin") !== "1") throw new Error("Online create failed");
+      }
     }
     demoSeed();
     const code = normalizeCode(custom) || (() => { do { var c = randomCode(); } while (demoAll().some((x) => x.code === c)); return c; })();
@@ -141,7 +145,21 @@ export const codesDb = {
   },
 
   async list() {
-    if (onlineMode()) return api("/api/codes", { admin: true }).catch(() => []);
+    if (onlineMode()) {
+      try {
+        const res = await api("/api/codes", { admin: true });
+        if (Array.isArray(res)) return res;
+        if (res && Array.isArray(res.data)) return res.data;
+        return [];
+      } catch {
+        // Fallback to demo if online fails and demo session exists
+        if (sessionStorage.getItem("dp_demo_admin") === "1") {
+          demoSeed();
+          return demoAll().sort((a, b) => b.createdAt - a.createdAt);
+        }
+        return [];
+      }
+    }
     demoSeed();
     return demoAll().sort((a, b) => b.createdAt - a.createdAt);
   },
