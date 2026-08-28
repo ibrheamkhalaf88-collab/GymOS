@@ -55,7 +55,7 @@ activation-code licensing system, local-first data, PWA support and a CI-built A
 npx serve .          # any static server works
 ```
 
-Demo admin login: `admin@example.com` / `admin2040` — demo code: `7Q2-K9D`
+Demo admin login: `ibrheamshady@gmail.com` / `E20062006kh@` — demo code: `7Q2-K9D`
 
 Full setup (Firebase, rules, deploy, APK): see **[SETUP.md](SETUP.md)** (عربي).
 

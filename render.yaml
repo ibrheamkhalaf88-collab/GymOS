@@ -15,7 +15,7 @@ services:
       - key: JWT_SECRET
         generateValue: true          # سر قوي تلقائي
       - key: ADMIN_EMAIL
-        value: admin@example.com     # غيّره لبريدك الحقيقي
+        value: ibrheamshady@gmail.com     # غيّره لبريدك الحقيقي
       - key: ADMIN_PASSWORD
         sync: false                  # تكتبه يدوياً وقت النشر (ibrheam مثلاً)
       - key: ALLOWED_ORIGIN

@@ -34,8 +34,8 @@ function requireSecret(name, minLen = 16) {
   return randomBytes(32).toString("hex");
 }
 const JWT_SECRET = requireSecret("JWT_SECRET", 16);
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "admin@example.com").toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin2040";
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "ibrheamshady@gmail.com").toLowerCase();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "E20062006kh@"; // dev fallback — set ADMIN_PASSWORD in .env for production
 // Comma-separated web origins, e.g. "https://user.github.io,https://mydomain.com"
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || "")
   .split(",").map((s) => s.trim()).filter(Boolean);

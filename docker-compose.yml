@@ -15,9 +15,9 @@ services:
       - "3000:3000"
     environment:
       MONGO_URI: mongodb://mongo:27017/gymos
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-a-long-random-string}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-ibrheam}
+      JWT_SECRET: ${JWT_SECRET:-f29a3868e3eb5e8d975a3b1443370eb00242db5d2c24065aaefd0fbc3bb4252d}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-ibrheamshady@gmail.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-E20062006kh@}
       PORT: 3000
     depends_on:
       - mongo

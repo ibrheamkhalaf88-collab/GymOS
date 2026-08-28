@@ -19,10 +19,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ⚠️ ضع بريد المدير هنا (نفس البريد في js/config.js)
+    // ⚠️ ضع بريد المدير هنا (نفس البريد في js/config.js) — يجب أن يكون موثقاً
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == "admin@example.com";
+        && request.auth.token.email == "ibrheamshady@gmail.com"
+        && request.auth.token.email_verified == true;
     }
 
     match /codes/{codeId} {
@@ -52,8 +53,9 @@ service cloud.firestore {
     }
 
     match /gyms/{codeId} {
-      // صيغة الكود إلزامية {XXX-XXX}
-      allow read, write: if codeId.matches('^[A-Z0-9]{3}-[A-Z0-9]{3}$');
+      // 🔒 تم إغلاق الوصول المباشر — البيانات عبر API الموثق فقط (JWT)
+      // كان سابقاً: allow read,write if codeId.matches(...) — ثغرة حرجة
+      allow read, write: if false;
     }
 
     match /{document=**} {

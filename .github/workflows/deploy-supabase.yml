@@ -1,0 +1,41 @@
+name: Deploy Supabase Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - "server/**"
+  workflow_dispatch:
+
+jobs:
+  deploy-supabase:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Set Supabase Secrets (JWT + Admin)
+        run: |
+          supabase secrets set \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}" \
+            ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
+            ALLOWED_ORIGIN="${{ secrets.ALLOWED_ORIGIN }}"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy Edge Function gymos-api
+        run: supabase functions deploy gymos-api --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
