@@ -81,9 +81,22 @@ export const codesDb = {
 
   async adminSignIn(email, password) {
     if (onlineMode()) {
-      const r = await api("/api/admin/login", { method: "POST", body: { email, password } });
-      sessionStorage.setItem("dp_admin_token", r.token);
-      return;
+      try {
+        const r = await api("/api/admin/login", { method: "POST", body: { email, password } });
+        sessionStorage.setItem("dp_admin_token", r.token);
+        return;
+      } catch (e) {
+        // Fallback to demo if cloud is out of sync (lets admin in even if Supabase secret desynced)
+        if (e.code === "WRONG_CREDENTIALS" || e.status === 401) {
+          const { appConfig } = await import("./config.js");
+          if (email.trim().toLowerCase() === appConfig.adminEmail.toLowerCase() && password === appConfig.demoAdminPassword) {
+            sessionStorage.setItem("dp_demo_admin", "1");
+            _notifyDemo();
+            return;
+          }
+        }
+        throw e;
+      }
     }
     const { appConfig } = await import("./config.js");
     if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
