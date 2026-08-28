@@ -91,10 +91,12 @@ function mergeGymData(existing: any, incoming: any): any {
     const ex = Array.isArray(existing?.[c]) ? existing[c] : [];
     const inc = Array.isArray(incoming?.[c]) ? incoming[c] : [];
     const map = new Map<string, any>();
-    const ids = new Set<string>([...ex.map((x: any) => x.id), ...inc.map((x: any) => x.id)]);
+    const exMap = new Map(ex.map((x: any) => [x.id, x]));
+    const incMap = new Map(inc.map((x: any) => [x.id, x]));
+    const ids = new Set<string>([...exMap.keys(), ...incMap.keys()]);
     ids.forEach((id) => {
-      const e = ex.find((x: any) => x.id === id);
-      const i = inc.find((x: any) => x.id === id);
+      const e = exMap.get(id);
+      const i = incMap.get(id);
       let winner: any;
       if (!e) winner = i;
       else if (!i) winner = e;
@@ -113,12 +115,14 @@ function mergeGymData(existing: any, incoming: any): any {
   return out;
 }
 
-// per-IP login rate limit
+// per-IP login rate limit — with TTL cleanup
 const attempts = new Map<string, { n: number; t: number }>();
 const MAX_TRIES = 8, LOCK_MS = 15 * 60 * 1000;
 const tooMany = (ip: string) => {
   const a = attempts.get(ip);
-  return !!a && a.n >= MAX_TRIES && Date.now() - a.t < LOCK_MS;
+  if (!a) return false;
+  if (Date.now() - a.t > LOCK_MS) { attempts.delete(ip); return false; }
+  return a.n >= MAX_TRIES;
 };
 const failIp = (ip: string) => {
   const a = attempts.get(ip) || { n: 0, t: Date.now() };
@@ -130,7 +134,9 @@ const clearIp = (ip: string) => attempts.delete(ip);
 const actAttempts = new Map<string, { n: number; t: number }>();
 const tooManyCode = (code: string) => {
   const a = actAttempts.get(code);
-  return !!a && a.n >= 20 && Date.now() - a.t < LOCK_MS;
+  if (!a) return false;
+  if (Date.now() - a.t > LOCK_MS) { actAttempts.delete(code); return false; }
+  return a.n >= 20;
 };
 const failCode = (code: string) => {
   const a = actAttempts.get(code) || { n: 0, t: Date.now() };
@@ -316,12 +322,32 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, token: await signJwt({ admin: true }, true) }, 200, origin);
     }
 
-    /* admin: list codes */
+    /* admin: list codes — paginated when query present, legacy array otherwise */
     if (req.method === "GET" && path === "/api/codes") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const { data: list, error } = await sb.from("codes").select("*").order("created_at", { ascending: false });
+      const url = new URL(req.url);
+      const hasPagination = url.searchParams.has("limit") || url.searchParams.has("cursor") || url.searchParams.has("q") || url.searchParams.has("status");
+      if (!hasPagination) {
+        const { data: list, error } = await sb.from("codes").select("*").order("created_at", { ascending: false });
+        if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        return json((list || []).map(toRecord), 200, origin);
+      }
+      const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 50));
+      const cursor = url.searchParams.get("cursor");
+      const q = (url.searchParams.get("q") || "").trim().toUpperCase().slice(0, 10);
+      const status = (url.searchParams.get("status") || "").trim();
+      let query = sb.from("codes").select("*").order("created_at", { ascending: false }).limit(limit + 1);
+      if (q) query = query.ilike("code", `%${q.replace(/[^A-Z0-9]/g, "")}%`);
+      if (status === "used") query = query.eq("used", true);
+      else if (status === "revoked") query = query.eq("revoked", true);
+      else if (status === "active") query = query.eq("used", false).eq("revoked", false);
+      if (cursor) query = query.lt("created_at", cursor);
+      const { data: list, error } = await query;
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      return json((list || []).map(toRecord), 200, origin);
+      const hasMore = (list || []).length > limit;
+      const page = hasMore ? list.slice(0, limit) : list;
+      const nextCursor = hasMore ? page[page.length - 1].created_at : null;
+      return json({ data: (page || []).map(toRecord), nextCursor, hasMore }, 200, origin);
     }
 
     /* admin: get single code */

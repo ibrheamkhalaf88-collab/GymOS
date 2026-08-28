@@ -15,14 +15,20 @@ const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
 
-// ---------- Force update (native APK only) ----------
-await enforceUpdateIfNeeded();
+// ---------- Force update (native APK only) — non-blocking with timeout + cache ----------
+enforceUpdateIfNeeded().catch(() => {});
 
 async function enforceUpdateIfNeeded() {
   const isNative = !!(window.Capacitor && window.Capacitor.isNative);
   if (!isNative) return;
+  const lastCheck = Number(localStorage.getItem("dp_last_version_check") || 0);
+  if (Date.now() - lastCheck < 6 * 3600 * 1000) return;
+  if (!navigator.onLine) return;
   try {
-    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { headers: { "Accept": "application/vnd.github+json" } });
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 3000);
+    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { headers: { "Accept": "application/vnd.github+json" }, signal: ctrl.signal });
+    clearTimeout(t);
     if (!res.ok) return;
     const data = await res.json();
     const latest = String(data.tag_name || "").replace(/^v/, "");
@@ -30,10 +36,10 @@ async function enforceUpdateIfNeeded() {
     if (cmpVersion(latest, appConfig.appVersion) > 0) {
       const apk = (data.assets || []).find((a) => /apk/i.test(a.name || ""));
       showUpdateOverlay(apk ? apk.browser_download_url : "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
-      throw new Error("UPDATE_REQUIRED");
     }
+    localStorage.setItem("dp_last_version_check", String(Date.now()));
   } catch (e) {
-    if (e && e.message === "UPDATE_REQUIRED") throw e;
+    if (e && e.name === "AbortError") return;
   }
 }
 
@@ -83,6 +89,18 @@ const nf = new Intl.NumberFormat("en-US");
 
 function destroyCharts() { charts.forEach((c) => c.destroy()); charts = []; }
 function trackChart(c) { charts.push(c); return c; }
+let chartLoading = null;
+function ensureChart() {
+  if (window.Chart) return Promise.resolve();
+  if (chartLoading) return chartLoading;
+  chartLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "vendor/chart.umd.min.js";
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return chartLoading;
+}
 function rerender() { show(currentTab, true); }
 
 store.subscribe("members", () => rerender());
@@ -348,9 +366,11 @@ function viewDashboard() {
     b.addEventListener("click", () => drawCheckinsChart(Number(b.dataset.range))));
 }
 
-function drawCheckinsChart(days) {
+async function drawCheckinsChart(days) {
   const canvas = $("#growthChart");
-  if (!canvas || !window.Chart) return;
+  if (!canvas) return;
+  await ensureChart();
+  if (!window.Chart) return;
   const data = days === 7 ? store.stats().checkins7 : store.stats().checkins30;
 
   document.querySelectorAll(".chart-range").forEach((b) => {

@@ -95,10 +95,12 @@ function mergeStates(local, cloud, tombstones) {
     const ex = local[c] || [];
     const inc = cloud[c] || [];
     const map = new Map();
-    const ids = new Set([...ex.map((x) => x.id), ...inc.map((x) => x.id)]);
+    const exMap = new Map(ex.map((x) => [x.id, x]));
+    const incMap = new Map(inc.map((x) => [x.id, x]));
+    const ids = new Set([...exMap.keys(), ...incMap.keys()]);
     ids.forEach((id) => {
-      const e = ex.find((x) => x.id === id);
-      const i = inc.find((x) => x.id === id);
+      const e = exMap.get(id);
+      const i = incMap.get(id);
       let winner;
       if (!e) winner = i;
       else if (!i) winner = e;
@@ -140,7 +142,8 @@ async function syncNow() {
     COLLECTIONS.forEach((c) => {
       if (!(c in merged)) return;
       const next = merged[c];
-      if (JSON.stringify(read(c)) !== JSON.stringify(next)) write(c, next);
+      const cur = read(c);
+      if (cur.length !== next.length || JSON.stringify(cur) !== JSON.stringify(next)) write(c, next);
     });
     writeTomb(mergedTomb);
     _suppressCloud = false;

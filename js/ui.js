@@ -2,12 +2,6 @@
 // UI helpers — toasts, modals, formatting
 // ============================================================
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 export function showToast(message, type = "ok", ms = 2600) {
   let root = document.getElementById("toast-root");
   if (!root) {

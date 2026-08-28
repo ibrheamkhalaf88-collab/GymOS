@@ -61,6 +61,8 @@ const codeSchema = new Schema({
   usedDevice: String,
   usedDeviceName: String,
 }, { timestamps: true });
+codeSchema.index({ createdAt: -1 });
+codeSchema.index({ used: 1, revoked: 1 });
 const Code = model("Code", codeSchema);
 
 const gymSchema = new Schema({
@@ -96,18 +98,24 @@ async function authAdmin(req, res, next) {
   }
 }
 
-/* per-IP login rate limit */
+/* per-IP login rate limit — with TTL cleanup to prevent memory leak */
 const attempts = new Map();
 const MAX_TRIES = 8, LOCK_MS = 15 * 60 * 1000;
 const tooMany = (ip) => {
   const a = attempts.get(ip);
-  return !!a && a.n >= MAX_TRIES && Date.now() - a.t < LOCK_MS;
+  if (!a) return false;
+  if (Date.now() - a.t > LOCK_MS) { attempts.delete(ip); return false; }
+  return a.n >= MAX_TRIES;
 };
 const failIp = (ip) => {
   const a = attempts.get(ip) || { n: 0, t: Date.now() };
   a.n += 1; a.t = Date.now(); attempts.set(ip, a);
 };
 const clearIp = (ip) => attempts.delete(ip);
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of attempts.entries()) if (now - v.t > LOCK_MS) attempts.delete(k);
+}, 60_000).unref();
 
 /* ---------------- App ---------------- */
 const app = express();
@@ -244,10 +252,29 @@ app.post("/api/codes", authAdmin, async (req, res, next) => {
   }
 });
 
-app.get("/api/codes", authAdmin, async (_q, res, next) => {
+app.get("/api/codes", authAdmin, async (req, res, next) => {
   try {
-    const list = await Code.find().sort("-createdAt").lean();
-    res.json(list.map(({ _id, __v, passHash, ...r }) => r));
+    const hasPagination = req.query.limit || req.query.cursor || req.query.q || req.query.status;
+    if (!hasPagination) {
+      // Legacy: return full array for backward compat (old admin.js)
+      const list = await Code.find().sort("-createdAt").lean();
+      return res.json(list.map(({ _id, __v, passHash, ...r }) => r));
+    }
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+    const cursor = req.query.cursor ? new Date(String(req.query.cursor)) : null;
+    const q = String(req.query.q || "").trim().toUpperCase().slice(0, 10);
+    const status = String(req.query.status || "").trim();
+    const filter = {};
+    if (q) filter.code = { $regex: q.replace(/[^A-Z0-9]/g, ""), $options: "i" };
+    if (status === "used") filter.used = true;
+    else if (status === "revoked") filter.revoked = true;
+    else if (status === "active") { filter.used = false; filter.revoked = false; }
+    if (cursor && !isNaN(cursor)) filter.createdAt = { $lt: cursor };
+    const list = await Code.find(filter).sort("-createdAt").limit(limit + 1).lean();
+    const hasMore = list.length > limit;
+    const page = hasMore ? list.slice(0, limit) : list;
+    const nextCursor = hasMore ? page[page.length - 1].createdAt.toISOString() : null;
+    res.json({ data: page.map(({ _id, __v, passHash, ...r }) => r), nextCursor, hasMore });
   } catch (e) { next(e); }
 });
 
