@@ -241,6 +241,18 @@ export const codesDb = {
         sessionStorage.setItem("dp_code", r.record.code);
         return { ok: true, record: r.record };
       } catch (err) {
+        // Fallback to demo if code exists locally (admin created it offline due to desync)
+        if (err.code === "NOT_FOUND" || err.status === 404) {
+          demoSeed();
+          const rec = demoAll().find((c) => c.code === id);
+          if (rec) {
+            if (rec.used) return { ok: false, error: "ALREADY_USED" };
+            if (rec.revoked) return { ok: false, error: "REVOKED" };
+            Object.assign(rec, { used: true, usedAt: Date.now(), usedDevice: deviceInfo.deviceId, usedDeviceName: deviceInfo.deviceName });
+            demoSave(demoAll());
+            return { ok: true, record: rec };
+          }
+        }
         return { ok: false, error: err.code || "NOT_FOUND" };
       }
     }
