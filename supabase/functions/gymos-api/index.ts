@@ -14,9 +14,11 @@ import jwt from "npm:jsonwebtoken";
 
 const SUPABASE_URL = Deno.env.get("SB_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE") ?? "";
-const JWT_SECRET = Deno.env.get("JWT_SECRET") ?? "f29a3868e3eb5e8d975a3b1443370eb00242db5d2c24065aaefd0fbc3bb4252d"; // dev fallback — set JWT_SECRET Function Secret in production
+const JWT_SECRET = Deno.env.get("JWT_SECRET");
+if (!JWT_SECRET) throw new Error("Missing JWT_SECRET — set Supabase Function Secret");
 const ADMIN_EMAIL = (Deno.env.get("ADMIN_EMAIL") || "ibrheamshady@gmail.com").toLowerCase();
-const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "E20062006kh@"; // dev fallback — set Function Secret in production
+const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD");
+if (!ADMIN_PASSWORD) throw new Error("Missing ADMIN_PASSWORD — set Supabase Function Secret");
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGIN") || "")
   .split(",").map((s) => s.trim()).filter(Boolean);
 const APP_ORIGINS = new Set([

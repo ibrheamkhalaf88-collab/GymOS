@@ -81,22 +81,9 @@ export const codesDb = {
 
   async adminSignIn(email, password) {
     if (onlineMode()) {
-      try {
-        const r = await api("/api/admin/login", { method: "POST", body: { email, password } });
-        sessionStorage.setItem("dp_admin_token", r.token);
-        return;
-      } catch (e) {
-        // Fallback to demo if cloud is out of sync (lets admin in even if Supabase secret desynced)
-        if (e.code === "WRONG_CREDENTIALS" || e.status === 401) {
-          const { appConfig } = await import("./config.js");
-          if (email.trim().toLowerCase() === appConfig.adminEmail.toLowerCase() && password === appConfig.demoAdminPassword) {
-            sessionStorage.setItem("dp_demo_admin", "1");
-            _notifyDemo();
-            return;
-          }
-        }
-        throw e;
-      }
+      const r = await api("/api/admin/login", { method: "POST", body: { email, password } });
+      sessionStorage.setItem("dp_admin_token", r.token);
+      return;
     }
     const { appConfig } = await import("./config.js");
     if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
@@ -119,11 +106,7 @@ export const codesDb = {
       owner: sanitizeText(owner, 40), note: sanitizeText(note, 200),
     };
     if (onlineMode()) {
-      try {
-        return await api("/api/codes", { method: "POST", admin: true, body: { ...rec, custom: sanitizeCode(custom) || "" } });
-      } catch {
-        if (sessionStorage.getItem("dp_demo_admin") !== "1") throw new Error("Online create failed");
-      }
+      return api("/api/codes", { method: "POST", admin: true, body: { ...rec, custom: sanitizeCode(custom) || "" } });
     }
     demoSeed();
     const code = normalizeCode(custom) || (() => { do { var c = randomCode(); } while (demoAll().some((x) => x.code === c)); return c; })();
@@ -145,21 +128,7 @@ export const codesDb = {
   },
 
   async list() {
-    if (onlineMode()) {
-      try {
-        const res = await api("/api/codes", { admin: true });
-        if (Array.isArray(res)) return res;
-        if (res && Array.isArray(res.data)) return res.data;
-        return [];
-      } catch {
-        // Fallback to demo if online fails and demo session exists
-        if (sessionStorage.getItem("dp_demo_admin") === "1") {
-          demoSeed();
-          return demoAll().sort((a, b) => b.createdAt - a.createdAt);
-        }
-        return [];
-      }
-    }
+    if (onlineMode()) return api("/api/codes", { admin: true }).then(res => Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : [])).catch(() => []);
     demoSeed();
     return demoAll().sort((a, b) => b.createdAt - a.createdAt);
   },
@@ -241,27 +210,6 @@ export const codesDb = {
         sessionStorage.setItem("dp_code", r.record.code);
         return { ok: true, record: r.record };
       } catch (err) {
-        // Fallback to demo/cache if code exists locally (admin created it offline due to desync)
-        if (err.code === "NOT_FOUND" || err.status === 404) {
-          try {
-            const cached = JSON.parse(localStorage.getItem("dp_codes_cache") || "null");
-            const hit = cached && Array.isArray(cached.list) && cached.list.find((c) => c.code === id);
-            if (hit) {
-              if (hit.used) return { ok: false, error: "ALREADY_USED" };
-              if (hit.revoked) return { ok: false, error: "REVOKED" };
-              return { ok: true, record: hit };
-            }
-          } catch {}
-          demoSeed();
-          const rec = demoAll().find((c) => c.code === id);
-          if (rec) {
-            if (rec.used) return { ok: false, error: "ALREADY_USED" };
-            if (rec.revoked) return { ok: false, error: "REVOKED" };
-            Object.assign(rec, { used: true, usedAt: Date.now(), usedDevice: deviceInfo.deviceId, usedDeviceName: deviceInfo.deviceName });
-            demoSave(demoAll());
-            return { ok: true, record: rec };
-          }
-        }
         return { ok: false, error: err.code || "NOT_FOUND" };
       }
     }

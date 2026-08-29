@@ -315,7 +315,13 @@ export function savePlanPrices(prices) {
 export const store = {
   all(col) {
     if (!COLLECTIONS.includes(col)) throw new Error(`Unknown collection: ${col}`);
-    return localStorage.getItem(PREFIX + col) === null ? seed(col) : read(col);
+    const raw = localStorage.getItem(PREFIX + col);
+    if (raw !== null) return read(col);
+    // لا تعيد زرع تلقائياً بعد مسح المستخدم — ارجع فارغاً، الزرع فقط عند أول تثبيت
+    if (localStorage.getItem("dp_seeded") === "1") return [];
+    const data = seed(col);
+    if (COLLECTIONS.every((c) => localStorage.getItem(PREFIX + c) !== null)) localStorage.setItem("dp_seeded", "1");
+    return data;
   },
 
   subscribe(col, cb) {
@@ -368,7 +374,9 @@ export const store = {
 
   resetAll() {
     COLLECTIONS.forEach((c) => localStorage.removeItem(PREFIX + c));
-    COLLECTIONS.forEach((c) => seed(c));
+    localStorage.removeItem("dp_tombstones");
+    localStorage.removeItem("dp_seeded");
+    // لا تعد زرع بيانات وهمية — اتركها فارغة للعميل النهائي
   },
 
   exportAll() {

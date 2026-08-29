@@ -85,13 +85,30 @@ function setError(text) {
   msg.style.color = "#ff3366";
 }
 
-// ---- Free 30-day trial (once per device) ----
+// ---- Free 30-day trial (once per device — server-issued when online) ----
 const TRIAL_FLAG = "dp_trial_used";
-document.getElementById("trialBtn").addEventListener("click", () => {
+document.getElementById("trialBtn").addEventListener("click", async () => {
   if (localStorage.getItem(TRIAL_FLAG) === "1") {
     setError("🎁 Trial already used on this device — grab a code from us! / التجربة المجانية استُهلكت على هذا الجهاز");
     msg.style.color = "#ff3366";
     return;
+  }
+  // حاول إصدار تجربة من السيرفر عند الاتصال — يمنع تجاوز المسح
+  if (codesDb.mode() === "online" && navigator.onLine) {
+    setLoading(true);
+    try {
+      const res = await fetch(`${appConfig.apiUrl}/api/trial`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: localStorage.getItem("dp_device_id") || "" }) });
+      if (res.ok) {
+        const data = await res.json();
+        license.save({ code: data.code, tier: "trial", days: 30 });
+        localStorage.setItem(TRIAL_FLAG, "1");
+        localStorage.setItem("dp_license_mode", "online");
+        markDigits("success");
+        showToast("🎁 30-day trial from server / تجربة من السيرفر");
+        setTimeout(() => location.replace("app.html"), 900);
+        return;
+      }
+    } catch {} finally { setLoading(false); }
   }
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const pick = () => alphabet[Math.floor(Math.random() * alphabet.length)];
@@ -99,6 +116,8 @@ document.getElementById("trialBtn").addEventListener("click", () => {
   license.save({ code: trialCode, tier: "trial", days: 30 });
   localStorage.setItem(TRIAL_FLAG, "1");
   localStorage.setItem("dp_license_mode", codesDb.mode());
+  // ختم جهازي إضافي لمنع المسح البسيط
+  try { localStorage.setItem("dp_trial_device", localStorage.getItem("dp_device_id") || ""); } catch {}
   markDigits("success");
   showToast("🎁 30-day free trial started! / بدأت تجربتك المجانية — شهر كامل");
   setTimeout(() => location.replace("app.html"), 900);
