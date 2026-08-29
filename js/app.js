@@ -1922,8 +1922,18 @@ function viewProfile() {
   $("#secExport").onclick = exportData;
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
-    const ok = await confirmDialog({ titleEn: "Reset all data to demo?", titleAr: "إعادة تعيين كل البيانات للبيانات التجريبية؟", confirmText: "Reset", danger: true });
-    if (ok) { store.resetAll(); showToast("Data reset / تمت إعادة التعيين"); }
+    const ok = await confirmDialog({ titleEn: "Reset EVERYTHING to factory?", titleAr: "إعادة تعيين كل شيء بالكامل للمصنع؟", confirmText: "Reset", danger: true });
+    if (ok) {
+      try { store.stopSync && store.stopSync(); } catch {}
+      // امسح كل مفاتيح التطبيق
+      Object.keys(localStorage).forEach(k => { if (k.startsWith("dp_")) localStorage.removeItem(k); });
+      sessionStorage.clear();
+      try { localStorage.removeItem("dp_license"); localStorage.removeItem("dp_device_id"); } catch {}
+      store.resetAll();
+      try { const { license } = await import("./license.js"); license.clear(); } catch {}
+      showToast("Full reset done / تمت إعادة كل شيء");
+      setTimeout(() => location.reload(), 700);
+    }
   };
   $("#exportBtn").onclick = exportData;
   $("#logoutBtn").onclick = deactivateLicense;
