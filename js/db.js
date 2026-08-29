@@ -241,8 +241,17 @@ export const codesDb = {
         sessionStorage.setItem("dp_code", r.record.code);
         return { ok: true, record: r.record };
       } catch (err) {
-        // Fallback to demo if code exists locally (admin created it offline due to desync)
+        // Fallback to demo/cache if code exists locally (admin created it offline due to desync)
         if (err.code === "NOT_FOUND" || err.status === 404) {
+          try {
+            const cached = JSON.parse(localStorage.getItem("dp_codes_cache") || "null");
+            const hit = cached && Array.isArray(cached.list) && cached.list.find((c) => c.code === id);
+            if (hit) {
+              if (hit.used) return { ok: false, error: "ALREADY_USED" };
+              if (hit.revoked) return { ok: false, error: "REVOKED" };
+              return { ok: true, record: hit };
+            }
+          } catch {}
           demoSeed();
           const rec = demoAll().find((c) => c.code === id);
           if (rec) {
@@ -344,5 +353,27 @@ export const codesDb = {
     catch { return false; }
   },
 };
+
+// ---- Periodic codes sync (online) ----
+let _codesSyncTimer = null;
+async function syncCodesCache() {
+  if (!onlineMode() || !navigator.onLine) return;
+  try {
+    const res = await api("/api/codes", { admin: true });
+    const list = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+    if (list.length) localStorage.setItem("dp_codes_cache", JSON.stringify({ at: Date.now(), list }));
+  } catch {}
+}
+function startCodesSync() {
+  if (_codesSyncTimer) return;
+  syncCodesCache();
+  _codesSyncTimer = setInterval(syncCodesCache, 60_000);
+  window.addEventListener("online", syncCodesCache);
+}
+if (typeof window !== "undefined") {
+  // ابدأ التزامن عند التحميل إذا كان الأدمن مسجلاً
+  if (sessionStorage.getItem("dp_admin_token") || sessionStorage.getItem("dp_demo_admin")) startCodesSync();
+  window.addEventListener("storage", (e) => { if (e.key === "dp_admin_token" || e.key === "dp_demo_admin") startCodesSync(); });
+}
 
 export { newId } from "./util.js";
