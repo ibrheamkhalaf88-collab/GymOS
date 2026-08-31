@@ -156,8 +156,7 @@ export function show(tab, keepScroll = false) {
 
   if ($("#pageActions")) $("#pageActions").innerHTML = "";
   screen.innerHTML = "";
-  ({ dashboard: viewDashboard, roster: viewRoster, hardware: viewHardware,
-     ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab])();
+  ({ dashboard: viewDashboard, roster: viewRoster, ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab])();
 }
 
 document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
@@ -167,7 +166,6 @@ document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click",
   const items = [
     ["dashboard", "dashboard", "Dashboard", "الرئيسية"],
     ["roster", "group", "Roster", "الأعضاء"],
-    ["hardware", "settings_input_component", "Hardware", "الأجهزة"],
     ["ledger", "account_balance_wallet", "Ledger", "المالية"],
     ["profile", "account_circle", "Profile", "حسابي"],
   ];
@@ -223,7 +221,6 @@ async function deactivateLicense() {
 // ---------- FAB ----------
 document.getElementById("fab").addEventListener("click", () => {
   if (currentTab === "roster") openMemberModal();
-  else if (currentTab === "hardware") openDeviceModal();
   else if (currentTab === "ledger") openTxModal();
   else openMemberModal();
 });
