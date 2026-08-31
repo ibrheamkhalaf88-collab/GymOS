@@ -1938,5 +1938,67 @@ function codesDbMode() {
   return localStorage.getItem("dp_license_mode") === "online";
 }
 
+function listCodes() {
+  const t = i18n.t;
+  const codes = store.get("codes") || [];
+  const html = `
+    <div class="bg-surface-container rounded-lg p-4 mb-6">
+      <h3 class="font-headline text-lg font-bold uppercase tracking-tight mb-4">${t.codesManagement}</h3>
+      <div class="grid grid-cols-2 gap-4">
+        ${codes.length ? codes.map(c => `
+          <div class="bg-surface p-3 rounded-lg border border-outline-variant hover:border-primary transition-colors">
+            <p class="font-bold text-primary truncate" style="max-width:200px;direction:ltr">${c.code || "—"}</p>
+            <p class="text-sm text-muted direction:rtl">${c.owner || "—"}</p>
+            <p class="text-xs text-muted">${c.used ? "Used" : "Available"}</p>
+          </div>`).join("") : `<p class="text-center text-muted py-8">لا توجد أكواد بعد / No codes yet</p>`}
+      </div>
+    </div>`;
+  showModal(html || "");
+}
+
+function showCodesTable() {
+  const codes = store.get("codes") || [];
+  const html = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-left whitespace-nowrap">
+        <thead class="bg-surface border-b border-outline-variant">
+          <tr>
+            <th class="p-4 font-label tracking-widest text-muted uppercase">كود / Code</th>
+            <th class="p-4 font-label tracking-widest text-muted uppercase">الباقية / Tier</th>
+            <th class="p-4 font-label tracking-widest text-muted uppercase">المالك / Owner</th>
+            <th class="p-4 font-label tracking-widest text-muted uppercase">الحالة / Status</th>
+            <th class="p-4 font-label tracking-widest text-muted uppercase text-right">إجراءات / Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${codes.length ? codes.map(c => `
+            <tr class="border-b border-outline-variant/50">
+              <td class="p-4 font-bold truncate" style="max-width:200px;direction:ltr">${c.code || "—"}</td>
+              <td class="p-4">${c.tier || "—"}</td>
+              <td class="p-4">${c.owner || "—"}</td>
+              <td class="p-4 ${c.used ? "text-alert" : "text-primary"}">
+                ${c.used ? "🟡已使用" : "🟢متاح"}
+              </td>
+              <td class="p-4 text-right">
+                <button class="px-2 py-1 text-alert text-xs uppercase hover:text-primary transition-colors">Use</button>
+              </td>
+            </tr>`).join("") : `<tr><td class="p-12 text-center text-muted">لا توجد أكواد</td></tr>`}
+        </tbody>
+      </table>
+    </div>`;
+  showModal(html);
+}
+
+function showModal(html) {
+  const mod = openModal(`
+    <div class="p-6">
+      <button class="absolute top-2 right-2 text-muted hover:text-primary transition-colors" onclick="this.closest('.modal').remove()">✕</button>
+      ${html}
+    </div>`);
+  setTimeout(() => mod.el.querySelectorAll('.material-symbols-outlined').forEach(icon => {
+    icon.style.fontVariationSettings = "'FILL' 1";
+  }), 100);
+}
+
 // ---------- Boot ----------
 show("dashboard");
