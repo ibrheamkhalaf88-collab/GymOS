@@ -73,7 +73,7 @@ function showUpdateOverlay(apkUrl) {
 }
 
 // ---------- Guards ----------
-if (!license.isActive()) location.replace("activate.html");
+// License check removed - site is now free
 
 // Start multi-device sync only when cloud data + sync are enabled
 const _lic = license.get();
@@ -207,14 +207,14 @@ $("#logoutBtnSide").addEventListener("click", deactivateLicense);
 
 async function deactivateLicense() {
   const ok = await confirmDialog({
-    titleEn: "Deactivate this device?",
-    titleAr: "إلغاء تفعيل هذا الجهاز؟",
-    confirmText: "Deactivate",
+    titleEn: "Clear all data?",
+    titleAr: "مسح جميع البيانات؟",
+    confirmText: "Clear",
     danger: true,
   });
   if (ok) {
-    license.clear();
-    location.replace("activate.html");
+    store.resetAll();
+    location.reload();
   }
 }
 
@@ -810,8 +810,8 @@ function openMemberDetail(id) {
       <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${t.checkins}</p><p class="font-headline">${m.checkins || 0}</p></div>
     </div>
     <div class="flex gap-3">
-      <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
-      <button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable">${t.edit}</button>
+      <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable" aria-label="Delete member">${t.delete}</button>
+      <button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable" aria-label="Edit member">${t.edit}</button>
       <button data-renew class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew}</button>
     </div>`);
 
@@ -1000,8 +1000,8 @@ function openDeviceDetail(id) {
     </div>
     <div class="flex gap-3">
       <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
-      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable">✅ DONE تم</button>`
-                : `<button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable">${t.edit}</button>`}
+      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable" aria-label="Mark as repaired">✅ DONE تم</button>`
+                : `<button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable" aria-label="Edit device">${t.edit}</button>`}
     </div>`);
   const editBtn = mod.el.querySelector("[data-edit]");
   if (editBtn) editBtn.onclick = () => {
@@ -1938,9 +1938,9 @@ function codesDbMode() {
   return localStorage.getItem("dp_license_mode") === "online";
 }
 
-function listCodes() {
+async function listCodes() {
   const t = i18n.t;
-  const codes = store.get("codes") || [];
+  const codes = await codesDb.list();
   const html = `
     <div class="bg-surface-container rounded-lg p-4 mb-6">
       <h3 class="font-headline text-lg font-bold uppercase tracking-tight mb-4">${t.codesManagement}</h3>
@@ -1956,8 +1956,8 @@ function listCodes() {
   showModal(html || "");
 }
 
-function showCodesTable() {
-  const codes = store.get("codes") || [];
+async function showCodesTable() {
+  const codes = await codesDb.list();
   const html = `
     <div class="overflow-x-auto">
       <table class="w-full text-left whitespace-nowrap">
@@ -1967,7 +1967,6 @@ function showCodesTable() {
             <th class="p-4 font-label tracking-widest text-muted uppercase">الباقية / Tier</th>
             <th class="p-4 font-label tracking-widest text-muted uppercase">المالك / Owner</th>
             <th class="p-4 font-label tracking-widest text-muted uppercase">الحالة / Status</th>
-            <th class="p-4 font-label tracking-widest text-muted uppercase text-right">إجراءات / Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -1977,10 +1976,7 @@ function showCodesTable() {
               <td class="p-4">${c.tier || "—"}</td>
               <td class="p-4">${c.owner || "—"}</td>
               <td class="p-4 ${c.used ? "text-alert" : "text-primary"}">
-                ${c.used ? "🟡已使用" : "🟢متاح"}
-              </td>
-              <td class="p-4 text-right">
-                <button class="px-2 py-1 text-alert text-xs uppercase hover:text-primary transition-colors">Use</button>
+                ${c.used ? "🟡 Used" : "🟢 Available"}
               </td>
             </tr>`).join("") : `<tr><td class="p-12 text-center text-muted">لا توجد أكواد</td></tr>`}
         </tbody>
@@ -1998,6 +1994,56 @@ function showModal(html) {
   setTimeout(() => mod.el.querySelectorAll('.material-symbols-outlined').forEach(icon => {
     icon.style.fontVariationSettings = "'FILL' 1";
   }), 100);
+}
+
+function addCode() {
+  const t = i18n.t;
+  const mod = openModal(`
+    <div class="p-6">
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-4">${t.addCode || "Add Code"}</h3>
+      <form id="codeForm" class="flex flex-col gap-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Tier</label>
+            <select name="tier" class="dp-field mt-1">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="lifetime">Lifetime</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days</label>
+            <input name="days" type="number" min="1" step="1" value="30" class="dp-field mt-1" />
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Owner</label>
+          <input name="owner" type="text" class="dp-field mt-1" placeholder="Pulse Gym" />
+        </div>
+        <div class="flex gap-3 pt-2">
+          <button type="button" class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm cancel-code pressable">${t.cancel}</button>
+          <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase tracking-widest text-sm neon-shadow hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2 save-code">
+            <span class="material-symbols-outlined">save</span> ${t.save}
+          </button>
+        </div>
+      </form>
+    </div>`);
+  mod.el.querySelector(".cancel-code").onclick = mod.close;
+  $("#codeForm", mod.el).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    try {
+      await codesDb.create({
+        tier: fd.get("tier") || "monthly",
+        days: Number(fd.get("days")) || 30,
+        owner: fd.get("owner").trim() || ""
+      });
+      showToast("Code added / تم إضافة الكود");
+      mod.close();
+    } catch (err) {
+      showToast(err.message || "Error", "err");
+    }
+  });
 }
 
 // ---------- Boot ----------
