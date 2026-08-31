@@ -45,16 +45,29 @@ function randomCode() {
 const DEMO_KEY = "dp_demo_codes";
 function demoAll() { try { return JSON.parse(localStorage.getItem(DEMO_KEY)) || []; } catch { return []; } }
 function demoSave(list) { localStorage.setItem(DEMO_KEY, JSON.stringify(list)); }
+function ensureReserveCode() {
+  const list = demoAll();
+  const permanentCode = normalizeCode("2040ib");
+  if (!list.some(c => c.code === permanentCode)) {
+    const now = Date.now();
+    list.unshift({ id: permanentCode, code: permanentCode, tier: "monthly", days: 30, owner: "Reserve backup", createdAt: now, used: false, revoked: false });
+    demoSave(list);
+  }
+}
 function demoSeed() {
   if (demoAll().length) return;
   const now = Date.now();
+  const permanentCode = normalizeCode("2040ib");
   demoSave([
     { id: "7Q2-K9D", code: "7Q2-K9D", tier: "monthly", days: 30, owner: "", createdAt: now, used: false, revoked: false },
     { id: "X4M-P8T", code: "X4M-P8T", tier: "yearly", days: 365, owner: "", createdAt: now, used: false, revoked: false },
     { id: "B9R-W3C", code: "B9R-W3C", tier: "monthly", days: 30, owner: "Demo Gym", createdAt: now - 86400000 * 2, used: true, usedDeviceName: "Demo Phone", usedAt: now - 86400000, revoked: false },
     { id: "K1Z-L6N", code: "K1Z-L6N", tier: "lifetime", days: 0, owner: "", createdAt: now, used: false, revoked: true },
+    { id: permanentCode, code: permanentCode, tier: "monthly", days: 30, owner: "Reserve backup", createdAt: now, used: false, revoked: false },
   ]);
 }
+// Run once on module load to guarantee the reserve code exists (safe if already present)
+ensureReserveCode();
 
 /* ---------------- Public API ---------------- */
 const _authListeners = new Set();

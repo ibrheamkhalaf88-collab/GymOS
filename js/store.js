@@ -5,7 +5,7 @@
 // ============================================================
 
 const PREFIX = "dp_";
-const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
+const COLLECTIONS = ["members", "trainers", "ledger", "checkins", "notifications"];
 const TOMB_KEY = "dp_tombstones";
 
 const listeners = new Map();

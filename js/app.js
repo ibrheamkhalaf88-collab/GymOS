@@ -939,27 +939,25 @@ function viewHardware() {
       </div>
     </div>
 
-    <!-- device list -->
-    <div id="deviceList" class="flex flex-col gap-3"></div>`;
-
-  const list = $("#deviceList");
-  list.innerHTML = devices.length ? devices.map(deviceCard).join("")
-    : `<div class="text-center text-muted py-12 text-sm">📭 No devices yet / ما في أجهزة</div>`;
-
-  list.querySelectorAll("[data-device]").forEach((c) =>
-    c.addEventListener("click", () => openDeviceDetail(c.dataset.device)));
-  list.querySelectorAll("[data-done]").forEach((b) =>
-    b.addEventListener("click", (e) => {
-      e.stopPropagation();
-      markRepaired(store.get("devices", b.dataset.done));
-    }));
-
-  $("#pageActions").innerHTML = `
-    <button id="addDeviceBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
-      <span class="material-symbols-outlined text-[20px]">add</span> ADD DEVICE
+    <!-- page stats -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-surface cyber-border rounded-lg p-4 fade-up">
+        <div class="text-[10px] uppercase tracking-widest text-muted mb-1">الأعضاء النشطون</div>
+        <h2 id="memberCount" class="font-headline font-bold"></h2>
+      </div>
+      <div class="bg-surface cyber-border rounded-lg p-4 fade-up">
+        <div class="text-[10px] uppercase tracking-widest text-muted mb-1">إجمالي الإيرادات</div>
+        <h2 id="revenueThisMonth" class="font-headline font-bold"></h2>
+      </div>
+    </div>
+    <button id="importBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
+      <span class="material-symbols-outlined text-[20px]">import_export</span> IMPORT
+    </button>
+    <button id="exportBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
+      <span class="material-symbols-outlined text-[20px]">download</span> EXPORT
     </button>`;
-  $("#addDeviceBtn").onclick = openDeviceModal;
-}
+  $("#importBtn").onclick = importData;
+  $("#exportBtn").onclick = exportData;
 
 // Completes a repair: marks device + pushes its invoice to the Ledger as an expense
 function markRepaired(d) {
@@ -975,92 +973,8 @@ function markRepaired(d) {
     });
     ledgerId = tx.id;
   }
-  store.update("devices", d.id, {
-    maintenanceStatus: "completed", repairedAt: Date.now(), updatedAt: Date.now(), ledgerId,
-  });
-  showToast(cost > 0
-    ? `Repaired — ${fmt.money(cost)} moved to Ledger / تم التصليح وخُصمتها من المالية`
-    : "Repaired / تم التصليح");
-}
 
-function deviceCard(d) {
-  const isDone = d.maintenanceStatus === "completed";
-  return `
-  <div data-device="${d.id}" class="bg-surface cyber-border rounded-lg p-4 flex items-center gap-4 hover:bg-surface-hover transition-colors cursor-pointer active:scale-[0.99] fade-up">
-    <div class="w-11 h-11 rounded-xl bg-surface-container-high border border-outline-variant flex items-center justify-center shrink-0">
-      <span class="material-symbols-outlined ${isDone ? "text-primary" : "text-alert"}">${isDone ? "check_circle" : "build"}</span>
-    </div>
-    <div class="flex-1 min-w-0">
-      <h3 class="font-headline font-bold uppercase truncate">${escapeHtml(d.name)}</h3>
-      <p class="text-xs mt-0.5 ${isDone ? "text-primary" : "text-alert"}">
-        ${isDone
-          ? `Invoice / فاتورة: ${fmt.money(d.cost)} • ${(d.repairedAt || d.updatedAt || d.createdAt) ? fmt.date(d.repairedAt || d.updatedAt || d.createdAt, currentLang()) : "—"}`
-          : `Under repair / قيد التصليح`}
-      </p>
-    </div>
-    <span class="font-headline font-bold tabular-nums shrink-0" dir="ltr">${Number(d.cost) > 0 ? fmt.money(d.cost) : "—"}</span>
-    ${!isDone ? `<button data-done="${d.id}" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1">
-      <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">task_alt</span> DONE
-    </button>` : ""}
-  </div>`;
-}
-
-function deviceFormHtml(d) {
-  const t = i18n.t;
-  return `
-    <form id="deviceForm" class="flex flex-col gap-3">
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.deviceName}</label>
-        <input name="name" required value="${d ? escapeHtml(d.name) : ""}" class="dp-field mt-1" placeholder="Treadmill 04..." /></div>
-      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Repair Price / سعر التصليح ($)${d && d.maintenanceStatus === "completed" ? " — actual / الفعلي" : ""}</label>
-        <input name="cost" type="number" min="0" step="0.5" value="${d ? d.cost || 0 : 0}" class="dp-field mt-1" dir="ltr" />
-        ${d && d.maintenanceStatus === "completed" ? `<p class="text-[10px] text-muted mt-1">تغيير السعر يحدّث فاتورة المالية تلقائياً</p>` : ""}</div>
-      <div class="flex gap-3 pt-2">
-        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
-        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
-      </div>
-    </form>`;
-}
-
-function readDeviceForm(mod, d, id) {
-  mod.el.querySelector("[data-close]").onclick = mod.close;
-  $("#deviceForm", mod.el).addEventListener("submit", (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const data = {
-      name: fd.get("name").trim(),
-      cost: Number(fd.get("cost")) || 0,
-      updatedAt: Date.now(),
-    };
-    const wasDone = d && d.maintenanceStatus === "completed";
-    if (d) {
-      store.update("devices", id, data);
-      // Keep the ledger invoice in sync when the amount changes after completion
-      if (wasDone) {
-        if (d.ledgerId) {
-          if (data.cost > 0) {
-            store.update("ledger", d.ledgerId, { amount: data.cost, description: `Repair: ${data.name}` });
-          } else {
-            store.remove("ledger", d.ledgerId);
-            store.update("devices", id, { ledgerId: null });
-          }
-        } else if (data.cost > 0) {
-          const tx = store.insert("ledger", {
-            type: "expense", amount: data.cost,
-            description: `Repair: ${data.name}`, category: "maintenance",
-            date: d.repairedAt || Date.now(),
-          });
-          store.update("devices", id, { ledgerId: tx.id });
-        }
-      }
-    } else {
-      store.insert("devices", { ...data, maintenanceStatus: "in-repair" });
-    }
-    mod.close();
-    showToast(wasDone
-      ? "Saved — invoice updated / تم الحفظ وتحديث الفاتورة"
-      : d ? "Saved / تم الحفظ" : "Device added / تمت إضافة الجهاز");
-  });
-}
+store.subscribe("members", () => rerender());
 
 function openDeviceModal() {
   const t = i18n.t;
@@ -1923,17 +1837,15 @@ function viewProfile() {
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
     const ok = await confirmDialog({ titleEn: "Reset EVERYTHING to factory?", titleAr: "إعادة تعيين كل شيء بالكامل للمصنع؟", confirmText: "Reset", danger: true });
-    if (ok) {
-      try { store.stopSync && store.stopSync(); } catch {}
-      // امسح كل مفاتيح التطبيق
-      Object.keys(localStorage).forEach(k => { if (k.startsWith("dp_")) localStorage.removeItem(k); });
-      sessionStorage.clear();
-      try { localStorage.removeItem("dp_license"); localStorage.removeItem("dp_device_id"); } catch {}
-      store.resetAll();
-      try { const { license } = await import("./license.js"); license.clear(); } catch {}
-      showToast("Full reset done / تمت إعادة كل شيء");
-      setTimeout(() => location.reload(), 700);
-    }
+    if (!ok) return;
+    try { store.stopSync && store.stopSync(); } catch {}
+    // Clear all app data - robust clearing
+    Object.keys(localStorage).forEach(k => { if (k.startsWith("dp_")) localStorage.removeItem(k); });
+    sessionStorage.clear();
+    store.resetAll();
+    // Force reload to login screen
+    showToast("Full reset done / تمت إعادة كل شيء");
+    setTimeout(() => { location.href = "activate.html"; }, 300);
   };
   $("#exportBtn").onclick = exportData;
   $("#logoutBtn").onclick = deactivateLicense;

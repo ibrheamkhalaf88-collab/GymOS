@@ -249,7 +249,6 @@ function viewCode(id) {
   if (!c) return;
   const dataOn = c.data_enabled !== false;
   const syncOn = c.sync_enabled !== false;
-  const devices = Array.isArray(c.devices) ? c.devices : [];
   const mod = openModal(`
     <div class="text-center mb-6">
       <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">Access Code</p>
@@ -267,13 +266,6 @@ function viewCode(id) {
     </div>
 
     <div class="mt-5 space-y-3">
-      <div>
-        <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">Devices / الأجهزة (${devices.length}/${c.device_limit})</p>
-        <div class="space-y-1">
-          ${devices.length ? devices.map((d) => `<div class="flex justify-between items-center text-sm bg-black/30 rounded-lg px-3 py-2"><span class="font-headline">${escapeHtml(d.name || "—")}</span><span class="text-muted text-[11px]" dir="ltr">${fmt.date(d.at)}</span></div>`).join("") : '<p class="text-muted text-xs">No devices activated yet / لا يوجد</p>'}
-        </div>
-      </div>
-
       <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
         <div>
           <p class="font-headline">☁️ Data transfer / نقل الداتا</p>
@@ -285,20 +277,9 @@ function viewCode(id) {
       <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
         <div>
           <p class="font-headline">🔄 Sync / مزامنة</p>
-          <p class="text-[10px] text-muted">Share across devices / مشاركة بين الأجهزة</p>
+          <p class="text-[10px] text-muted">Auto sync / مزامنة تلقائية</p>
         </div>
         <button data-toggle="sync" class="px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${syncOn ? "bg-primary text-black" : "bg-surface-container-highest text-muted"}">${syncOn ? "ON" : "OFF"}</button>
-      </div>
-
-      <div class="flex items-center justify-between bg-black/30 rounded-xl p-3">
-        <div>
-          <p class="font-headline">Device limit / حد الأجهزة</p>
-          <p class="text-[10px] text-muted">Max activated devices</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <input id="devLimit" type="number" min="1" max="20" value="${c.device_limit}" class="w-16 bg-black/50 rounded px-2 py-1 text-center font-headline"/>
-          <button id="saveLimit" class="px-4 py-1.5 rounded-full bg-primary text-black text-xs font-bold">Save</button>
-        </div>
       </div>
     </div>`);
 
