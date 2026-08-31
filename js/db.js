@@ -100,9 +100,9 @@ export const codesDb = {
     }
     const { appConfig } = await import("./config.js");
     if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
-      throw new Error("This email is not the admin email / هذا البريد ليس بريد المدير");
+      throw new Error("Email not found / البريد الإلكتروني غير موجود");
     }
-    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة مرور خاطئة");
+    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة المرور خاطئة");
     sessionStorage.setItem("dp_demo_admin", "1");
     _notifyDemo();
   },

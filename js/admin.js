@@ -47,12 +47,33 @@ codesDb.onAuth((email) => {
 $("#loginForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   $("#loginMsg").textContent = "";
+  
+  const email = $("#emailInput").value.trim();
+  const password = $("#passInput").value;
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) {
+    $("#loginMsg").textContent = "Email is required / البريد الإلكتروني مطلوب";
+    return;
+  }
+  if (!emailRegex.test(email)) {
+    $("#loginMsg").textContent = "Invalid email format / صيغة البريد الإلكتروني غير صحيحة";
+    return;
+  }
+  if (!password) {
+    $("#loginMsg").textContent = "Password is required / كلمة المرور مطلوبة";
+    return;
+  }
+  
   try {
-    await codesDb.adminSignIn($("#emailInput").value, $("#passInput").value);
+    await codesDb.adminSignIn(email, password);
   } catch (err) {
-    $("#loginMsg").textContent = err.code?.includes("invalid-credential") || /wrong|not/i.test(err.message)
-      ? "Wrong email or password / بيانات خاطئة"
-      : (err.message || "Sign-in failed");
+    let msg = err.message || "Sign-in failed";
+    if (/wrong|not|invalid/i.test(msg)) {
+      msg = "Wrong email or password / البريد الإلكتروني أو كلمة المرور خاطئة";
+    }
+    $("#loginMsg").textContent = msg;
   }
 });
 
