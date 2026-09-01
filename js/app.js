@@ -1842,7 +1842,7 @@ function viewProfile() {
     store.resetAll();
     // Force reload to login screen
     showToast("Full reset done / تمت إعادة كل شيء");
-    setTimeout(() => { location.href = "activate.html"; }, 300);
+    setTimeout(() => { location.reload(); }, 300);
   };
   $("#exportBtn").onclick = exportData;
   $("#logoutBtn").onclick = deactivateLicense;
