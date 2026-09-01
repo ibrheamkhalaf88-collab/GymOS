@@ -202,7 +202,7 @@ function renderTable() {
 
     return `
     <tr class="hover:bg-surface-container-high transition-colors ${c.revoked ? "bg-surface-hover/30" : ""}">
-      <td class="p-4 font-headline font-bold tabular-nums tracking-wider ${c.revoked ? "text-error line-through opacity-70" : ""}" dir="ltr">${c.code}</td>
+      <td class="p-4 font-headline font-bold tabular-nums tracking-wider ${c.revoked ? "text-error line-through opacity-70" : ""}" dir="ltr">${escapeHtml(c.code)}</td>
       <td class="p-4">${status}</td>
       <td class="p-4 tabular-nums ${rem.cls}" dir="ltr">${rem.txt}</td>
       <td class="p-4 text-muted capitalize">${escapeHtml(c.tier || "-")}</td>
@@ -273,7 +273,7 @@ function viewCode(id) {
   const mod = openModal(`
     <div class="text-center mb-6">
       <p class="font-label tracking-widest text-muted uppercase text-[10px] mb-2">Access Code</p>
-      <p class="font-headline text-4xl font-bold text-primary tracking-[0.15em]" dir="ltr">${c.code}</p>
+      <p class="font-headline text-4xl font-bold text-primary tracking-[0.15em]" dir="ltr">${escapeHtml(c.code)}</p>
     </div>
     <div class="grid grid-cols-2 gap-3 text-sm">
       <div class="bg-black/40 rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Owner / العميل</p><p class="font-headline">${c.owner ? escapeHtml(c.owner) : "—"}</p></div>

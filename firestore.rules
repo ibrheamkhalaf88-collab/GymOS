@@ -39,6 +39,10 @@ service cloud.firestore {
           && request.resource.data.used == true
           && resource.data.used != true
           && resource.data.revoked != true
+          && request.resource.data.usedDevice is string
+          && request.resource.data.usedDevice.size() <= 100
+          && request.resource.data.usedDeviceName is string
+          && request.resource.data.usedDeviceName.size() <= 100
         )
         // تعيين أو تغيير كلمة سر الموقع — يتطلب أن يكون الكود مفعّلاً
         || (

@@ -285,7 +285,10 @@ function seedData(col) {
 }
 
 export function uid(prefix = "id") {
-  return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const uuid = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID().replace(/-/g, "").slice(0, 16)
+    : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  return `${prefix}_${uuid}`;
 }
 
 // ---------- Plans & prices (editable by the admin) ----------

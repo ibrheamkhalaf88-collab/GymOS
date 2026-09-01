@@ -121,18 +121,25 @@ setInterval(() => {
 const app = express();
 app.set("trust proxy", 1); // correct req.ip behind Render/nginx
 app.use(cors({
-  origin: (origin, cb) =>
-    cb(null, !origin || !ALLOWED_ORIGINS.length ||
-      ALLOWED_ORIGINS.includes(origin) || APP_ORIGINS.has(origin)),
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin / mobile app
+    if (ALLOWED_ORIGINS.length && (ALLOWED_ORIGINS.includes(origin) || APP_ORIGINS.has(origin)))
+      return cb(null, true);
+    return cb(new Error("CORS blocked"), false);
+  },
+  credentials: true,
 }));
 app.use(express.json({ limit: "2mb" }));
 app.use(morgan("tiny"));
 
-// minimal security headers
+// security headers
 app.use((_q, res, next) => {
   res.set("X-Content-Type-Options", "nosniff");
   res.set("X-Frame-Options", "DENY");
   res.set("Referrer-Policy", "no-referrer");
+  res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://*.functions.supabase.co; font-src 'self' data:");
   next();
 });
 
@@ -177,16 +184,16 @@ app.post("/api/auth/login", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.post("/api/auth/set-password", async (req, res, next) => {
+app.post("/api/auth/set-password", authJwt, async (req, res, next) => {
   try {
-    const code = normCode(req.body?.code);
+    const code = req.auth.code || normCode(req.body?.code);
     const pw = String(req.body?.password || "");
-    if (pw.length < 4 || pw.length > 72) return res.status(400).json({ error: "WEAK_PASSWORD" });
+    if (pw.length < 8 || pw.length > 72) return res.status(400).json({ error: "WEAK_PASSWORD" });
     const rec = await Code.findOne({ code }).select("+passHash");
     if (!rec || !rec.used) return res.status(404).json({ error: "NOT_ACTIVATED" });
-    rec.passHash = await bcrypt.hash(pw, 10);
+    rec.passHash = await bcrypt.hash(pw, 12);
     await rec.save();
-    res.json({ ok: true, token: sign({ code: rec.code }) });
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
@@ -197,7 +204,7 @@ app.post("/api/auth/change-password", authJwt, async (req, res, next) => {
     const okCur = await bcrypt.compare(String(req.body?.current || ""), rec.passHash);
     if (!okCur) return res.status(401).json({ error: "WRONG_PASSWORD" });
     const nw = String(req.body?.next || "");
-    if (nw.length < 4 || nw.length > 72) return res.status(400).json({ error: "WEAK_PASSWORD" });
+    if (nw.length < 8 || nw.length > 72) return res.status(400).json({ error: "WEAK_PASSWORD" });
     if (nw === req.body?.current) return res.json({ ok: true });
     rec.passHash = await bcrypt.hash(nw, 10);
     await rec.save();

@@ -51,11 +51,13 @@ export function sanitizeText(raw, maxLen = 200) {
     .slice(0, maxLen);
 }
 
-/** Password policy: 4..72 chars, no leading/trailing spaces */
+/** Password policy: 8..72 chars, at least 1 letter + 1 digit, no leading/trailing spaces */
 export function validatePassword(pw) {
   const s = String(pw ?? "");
-  if (s.length < 4 || s.length > 72) return false;
+  if (s.length < 8 || s.length > 72) return false;
   if (s !== s.trim()) return false;
+  if (!/[a-zA-Z]/.test(s)) return false;
+  if (!/\d/.test(s)) return false;
   return true;
 }
 

@@ -1947,8 +1947,8 @@ async function listCodes() {
       <div class="grid grid-cols-2 gap-4">
         ${codes.length ? codes.map(c => `
           <div class="bg-surface p-3 rounded-lg border border-outline-variant hover:border-primary transition-colors">
-            <p class="font-bold text-primary truncate" style="max-width:200px;direction:ltr">${c.code || "—"}</p>
-            <p class="text-sm text-muted direction:rtl">${c.owner || "—"}</p>
+            <p class="font-bold text-primary truncate" style="max-width:200px;direction:ltr">${escapeHtml(c.code || "—")}</p>
+            <p class="text-sm text-muted direction:rtl">${escapeHtml(c.owner || "—")}</p>
             <p class="text-xs text-muted">${c.used ? "Used" : "Available"}</p>
           </div>`).join("") : `<p class="text-center text-muted py-8">لا توجد أكواد بعد / No codes yet</p>`}
       </div>
@@ -1972,9 +1972,9 @@ async function showCodesTable() {
         <tbody>
           ${codes.length ? codes.map(c => `
             <tr class="border-b border-outline-variant/50">
-              <td class="p-4 font-bold truncate" style="max-width:200px;direction:ltr">${c.code || "—"}</td>
-              <td class="p-4">${c.tier || "—"}</td>
-              <td class="p-4">${c.owner || "—"}</td>
+              <td class="p-4 font-bold truncate" style="max-width:200px;direction:ltr">${escapeHtml(c.code || "—")}</td>
+              <td class="p-4">${escapeHtml(c.tier || "—")}</td>
+              <td class="p-4">${escapeHtml(c.owner || "—")}</td>
               <td class="p-4 ${c.used ? "text-alert" : "text-primary"}">
                 ${c.used ? "🟡 Used" : "🟢 Available"}
               </td>

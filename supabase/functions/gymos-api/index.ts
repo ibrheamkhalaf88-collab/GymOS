@@ -152,16 +152,17 @@ const clientIp = (req: Request) =>
 // ---------- CORS ----------
 function corsHeaders(origin?: string | null) {
   const o = origin || "";
-  const allow = !o || !ALLOWED_ORIGINS.length ||
-    ALLOWED_ORIGINS.includes(o) || APP_ORIGINS.has(o);
+  const allow = o && (ALLOWED_ORIGINS.includes(o) || APP_ORIGINS.has(o));
   return {
-    "Access-Control-Allow-Origin": allow ? (o || "*") : "null",
+    "Access-Control-Allow-Origin": allow ? o : "null",
     "Access-Control-Allow-Headers": "authorization, content-type",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-    "Access-Control-Max-Age": "86400",
+    "Access-Control-Max-Age": "3600",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'self'",
     "Cache-Control": "no-store",
   };
 }
@@ -252,17 +253,19 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, record: toRecord(rec), token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 
-    /* set password */
+    /* set password — requires JWT auth (same user) */
     if (req.method === "POST" && path === "/api/auth/set-password") {
-      const code = normCode(body?.code);
+      const p = authJwt(req);
+      if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
+      const code = p.code;
       const pw = String(body?.password || "");
-      if (pw.length < 4 || pw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
+      if (pw.length < 8 || pw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) return json({ error: "NOT_ACTIVATED" }, 404, origin);
-      const pass_hash = await bcrypt.hash(pw, 10);
+      const pass_hash = await bcrypt.hash(pw, 12);
       const { error } = await sb.from("codes").update({ pass_hash }).eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      return json({ ok: true, token: await signJwt({ code }) }, 200, origin);
+      return json({ ok: true }, 200, origin);
     }
 
     /* change password */
@@ -274,7 +277,7 @@ async function handler(req: Request): Promise<Response> {
       const okCur = await bcrypt.compare(String(body?.current || ""), rec.pass_hash);
       if (!okCur) return json({ error: "WRONG_PASSWORD" }, 401, origin);
       const nw = String(body?.next || "");
-      if (nw.length < 4 || nw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
+      if (nw.length < 8 || nw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
       if (nw === body?.current) return json({ ok: true }, 200, origin);
       const pass_hash = await bcrypt.hash(nw, 10);
       const { error } = await sb.from("codes").update({ pass_hash }).eq("code", p.code);
