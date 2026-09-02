@@ -54,10 +54,13 @@ test("sanitizeText removes angle brackets", () => {
 });
 
 test("validatePassword policy", () => {
-  assert.ok(validatePassword("abcd"));
-  assert.ok(!validatePassword("abc"));          // too short
-  assert.ok(!validatePassword(" abcd "));       // surrounding spaces
-  assert.ok(!validatePassword("x".repeat(73))); // too long
+  assert.ok(validatePassword("abcd1234"));        // meets all rules
+  assert.ok(!validatePassword("abcd"));           // too short, no digit
+  assert.ok(!validatePassword("abc"));            // too short
+  assert.ok(!validatePassword("abcdefgh"));       // no digit
+  assert.ok(!validatePassword("12345678"));       // no letter
+  assert.ok(!validatePassword(" abcd1234 "));     // surrounding spaces
+  assert.ok(!validatePassword("x".repeat(73)));   // too long
 });
 
 test("login lockout engages after max attempts and resets", () => {

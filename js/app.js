@@ -156,7 +156,7 @@ export function show(tab, keepScroll = false) {
 
   if ($("#pageActions")) $("#pageActions").innerHTML = "";
   screen.innerHTML = "";
-  ({ dashboard: viewDashboard, roster: viewRoster, ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab])();
+  ({ dashboard: viewDashboard, roster: viewRoster, hardware: viewHardware, ledger: viewLedger, reports: viewReports, profile: viewProfile }[tab] || viewDashboard)();
 }
 
 document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click", () => show(b.dataset.tab)));
@@ -274,12 +274,12 @@ function viewDashboard() {
         <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">event_busy</span>
       </div>
     </div>
-    <!-- Total Expired -->
+    <!-- Total Profit -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
         <span>&nbsp;</span><span>اجمالي الارباح&nbsp;</span>
       </p>
-      <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1">${s.totalExpired}</p>
+      <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1" dir="ltr">${fmt.money(Math.max(0, s.totalRevenue - s.totalExpenses))}</p>
     </div>
     <!-- Maintenance Alert -->
     <div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
@@ -970,8 +970,13 @@ function markRepaired(d) {
     });
     ledgerId = tx.id;
   }
-
-store.subscribe("members", () => rerender());
+  store.update("devices", d.id, {
+    maintenanceStatus: "completed",
+    repairedAt: Date.now(),
+    ...(ledgerId ? { ledgerId } : {}),
+  });
+  showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
+}
 
 function openDeviceModal() {
   const t = i18n.t;
