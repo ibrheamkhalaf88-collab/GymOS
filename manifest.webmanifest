@@ -2,7 +2,7 @@
   "name": "Digital Pulse — Gym & Facility Manager",
   "short_name": "Digital Pulse",
   "description": "Professional membership, device and finance management for modern gyms and clubs.",
-  "start_url": "./index.html",
+  "start_url": "./onboarding.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

@@ -35,7 +35,7 @@ activation-code licensing system, local-first data, PWA support and a CI-built A
 
 ```
 ┌─────────────────────────── Client device ───────────────────────────┐
-│  index.html → activate.html → app.html (SPA)                        │
+│  index.html (landing) → onboarding.html → activate.html → app.html │
 │  Facility data (members/devices/ledger) → localStorage  [local-first]│
 └──────────────────────────────┬──────────────────────────────────────┘
                                │ activation only
@@ -89,7 +89,8 @@ Hardened nginx:alpine image with security headers
 ## 📁 Project structure
 
 ```
-├── index.html            # Onboarding (4 slides)
+├── index.html            # Landing page (marketing; APK/desktop skips it)
+├── onboarding.html       # Onboarding (4 slides)
 ├── activate.html         # License activation (digit inputs)
 ├── app.html              # Main SPA shell
 ├── ibrheam.html            # Codes admin console

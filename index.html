@@ -1,37 +1,218 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl" style="color-scheme:dark">
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Digital Pulse</title>
-<meta name="description" content="Digital Pulse - Gym Management System">
+<title>Digital Pulse — نظام إدارة النوادي والجيمات</title>
+<meta name="description" content="Digital Pulse — نظام إدارة متكامل للنوادي الرياضية: عضويات، معدات، مالية، وتزامن على أكثر من جهاز."/>
 <meta name="theme-color" content="#000000">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<script src="vendor/tailwind.js" defer></script>
+<meta property="og:title" content="Digital Pulse — أدر ناديك بنبضة واحدة"/>
+<meta property="og:description" content="إدارة العضويات والمعدات والمالية في تطبيق واحد متزامن على كل أجهزتك."/>
+<meta property="og:type" content="website"/>
+<link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml"/>
 <script>
-  tailwind.config = { theme: { extend: {} } };
+/* Gate: if this page is opened inside the native app (Android APK) or the
+   desktop shell, skip the marketing page and go straight into the product. */
+(function(){
+  try {
+    var native = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
+      || window.location.protocol === "app:";
+    if (native) { window.location.replace("onboarding.html"); }
+  } catch (e) {}
+})();
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Tajawal:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+<script src="vendor/tailwind.js" defer></script>
+<script src="js/tailwind-config.js" defer></script>
 <style>
-  body { font-family: 'Inter', sans-serif; }
+  body { font-family: 'Manrope', 'Tajawal', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  :focus-visible { outline: 2px solid #CCFF00; outline-offset: 3px; }
+  h1, h2, h3 { text-wrap: balance; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  .font-headline { font-family: 'Space Grotesk', sans-serif; }
   .font-arabic { font-family: 'Tajawal', sans-serif; }
-  .font-cairo { font-family: 'Cairo', sans-serif; }
-  .glow-effect { box-shadow: 0 0 20px rgba(204, 255, 0, 0.4); }
-  .glow-volt { box-shadow: 0 0 20px rgba(204, 255, 0, 0.15); }
-  .text-glow { text-shadow: 0 0 10px rgba(204, 255, 0, 0.3); }
+  .font-body-en { font-family: 'Manrope', sans-serif; }
+  .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.14); }
   .neon-border { box-shadow: 0 0 15px rgba(204, 255, 0, 0.2); border: 1px solid rgba(204, 255, 0, 0.3); }
-  .arabic-text { direction: rtl; }
-  body { min-height: max(884px, 100dvh); }
+  .text-glow { text-shadow: 0 0 24px rgba(204, 255, 0, 0.35); }
+  .grid-fade { background:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(204,255,0,0.09), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(255,51,102,0.06), transparent 60%); }
+  .feature-card { transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease; }
+  .feature-card:hover { transform: translateY(-4px); border-color: rgba(204,255,0,.45); box-shadow: 0 12px 40px rgba(204,255,0,.08); }
+  .ltr { direction: ltr; }
+  .en-line { font-family: 'Space Grotesk', 'Manrope', sans-serif; letter-spacing: .02em; }
 </style>
 </head>
-<body class="bg-[#000000] text-white h-full w-full overflow-x-hidden antialiased selection:bg-[#CCFF00] selection:text-black">
-<div id="loadingOverlay" class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center gap-4"><div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div><p class="font-headline tracking-widest text-[#CCFF00] text-xs uppercase">Loading…</p></div>
-<div id="offlineBanner" class="hidden fixed top-0 inset-x-0 z-[9998] bg-[#FF3366] text-white text-center py-2 font-headline text-xs uppercase">Offline — لا يوجد اتصال</div>
-<div id="slideRoot" class="min-h-[max(884px,100dvh)] flex flex-col"></div>
-<script>
-(function(){ function setOffline(on){ var b=document.getElementById('offlineBanner'); if(b) b.classList.toggle('hidden', !on); } window.addEventListener('online', ()=>setOffline(false)); window.addEventListener('offline', ()=>setOffline(true)); setOffline(!navigator.onLine); window.addEventListener('load', ()=>{ var o=document.getElementById('loadingOverlay'); if(o) setTimeout(()=>o.remove(),400); }); setTimeout(function(){ var o=document.getElementById('loadingOverlay'); if(o) o.remove(); },5000);})();
-</script>
-<script src="js/onboarding.js"></script>
+<body class="bg-black text-white antialiased overflow-x-hidden selection:bg-[#CCFF00] selection:text-black min-h-screen grid-fade">
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-3 focus:right-3 focus:bg-[#CCFF00] focus:text-black focus:px-4 focus:py-2 focus:rounded-full font-headline font-bold uppercase tracking-widest text-sm">Skip to content · تخطَّ للمحتوى</a>
+
+<!-- ============ NAV ============ -->
+<header class="sticky top-0 z-50 backdrop-blur-xl bg-black/70 border-b border-white/5">
+  <nav class="max-w-6xl mx-auto flex items-center justify-between px-5 md:px-8 h-16">
+    <a href="#" class="flex items-center gap-2.5" aria-label="Digital Pulse">
+      <img src="assets/icons/icon.svg" alt="Digital Pulse" width="36" height="36" class="w-9 h-9 drop-shadow-[0_0_10px_rgba(204,255,0,0.4)]"/>
+      <span class="font-headline font-bold tracking-tight text-[#CCFF00]" translate="no">DIGITAL PULSE</span>
+    </a>
+    <div class="flex items-center gap-2 md:gap-3">
+      <a href="onboarding.html" class="font-headline text-xs md:text-sm font-semibold uppercase tracking-widest px-4 py-2 rounded-full text-on-surface-variant hover:text-[#CCFF00] transition-colors">Login | تسجيل</a>
+      <a href="onboarding.html" class="font-headline text-sm md:text-sm font-bold uppercase tracking-widest bg-[#CCFF00] text-black px-4 md:px-6 py-2.5 rounded-full hover:bg-[#b3e600] active:scale-95 transition shadow-[0_0_20px_rgba(204,255,0,0.35)]">
+        <span class="ltr">Get Started</span> · ابدأ
+      </a>
+    </div>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<main id="main">
+<section class="relative max-w-6xl mx-auto px-5 md:px-8 pt-14 md:pt-20 pb-16 md:pb-24">
+  <div class="grid md:grid-cols-2 gap-10 md:gap-14 items-center">
+    <!-- Copy -->
+    <div class="order-2 md:order-1 text-center md:text-left">
+      <span class="inline-flex items-center gap-2 font-headline text-[10px] md:text-xs font-bold uppercase tracking-[0.3em] text-[#CCFF00]/80 border border-[#CCFF00]/25 rounded-full px-4 py-1.5 mb-8">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#CCFF00] animate-pulse"></span>
+        <span class="ltr">GYM &amp; CLUB MANAGEMENT</span>
+      </span>
+      <h1 class="font-headline font-black text-4xl md:text-6xl leading-[1.05] tracking-tight mb-4">
+        أدر ناديك<br class="hidden md:block"/>
+        <span class="text-[#CCFF00] text-glow">بنبضة واحدة.</span>
+      </h1>
+      <p class="en-line font-semibold text-lg md:text-2xl text-white/90 mb-6 ltr">Run your club on one pulse.</p>
+      <p class="font-arabic text-white/60 md:text-lg leading-relaxed max-w-xl mx-auto md:mx-0 mb-10">
+        العضويات، المعدات، الحسابات، وحركة الدخول — كل شيء في مكان واحد، متزامن على كل أجهزتك لحظة بلحظة.
+      </p>
+      <p class="en-line text-sm md:text-base text-white/50 leading-relaxed max-w-lg mx-auto md:mx-0 mb-12 ltr">
+        Memberships, hardware, finances and daily check-ins — everything in one place, synced across all your devices in real time.
+      </p>
+      <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
+        <a href="onboarding.html" class="w-full sm:w-auto font-headline text-lg font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-10 py-4 rounded-2xl transition duration-200 glow-volt flex items-center justify-center gap-3">
+          <span class="ltr">Get Started</span>
+          <svg aria-hidden="true" class="h-5 w-5 md:rotate-0 rotate-180" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"/></svg>
+        </a>
+        <a href="#features" class="w-full sm:w-auto font-arabic font-bold text-white/80 hover:text-[#CCFF00] transition-colors px-6 py-4 text-center">
+          استكشف المميزات ↓
+        </a>
+      </div>
+      <div class="mt-12 flex items-center justify-center md:justify-start gap-6 font-headline text-[10px] uppercase tracking-widest text-white/35">
+        <span class="ltr">WEB</span>·<span class="ltr">ANDROID</span>·<span class="ltr">DESKTOP</span>
+      </div>
+    </div>
+
+    <!-- Visual -->
+    <div class="order-1 md:order-2 flex justify-center">
+      <div class="relative w-full max-w-[420px]">
+        <div aria-hidden="true" class="absolute -inset-8 bg-[#CCFF00]/10 blur-3xl rounded-full"></div>
+        <div class="relative rounded-3xl overflow-hidden neon-border glow-volt bg-black/60 p-2">
+          <img alt="Digital Pulse smart assistant" class="w-full h-auto object-cover rounded-2xl mix-blend-screen" loading="eager" fetchpriority="high" src="assets/img/intro-assistant.jpg"/>
+        </div>
+        <div class="absolute -bottom-5 -right-3 md:-right-6 bg-black border border-[#CCFF00]/30 rounded-2xl px-5 py-3 flex items-center gap-3 shadow-[0_0_25px_rgba(204,255,0,0.15)]">
+          <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">sync</span>
+          <div class="text-left">
+            <div class="font-headline font-bold text-sm leading-none ltr">Multi-device</div>
+            <div class="font-arabic text-[10px] text-white/50 mt-1">تزامن لحظي بين الأجهزة</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section id="features" class="max-w-6xl mx-auto px-5 md:px-8 pb-20 md:pb-28">
+  <div class="text-center mb-12 md:mb-16">
+    <h2 class="font-headline font-black text-3xl md:text-5xl tracking-tight mb-3">كل ما يحتاجه ناديك.</h2>
+    <p class="en-line font-semibold text-lg text-white/70 ltr mb-3">Everything your club needs − in one pulse.</p>
+    <p class="font-arabic text-white/50 max-w-2xl mx-auto">من تسجيل الأعضاء وصولاً لحسابات الصيانة — أدوات مصممة لتشغيل حقيقي يومي، تعمل بدون إنترنت وتتزامن عندما تعود.</p>
+  </div>
+
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    <!-- 1 Members -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">group</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Membership &amp; Roster</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">إدارة العضويات</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">سجّل المشتركين، تابع التجديدات والمواعيد، وادفع الاشتراكات بلمسة واحدة.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Register members, track renewals and collect subscriptions in one tap.</p>
+    </div>
+
+    <!-- 2 Hardware -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">settings_input_component</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Hardware &amp; Repair</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">الأجهزة والقطع</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">سجّل أجهزة النادي، ميّز التالف، وتابع الصيانة بأعطالها ومصاريفها المرتبطة.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Log equipment, flag breakdowns and track repairs with their costs.</p>
+    </div>
+
+    <!-- 3 Ledger -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">account_balance_wallet</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Financial Ledger</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">الدفتر المالي</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">كل دخل ومصروف في مكان واحد، مع تقارير وأرباح محدّثة تلقائياً.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Income, expenses and auto-updated profit reports in one place.</p>
+    </div>
+
+    <!-- 4 Check-ins -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">monitoring</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Check-ins &amp; Reports</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">الدخول والتقارير</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">راقب حركة النادي بالأرقام والمخططات، وافهم نموّك يومياً وشهرياً.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Monitor daily traffic with charts and understand your growth.</p>
+    </div>
+
+    <!-- 5 Sync -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">cloud_sync</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Cloud Sync</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">تزامن سحابي</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">افتح ناديك من أكثر من جهاز بنفس الوقت — البيانات نفسها في كل مكان.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Open your club from multiple devices — same data everywhere.</p>
+    </div>
+
+    <!-- 6 Activation -->
+    <div class="feature-card bg-white/[0.03] border border-white/[0.08] rounded-3xl p-7">
+      <div class="w-12 h-12 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-5">
+        <span class="material-symbols-outlined text-[#CCFF00]" aria-hidden="true">verified_user</span>
+      </div>
+      <h3 class="font-headline font-bold text-lg mb-1.5 ltr">Licensed Access</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-sm mb-2">وصول مرخّص</p>
+      <p class="font-arabic text-sm text-white/55 leading-relaxed mb-3">فعّل بكود واحد، وحدّد عدد الأجهزة لكل نادٍ — حماية ومرونة كاملة.</p>
+      <p class="en-line text-xs text-white/35 leading-relaxed ltr">Activate with one code, control the device limit per club.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="max-w-6xl mx-auto px-5 md:px-8 pb-24 md:pb-32">
+  <div class="relative rounded-[2rem] overflow-hidden border border-[#CCFF00]/20 bg-white/[0.03] px-6 md:px-14 py-14 md:py-20 text-center glow-volt">
+    <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-[#CCFF00]/[0.06] to-transparent"></div>
+    <div class="relative">
+      <h2 class="font-headline font-black text-3xl md:text-5xl tracking-tight mb-2">جاهز تبدأ؟</h2>
+      <p class="en-line font-semibold text-xl text-white/80 ltr mb-3">Ready to start?</p>
+      <p class="font-arabic text-white/55 max-w-lg mx-auto mb-10">اخترت الإدارة الذكية؟ افتح التطبيق الآن وجهّز ناديك خلال دقائق.</p>
+      <a href="onboarding.html" class="inline-flex font-headline font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-12 py-4 rounded-2xl transition duration-200 shadow-[0_0_30px_rgba(204,255,0,0.35)] gap-3 items-center">
+        <span class="ltr">Open the App</span>
+        <svg aria-hidden="true" class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+</main>
+
 </body>
 </html>

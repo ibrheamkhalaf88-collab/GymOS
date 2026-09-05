@@ -25,14 +25,14 @@ function createWindow() {
     icon: path.join(__dirname, "icon.png"),
     webPreferences: { contextIsolation: true, sandbox: true },
   });
-  win.loadURL("app://bundle/index.html");
+  win.loadURL("app://bundle/onboarding.html");
 }
 
 app.whenReady().then(() => {
   protocol.handle("app", (request) => {
     const { pathname } = new URL(request.url);
     const rel = decodeURIComponent(pathname).replace(/^\/+/, "");
-    return net.fetch(pathToFileURL(path.join(ROOT, rel || "index.html")).toString());
+    return net.fetch(pathToFileURL(path.join(ROOT, rel || "onboarding.html")).toString());
   });
   createWindow();
   app.on("activate", () => {
