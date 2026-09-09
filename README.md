@@ -70,13 +70,24 @@ Hardened nginx:alpine image with security headers
 
 ## 🛡️ Security & quality
 
-- **PBKDF2-SHA256** password hashing (100k iterations + per-user salt) — [`js/db.js`](js/db.js)
-- **Anti-injection / anti-XSS layer** — every input sanitized in [`js/validate.js`](js/validate.js); all renders escaped
-- **Brute-force lockout** on client login (5 tries → 15 min)
-- **Server-side rules** — [`firestore.rules`](firestore.rules) (least privilege, admin-only registry)
+- **bcrypt 12 rounds** password hashing (server-side, never MD5)
+- **Anti-injection / anti-XSS layer** — every input sanitized in [`js/validate.js`](js/validate.js); all renders escaped via `escapeHtml`
+- **Brute-force lockout** — 8 per-IP + 20 per-code attempts → 15-minute block
+- **JWT sessions** — 30-day client tokens + 12-hour admin tokens (stateless, signed)
+- **Server-side rules** — [`firestore.rules` → MIGRATED to Supabase policies in `0001_init.sql`]
+- **CORS allow-list** — GitHub Pages + localhost + Capacitor origins only
 - **Tests** — `npm test` (node:test, validation + crypto vectors)
 - **Lint** — `npm lint` (ESLint flat config)
 - Full details: [SECURITY.md](SECURITY.md)
+
+## 🔗 Backend unification (Supabase)
+
+The entire backend now runs on a **single Supabase Edge Function**:
+- `supabase/functions/gymos-api/index.ts` — full API (auth, activation, codes, gym sync, trials)
+- `server/src/server.js` — mirrors the same contract for local Docker/Render fallback
+- `js/config.js` — unified `apiUrl` points to the deployed function
+- `firestore.rules` — retained as historical artifact (no longer used)
+- Full setup: [SETUP.md](docs/LAUNCH.md) (updated)
 
 ## 🔄 CI/CD (GitHub Actions)
 
