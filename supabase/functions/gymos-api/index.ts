@@ -21,9 +21,12 @@ const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD");
 if (!ADMIN_PASSWORD) throw new Error("Missing ADMIN_PASSWORD — set Supabase Function Secret");
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGIN") || "")
   .split(",").map((s) => s.trim()).filter(Boolean);
+// Allow GitHub Pages deployment
+const GITHUB_PAGES_ORIGIN = "https://ibrheamkhalaf88-collab.github.io";
 const APP_ORIGINS = new Set([
   "https://localhost", "http://localhost",
   "capacitor://localhost", "ionic://localhost",
+  GITHUB_PAGES_ORIGIN,
 ]);
 
 const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
@@ -204,6 +207,25 @@ async function handler(req: Request): Promise<Response> {
     /* health */
     if (req.method === "GET" && path === "/api/health") {
       return json({ ok: true, uptime: 0 });
+    }
+
+    /* free 30-day trial (server-issued) */
+    if (req.method === "POST" && path === "/api/trial") {
+      const MAX_TRIALS = 20;
+      if (tooManyCode("TRIAL")) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      const devId = String(body?.deviceId || "").slice(0, 80);
+      const { data: existing } = await sb.from("codes")
+        .select("id").eq("owner", devId).eq("tier", "trial").maybeSingle();
+      if (existing) return json({ error: "ALREADY_USED" }, 409, origin);
+      const code = normCode(randomCode());
+      const now = new Date().toISOString();
+      const { data: rec, error } = await sb.from("codes").insert({
+        code, tier: "trial", days: 30, owner: devId,
+        used: true, used_at: now, used_device: devId, used_device_name: "trial",
+      }).select("*").maybeSingle();
+      clearCode("TRIAL");
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true, code, token: await signJwt({ code: rec.code, deviceId: devId }), tempPassword: "trial" }, 200, origin);
     }
 
     /* client activate */

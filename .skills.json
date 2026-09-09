@@ -1,0 +1,532 @@
+{
+  "version": 1,
+  "skills": {
+    "design-animate": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:10:19.175Z",
+      "platform": "claude-code"
+    },
+    "design-claude": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:10:44.945Z",
+      "platform": "claude-code"
+    },
+    "design-polish": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:11:35.365Z",
+      "platform": "claude-code"
+    },
+    "ffmpeg-media": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:12:14.264Z",
+      "platform": "claude-code"
+    },
+    "skill-writer": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:11:56.539Z",
+      "platform": "claude-code"
+    },
+    "responsive": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:12:34.692Z",
+      "platform": "claude-code"
+    },
+    "perplexity-search": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:10:52.435Z",
+      "platform": "claude-code"
+    },
+    "design-audit": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:12:53.125Z",
+      "platform": "claude-code"
+    },
+    "recall": {
+      "version": "2.0.0",
+      "installedAt": "2026-09-07T14:13:10.589Z",
+      "platform": "claude-code"
+    },
+    "prompt-engineering": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:13:18.797Z",
+      "platform": "claude-code"
+    },
+    "web-game": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:12:45.476Z",
+      "platform": "claude-code"
+    },
+    "session-memory": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:13:39.805Z",
+      "platform": "claude-code"
+    },
+    "api-review": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:13:53.400Z",
+      "platform": "claude-code"
+    },
+    "arch-review": {
+      "version": "12.1.0",
+      "installedAt": "2026-09-07T14:14:01.934Z",
+      "platform": "claude-code"
+    },
+    "android-app": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:14:43.128Z",
+      "platform": "claude-code"
+    },
+    "design-overhaul": {
+      "version": "2.2.0",
+      "installedAt": "2026-09-07T14:14:49.768Z",
+      "platform": "claude-code"
+    },
+    "universal-subtitle-translator": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:14:36.921Z",
+      "platform": "claude-code",
+      "contentHash": "7ca8d1cfb9bfda1e43b9c8ca3a7996fbcf53441acacf10badd8010e3499a2bce"
+    },
+    "broken-links": {
+      "version": "1.1.1",
+      "installedAt": "2026-09-07T14:14:55.819Z",
+      "platform": "claude-code"
+    },
+    "code-smell": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:15:02.415Z",
+      "platform": "claude-code"
+    },
+    "research": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:15:09.882Z",
+      "platform": "claude-code"
+    },
+    "web-performance-auditor": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:16:06.267Z",
+      "platform": "claude-code",
+      "contentHash": "6f7f5b9d38d9ce5e2a9203c3eb86f64918a5e9cd0582e49f46e6b49ad2d82b45"
+    },
+    "design-sync": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:15:52.649Z",
+      "platform": "claude-code"
+    },
+    "automated-code-quality-analysis": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:16:00.122Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-ui-design-system": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:07:54.406Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-senior-frontend": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:08:00.731Z",
+      "platform": "claude-code"
+    },
+    "scientific-skills-markitdown": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:08:07.240Z",
+      "platform": "claude-code"
+    },
+    "anthropic-frontend-design": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:08:13.160Z",
+      "platform": "claude-code"
+    },
+    "web-research-agent": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:08:20.287Z",
+      "platform": "claude-code",
+      "contentHash": "e07bdcc948dae034fc03bbf0716dd6bcf0f28d7029ceddf64fc98010c61a279e"
+    },
+    "alirezarezvani-self-improving-agent": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:08:26.356Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-senior-backend": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:08:39.123Z",
+      "platform": "claude-code"
+    },
+    "security-review": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:08:32.817Z",
+      "platform": "claude-code"
+    },
+    "quickstart": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:08:45.330Z",
+      "platform": "claude-code"
+    },
+    "superpowers-using-superpowers": {
+      "version": "1.0.4",
+      "installedAt": "2026-09-07T14:08:51.918Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-social-media-manager": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:09:05.498Z",
+      "platform": "claude-code"
+    },
+    "unit-test": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:08:59.147Z",
+      "platform": "claude-code"
+    },
+    "design-to-code": {
+      "version": "2.0.350",
+      "installedAt": "2026-09-07T14:09:12.601Z",
+      "platform": "claude-code"
+    },
+    "anthropic-pptx": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:09:19.561Z",
+      "platform": "claude-code",
+      "contentHash": "0ad30dc117a4ab72970b282bd864d77bf3cc5503100d22cd478acffad6419d95"
+    },
+    "alirezarezvani-marketing-strategy-pmm": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:09:27.041Z",
+      "platform": "claude-code"
+    },
+    "pm-skills-swot-analysis": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:09:33.251Z",
+      "platform": "claude-code",
+      "contentHash": "35b0bb0ac9f56d89979a78e664835d8954c20f4b98f849f26adbecd5254124d2"
+    },
+    "anthropic-docx": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:09:40.009Z",
+      "platform": "claude-code",
+      "contentHash": "8b75609b96299a3f6671bc7ae948800ba3d1d19961826566c4a310ec6a3f4a1c"
+    },
+    "humanizer": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:09:49.134Z",
+      "platform": "claude-code"
+    },
+    "skill-creator": {
+      "version": "2.0.0",
+      "installedAt": "2026-09-07T14:10:00.232Z",
+      "platform": "claude-code"
+    },
+    "preflight": {
+      "version": "2.0.0",
+      "installedAt": "2026-09-07T14:10:10.454Z",
+      "platform": "claude-code"
+    },
+    "gsap-skills-gsap-scrolltrigger": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T13:55:04.998Z",
+      "platform": "claude-code"
+    },
+    "gsap-skills-gsap-plugins": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:20:02.514Z",
+      "platform": "claude-code"
+    },
+    "openmontage-framer-motion": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:55.983Z",
+      "platform": "claude-code",
+      "contentHash": "7036597a5da4ef7af84a1087dbb4b243d9b76bf3f7a04dbc5d6f14539bfe9824"
+    },
+    "claudekit-threejs": {
+      "version": "2.0.0",
+      "installedAt": "2026-09-07T14:13:32.234Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-epic-design": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:18:08.105Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-landing": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T13:55:28.440Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-senior-architect": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:13:46.589Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-code-to-prd": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:14:22.861Z",
+      "platform": "claude-code"
+    },
+    "cleanup-sprint": {
+      "version": "3.0.1",
+      "installedAt": "2026-09-07T14:10:26.581Z",
+      "platform": "claude-code"
+    },
+    "workflow-builder": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:16:32.597Z",
+      "platform": "claude-code"
+    },
+    "save-tokens": {
+      "version": "3.0.1",
+      "installedAt": "2026-09-07T14:19:20.591Z",
+      "platform": "claude-code"
+    },
+    "adr": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:18:01.960Z",
+      "platform": "claude-code"
+    },
+    "pentest": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:18:20.550Z",
+      "platform": "claude-code"
+    },
+    "api-docs": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:18:27.358Z",
+      "platform": "claude-code"
+    },
+    "dark-mode": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:17:02.067Z",
+      "platform": "claude-code"
+    },
+    "design-system": {
+      "version": "2.0.1",
+      "installedAt": "2026-09-07T14:16:40.925Z",
+      "platform": "claude-code"
+    },
+    "claudekit-backend-development": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:10:35.671Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-seo-audit": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:11:01.266Z",
+      "platform": "claude-code"
+    },
+    "anthropic-webapp-testing": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:13:01.935Z",
+      "platform": "claude-code",
+      "contentHash": "830bd54146bc08d43e6fb986bd3a189490fb34c76109bc2d0bfa6a852e46ae53"
+    },
+    "ai-research-brainstorming-research-ideas": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:13:25.273Z",
+      "platform": "claude-code"
+    },
+    "mindrally-ui-design": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:14:08.469Z",
+      "platform": "claude-code"
+    },
+    "scientific-skills-market-research-reports": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:14:16.026Z",
+      "platform": "claude-code"
+    },
+    "mindrally-lua": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:14:29.993Z",
+      "platform": "claude-code"
+    },
+    "marketing-seo-page-metadata": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:15:16.960Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-finance-skills": {
+      "version": "2.9.0",
+      "installedAt": "2026-09-07T14:15:23.917Z",
+      "platform": "claude-code"
+    },
+    "marketing-seo-content-marketing": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:15:30.377Z",
+      "platform": "claude-code",
+      "contentHash": "471516726172bbdc76b8007e70e8a84e1a7300bdc0f2afc988dc8c3750130187"
+    },
+    "phaser-sprites-and-images": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:15:36.589Z",
+      "platform": "claude-code"
+    },
+    "ponytail-ponytail": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:15:43.597Z",
+      "platform": "claude-code",
+      "contentHash": "2a8d06b7a9bdc82f64aedf821b71f26afeaf6bc8cfa4295d9895f334053bc912"
+    },
+    "cybersecurity-skills-reverse-engineering-malware-with-ghidra": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:16:12.671Z",
+      "platform": "claude-code"
+    },
+    "phaser-v4-new-features": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:16:19.370Z",
+      "platform": "claude-code"
+    },
+    "research-skills-research-proposal": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:16:26.315Z",
+      "platform": "claude-code"
+    },
+    "phaser-tilemaps": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:16:47.173Z",
+      "platform": "claude-code"
+    },
+    "vedic-astrology": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:16:54.253Z",
+      "platform": "claude-code",
+      "contentHash": "33d63a12d80f6ba748acdc19bfc8ae49ab1fcd505bbcd565e880e75862c3e104"
+    },
+    "anthropic-internal-comms": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:17:08.448Z",
+      "platform": "claude-code",
+      "contentHash": "3efad62c3b61e8d4dc4d088c94d10da54585b847878aa61c721f3d3177f7fe06"
+    },
+    "alirezarezvani-marketing-skills": {
+      "version": "2.10.3",
+      "installedAt": "2026-09-07T14:17:15.382Z",
+      "platform": "claude-code"
+    },
+    "marketing-skills-image": {
+      "version": "1.0.2",
+      "installedAt": "2026-09-07T14:17:21.736Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-brand-guidelines": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:17:28.735Z",
+      "platform": "claude-code"
+    },
+    "callstack-github": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:17:35.116Z",
+      "platform": "claude-code",
+      "contentHash": "bb2d5d6003183666fdf3a378c8946fd1e7e20231a814ae9c7a32e1d08fc7a6d7"
+    },
+    "anthropic-xlsx": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:17:42.430Z",
+      "platform": "claude-code",
+      "contentHash": "1309dd193d1cbd2e165e5aa42d4c81b71588cae3be77764afd6d5d0e1f888cfc"
+    },
+    "phaser-loading-assets": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:17:48.840Z",
+      "platform": "claude-code"
+    },
+    "phaser-animations": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:17:55.284Z",
+      "platform": "claude-code"
+    },
+    "orca-stably-orca-cli": {
+      "version": "1.0.4",
+      "installedAt": "2026-09-07T14:18:14.969Z",
+      "platform": "claude-code"
+    },
+    "skillify": {
+      "version": "1.1.1",
+      "installedAt": "2026-09-07T14:18:33.164Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-prompt-engineer-toolkit": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:18:39.730Z",
+      "platform": "claude-code"
+    },
+    "phaser-graphics-and-shapes": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:18:46.381Z",
+      "platform": "claude-code"
+    },
+    "getting-started": {
+      "version": "1.0.1",
+      "installedAt": "2026-09-07T14:18:53.075Z",
+      "platform": "claude-code"
+    },
+    "claude-seo-seo-schema": {
+      "version": "1.0.4",
+      "installedAt": "2026-09-07T14:18:59.894Z",
+      "platform": "claude-code"
+    },
+    "pm-skills-grammar-check": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:06.527Z",
+      "platform": "claude-code",
+      "contentHash": "dc3f941557e04b37ade2147d143cb8a93fb71b63e40a335f634885c4ed3ff13a"
+    },
+    "blog-writer": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:13.717Z",
+      "platform": "claude-code"
+    },
+    "alirezarezvani-docker-development": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:27.085Z",
+      "platform": "claude-code"
+    },
+    "phaser-cameras": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:34.942Z",
+      "platform": "claude-code"
+    },
+    "qwen-code-codegraph": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:42.222Z",
+      "platform": "claude-code"
+    },
+    "phaser-v3-to-v4-migration": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:19:48.665Z",
+      "platform": "claude-code"
+    },
+    "vercel-agent-browser-agent-browser": {
+      "version": "1.0.4",
+      "installedAt": "2026-09-07T14:20:09.167Z",
+      "platform": "claude-code"
+    },
+    "anthropic-pdf": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:20:15.789Z",
+      "platform": "claude-code",
+      "contentHash": "7df6239766ef02149b0d5287783fc44d3aa02ad02ce3c95173092452e4a79a70"
+    },
+    "pm-skills-value-proposition": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:20:22.158Z",
+      "platform": "claude-code",
+      "contentHash": "0098f48a2f598bb26c15c51734aa86cc42fe4a0644c6921c752d6938e847be90"
+    },
+    "alirezarezvani-grill-me": {
+      "version": "1.0.0",
+      "installedAt": "2026-09-07T14:20:29.422Z",
+      "platform": "claude-code"
+    },
+    "seo": {
+      "version": "2.1.1",
+      "installedAt": "2026-09-07T14:20:36.141Z",
+      "platform": "claude-code"
+    },
+    "scientific-skills-pdf": {
+      "version": "1.0.3",
+      "installedAt": "2026-09-07T14:20:43.977Z",
+      "platform": "claude-code"
+    }
+  }
+}

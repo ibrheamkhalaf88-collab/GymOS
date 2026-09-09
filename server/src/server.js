@@ -145,6 +145,25 @@ app.use((_q, res, next) => {
 
 app.get("/api/health", (_q, r) => r.json({ ok: true, uptime: process.uptime() }));
 
+/* free 30-day trial (mirror Supabase Edge Function) */
+app.post("/api/trial", async (req, res, next) => {
+  try {
+    const ip = req.ip;
+    if (tooMany(ip)) return res.status(429).json({ error: "RATE_LIMITED", secs: Math.ceil(LOCK_MS / 1000) });
+    const devId = String(req.body?.deviceId || "").slice(0, 80);
+    const existing = await Code.findOne({ owner: devId, tier: "trial" });
+    if (existing) return res.status(409).json({ error: "ALREADY_USED" });
+    let code;
+    do { code = randomCode(); } while (await Code.exists({ code }));
+    const rec = await Code.create({
+      code, tier: "trial", days: 30, owner: devId,
+      used: true, usedAt: new Date(), usedDevice: devId, usedDeviceName: "trial",
+    });
+    const out = rec.toObject(); delete out._id; delete out.__v;
+    res.json({ ok: true, record: out, token: sign({ code: rec.code, deviceId: devId }) });
+  } catch (e) { next(e); }
+});
+
 /* ---------- Client auth ---------- */
 app.post("/api/auth/activate", async (req, res, next) => {
   try {

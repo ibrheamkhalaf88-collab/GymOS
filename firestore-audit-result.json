@@ -1,0 +1,48 @@
+{
+  "score": 4,
+  "summary": "Firestore rules are well-structured with strong validation, proper admin bootstrapping, and secure defaults. The main concern is the public read access on /codes/{codeId} which allows existence/enumeration checks on capability tokens. Otherwise, update bypasses are prevented, type safety and size limits are enforced, and gyms are properly locked behind authenticated API.",
+  "findings": [
+    {
+      "check": "The Update Bypass",
+      "severity": "minor",
+      "issue": "Create requires admin; update allows client activation (setting used=true, device info) and passHash after activation. No bypass found — a user cannot create then escalate. However, the activation flow allows ANY holder of the codeId to activate it (capability token model), which is by design but means possession == authorization.",
+      "recommendation": "Consider adding rate-limiting on code activation via Cloud Functions if abuse is a concern. Current rules are logically sound for the capability token model."
+    },
+    {
+      "check": "Authority Source",
+      "severity": "minor",
+      "issue": "isAdmin() correctly uses request.auth.token.email and email_verified from Firebase Auth (not user-provided). Update conditions reference resource.data (server state) for used/revoked checks. No sensitive field derives authority from request.resource.data.",
+      "recommendation": "No action needed. Authority sources are secure."
+    },
+    {
+      "check": "Business Logic vs. Rules",
+      "severity": "minor",
+      "issue": "Rules support the app flow: public code validation (get), one-time activation with device binding, password setup post-activation. Gyms correctly locked (if false) forcing API-layer auth. The wildcard deny-all catches future collections.",
+      "recommendation": "No action needed. Business logic is supported."
+    },
+    {
+      "check": "Storage Abuse",
+      "severity": "minor",
+      "issue": "Size limits enforced: usedDevice <= 100, usedDeviceName <= 100, passHash == 64 (SHA256 hex), passSalt == 32 (hex). No unbounded strings/arrays. Good DoS prevention.",
+      "recommendation": "No action needed. Size limits are appropriate."
+    },
+    {
+      "check": "Type Safety",
+      "severity": "minor",
+      "issue": "All updated fields checked with 'is string': usedDevice, usedDeviceName, passHash, passSalt. No numeric or timestamp fields in update paths. Type safety is complete for current schema.",
+      "recommendation": "If future fields add numbers/timestamps, add 'is int'/'is timestamp' checks."
+    },
+    {
+      "check": "Field-Level vs Identity-Level Security",
+      "severity": "moderate",
+      "issue": "Update rules use hasOnly() to restrict fields but lack an ownership check (resource.data.uid == request.auth.uid). This is intentional for the capability token model (codeId possession = auth). However, once a code is activated, ANYONE with the codeId can set passHash (no binding to activator). In a shared-device or leaked-code scenario, a second party could set the password.",
+      "recommendation": "Consider storing activator UID/device fingerprint on activation and requiring it for passHash update, or accept the capability token model as-is. Document this threat model clearly."
+    },
+    {
+      "check": "Admin Bootstrapping",
+      "severity": "minor",
+      "issue": "Hardcoded admin email 'ibrheamshady@gmail.com' with email_verified == true check. No mechanism for additional admins to self-grant. Secure for single-admin bootstrap.",
+      "recommendation": "No action needed. If multi-admin needed later, use a separate admins collection with admin-only write."
+    }
+  ]
+}

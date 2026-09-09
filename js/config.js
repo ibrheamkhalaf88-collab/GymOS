@@ -23,6 +23,8 @@ export const appConfig = {
 
   // 🗄️ Supabase Edge Function API — التشغيل السحابي (بدون فيزا)
   // مثال: "https://<project>.functions.supabase.co/gymos-api"
+  // اتركها فارغة لتفعيل DEMO MODE تلقائي
+  // عند النشر على GitHub Pages: ضع الرابط الفعلي هنا
   apiUrl: "https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api",
 
   language: "en",
