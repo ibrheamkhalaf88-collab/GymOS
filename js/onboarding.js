@@ -158,16 +158,12 @@ function finish() {
   location.replace(isActive ? "app.html" : "activate.html");
 }
 
-// Routing: returning users skip onboarding
+// Routing: returning users skip onboarding, go straight to login
 (function route() {
   const seen = localStorage.getItem(KEY_SEEN) === "1";
   if (seen) {
-    let target = "activate.html";
-    try {
-      const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-      if (lic && (lic.expiresAt === 0 || (lic.expiresAt && Date.now() < lic.expiresAt))) target = "app.html";
-    } catch {}
-    location.replace(target);
+    // Returning user — send to login page
+    location.replace("login.html");
     return;
   }
   render();

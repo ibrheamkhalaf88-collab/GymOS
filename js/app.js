@@ -73,11 +73,24 @@ function showUpdateOverlay(apkUrl) {
 }
 
 // ---------- Guards ----------
-// License check removed - site is now free
+// Auth check via Supabase — site is now free, login required only for sync
+import { supabase } from "./supabase-client.js";
 
-// Start multi-device sync only when cloud data + sync are enabled
-const _lic = license.get();
-if (_lic && _lic.data_enabled && _lic.sync_enabled) store.startSync();
+// Start multi-device sync only when Supabase session + sync are enabled
+// Wrapped in try/catch so a missing internet connection never blocks the app
+(async function initAuth() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session && session.user) {
+      localStorage.setItem('dp_user_email', session.user.email || '');
+      const meta = session.user.app_metadata || {};
+      if (meta.data_enabled && meta.sync_enabled) store.startSync();
+    }
+  } catch (e) {
+    // Offline or network error — app continues with local data
+    console.warn('[initAuth] skipped (no connection or auth error):', e?.message || e);
+  }
+})();
 
 // ---------- Helpers ----------
 const DAY = 86400000;

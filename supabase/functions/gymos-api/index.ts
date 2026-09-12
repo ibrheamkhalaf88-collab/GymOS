@@ -470,6 +470,60 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true }, 200, origin);
     }
 
+    /* admin: list users */
+    if (req.method === "GET" && path === "/api/users") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const { data: users, error } = await sb.auth.admin.listUsers();
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const mapped = (users || []).map(u => ({
+        id: u.id,
+        email: u.email,
+        created: u.created_at,
+        lastSignIn: u.last_sign_in_at,
+        status: u.app_metadata?.suspended ? "suspended" : "active",
+        role: u.role,
+      }));
+      return json(mapped, 200, origin);
+    }
+
+    /* admin: create user */
+    if (req.method === "POST" && path === "/api/users") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const { email, password, full_name } = body || {};
+      if (!email || !password) return json({ error: "MISSING_FIELDS" }, 400, origin);
+      const { data: newUser, error } = await sb.auth.admin.createUser({
+        email,
+        password,
+        user_metadata: { full_name: String(full_name || "").slice(0, 100) },
+      });
+      if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      return json({ id: newUser.id, email: newUser.email }, 201, origin);
+    }
+
+    /* admin: suspend/resume user */
+    if (req.method === "PATCH" && path.startsWith("/api/users/")) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const userId = path.split("/")[3];
+      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      const { data: existing } = await sb.auth.admin.getUserById(userId);
+      if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
+      const { suspend } = body || {};
+      const meta = { ...existing.app_metadata, suspended: !!suspend };
+      const { error } = await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
+      if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true, suspended: !!suspend }, 200, origin);
+    }
+
+    /* admin: delete user */
+    if (req.method === "DELETE" && path.startsWith("/api/users/")) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const userId = path.split("/")[3];
+      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      const { error } = await sb.auth.admin.deleteUser(userId);
+      if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true }, 200, origin);
+    }
+
     return json({ error: "NOT_FOUND" }, 404, origin);
   } catch (e) {
     console.error("[API error]", e);

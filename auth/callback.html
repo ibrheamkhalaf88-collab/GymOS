@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digital Pulse — Authentication</title>
+  <meta name="theme-color" content="#000000" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+  <style>
+    body { min-height: max(884px, 100dvh); background-color: #000; }
+    .cyber-grid {
+      background-image:
+        linear-gradient(to right, rgba(68, 73, 51, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+  </style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid items-center justify-center" style="color: #e2e4cf;">
+
+  <div class="w-full max-w-md p-8 text-center">
+    <div class="w-16 h-16 mx-auto mb-6 rounded-full border border-[#8e9379] flex items-center justify-center" style="background-color:#333627;">
+      <svg class="h-8 w-8 text-[#CCFF00]" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+      </svg>
+    </div>
+    <h2 class="font-headline text-xl uppercase tracking-widest mb-2">Signing you in…</h2>
+    <p class="text-sm text-muted mb-6">Redirecting to your dashboard.</p>
+    <div class="flex justify-center">
+      <div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  </div>
+
+  <!-- Handle the OAuth callback — runs immediately -->
+  <script type="module">
+    import { supabase } from '../js/supabase-client.js';
+
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const error = params.get('error');
+
+    if (error) {
+      document.querySelector('h2').textContent = 'Login failed';
+      document.querySelector('p').textContent = 'Please try again.';
+      return;
+    }
+
+    if (code) {
+      // Exchange the OAuth code for a session
+      const { error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error(sessionError);
+        document.querySelector('h2').textContent = 'Session error';
+        document.querySelector('p').textContent = 'Try logging in again.';
+        return;
+      }
+
+      // Success — redirect to the app
+      window.location.href = 'app.html';
+      return;
+    }
+
+    // Fallback: try to get any existing session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      window.location.href = 'app.html';
+    } else {
+      // No session — go back to login
+      window.location.href = 'login.html';
+    }
+  </script>
+</body>
+</html>

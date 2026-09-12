@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Digital Pulse — Create Account</title>
+  <meta name="description" content="Create a new Digital Pulse account" />
+  <meta name="theme-color" content="#000000" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { min-height: max(884px, 100dvh); }
+    .cyber-grid {
+      background-image:
+        linear-gradient(to right, rgba(68, 73, 51, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .neon-shadow { box-shadow: 0 0 12px rgba(195, 244, 0, 0.4); }
+  </style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+
+  <!-- HEADER -->
+  <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
+    <div class="flex flex-col items-center text-center">
+      <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Create Account</span>
+      <span class="arabic-text text-xs opacity-60" dir="rtl">إنشاء حساب جديد</span>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-grow flex items-center justify-center p-4 sm:p-8">
+    <div class="w-full max-w-md border border-[#444933] rounded-lg p-8 shadow-2xl relative overflow-hidden" style="background-color: rgb(0, 0, 0);">
+      
+      <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
+
+      <!-- Branding -->
+      <div class="flex flex-col items-center text-center mb-10">
+        <div class="w-16 h-16 rounded-full border border-[#8e9379] flex items-center justify-center mb-6" style="background-color:#333627;">
+          <svg class="h-8 w-8 text-[#CCFF00]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9 0c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm4.36-4.36c-.59 0-1.07.48-1.07 1.07 0 .59.48 1.07 1.07 1.07.59 0 1.07-.48 1.07-1.07 0-.59-.48-1.07-1.07-1.07zm0 3.18c-.59 0-1.07.48-1.07 1.07 0 .59.48 1.07 1.07 1.07.59 0 1.07-.48 1.07-1.07 0-.59-.48-1.07-1.07-1.07zm9.36 0c-.59 0-1.07.48-1.07 1.07 0 .59.48 1.07 1.07 1.07.59 0 1.07-.48 1.07-1.07 0-.59-.48-1.07-1.07-1.07z" />
+          </svg>
+        </div>
+        <div class="bilingual-block mb-4">
+          <h2 class="font-headline uppercase tracking-tighter">Join Digital Pulse</h2>
+          <h2 class="font-headline text-xl uppercase tracking-tighter arabic-text" dir="rtl" style="color:#c4c9ac;">انضم لـ Digital Pulse</h2>
+        </div>
+        <div class="bilingual-block max-w-sm" style="color:#c4c9ac;">
+          <p class="font-medium">Create your account in seconds — start for free.</p>
+          <p class="arabic-text mt-2" dir="rtl">أنشئ حسابك خلال ثوانٍ — ابدأ مجاناً.</p>
+        </div>
+      </div>
+
+      <!-- FORM -->
+      <form class="space-y-5" id="signupForm" autocomplete="off">
+        <!-- Name (optional) -->
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-2" style="color:#c4c9ac;">Full Name / الاسم الكامل (اختياري)</label>
+          <input id="name" type="text" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="Your Name or Gym Name" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-2" style="color:#c4c9ac;">Email / البريد الإلكتروني</label>
+          <input id="email" type="email" required class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="you@gym.com" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Password / كلمة السر</label>
+            <span class="text-xs text-[#CCFF00]">8+ chars</span>
+          </div>
+          <input id="password" type="password" required minlength="8" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="8+ characters" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Confirm -->
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-2" style="color:#c4c9ac;">Confirm Password / تأكيد كلمة السر</label>
+          <input id="confirm" type="password" required minlength="8" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="Repeat password" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);">
+          <div class="flex flex-col items-center">
+            <span>CREATE ACCOUNT</span>
+            <span class="text-xs opacity-80" dir="rtl">إنشاء حساب</span>
+          </div>
+          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+
+        <!-- Login link -->
+        <p class="text-center text-sm" style="color:#c7c6c6;">
+          Already have an account?
+          <a href="login.html" class="text-[#CCFF00] font-headline hover:underline ml-1">Sign In / تسجيل الدخول</a>
+        </p>
+
+        <!-- Message -->
+        <div class="h-6"><p id="signupMsg" class="text-sm text-center" style="color:#ff3366;"></p></div>
+      </form>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="flex justify-center items-center py-4 border-t border-[#444933]" style="background-color:#000;">
+    <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="js/supabase-client.js" type="module"></script>
+  <script src="js/signup.js" type="module"></script>
+</body>
+</html>

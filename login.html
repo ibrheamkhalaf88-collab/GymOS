@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Digital Pulse — Sign In</title>
+  <meta name="description" content="Sign in to your Digital Pulse account" />
+  <meta name="theme-color" content="#000000" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { min-height: max(884px, 100dvh); }
+    .cyber-grid {
+      background-image:
+        linear-gradient(to right, rgba(68, 73, 51, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.14); }
+    .neon-border { box-shadow: 0 0 15px rgba(204, 255, 0, 0.2); border: 1px solid rgba(204, 255, 0, 0.3); }
+    .digit-input {
+      width: 3rem; height: 4rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 2rem; font-weight: 700;
+      background-color: #000000;
+      border: 1px solid #333333;
+      color: #ccff00;
+      border-radius: 1rem;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .digit-input:focus {
+      outline: none;
+      border-color: #C3F400;
+      box-shadow: 0 0 8px rgba(195, 244, 0, 0.3);
+      background-color: #171717;
+    }
+    .digit-input.success {
+      background-color: #ccff00 !important; color: #000000 !important;
+      border-color: #ccff00 !important;
+      box-shadow: 0 0 15px rgba(204, 255, 0, 0.6);
+    }
+    .digit-input.error {
+      background-color: #ff3366 !important; color: #ffffff !important;
+      border-color: #ff3366 !important;
+      box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+    }
+  </style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+
+  <!-- HEADER -->
+  <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
+    <div class="flex flex-col items-center text-center">
+      <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Enter Your Credentials</span>
+      <span class="arabic-text text-xs opacity-60" dir="rtl">أدخل بياناتك الشخصية</span>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="flex-grow flex items-center justify-center p-4 sm:p-8">
+    <div class="w-full max-w-md border border-[#444933] rounded-lg p-8 shadow-2xl relative overflow-hidden" style="background-color: rgb(0, 0, 0);">
+      
+      <!-- Decorative accent -->
+      <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
+
+      <!-- Branding -->
+      <div class="flex flex-col items-center text-center mb-10">
+        <div class="w-16 h-16 rounded-full border border-[#8e9379] flex items-center justify-center mb-6" style="background-color:#333627;">
+          <img src="assets/img/commander-small.jpg" alt="Avatar" class="w-full h-full rounded-full object-cover border border-[#444933]" />
+        </div>
+        <div class="bilingual-block mb-4">
+          <h2 class="font-headline uppercase tracking-tighter">Welcome Back</h2>
+          <h2 class="font-headline text-xl uppercase tracking-tighter arabic-text" dir="rtl" style="color:#c4c9ac;">مرحباً بعودتك</h2>
+        </div>
+        <div class="bilingual-block max-w-sm" style="color:#c4c9ac;">
+          <p class="font-medium">Sign in with your email or Google account.</p>
+          <p class="arabic-text mt-2" dir="rtl">سجل دخولك عبر بريدك الإلكتروني أو بحساب جوجل.</p>
+        </div>
+      </div>
+
+      <!-- FORM -->
+      <form class="space-y-5" id="loginForm" autocomplete="off">
+        <!-- Email -->
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-2" style="color:#c4c9ac;">Email / البريد الإلكتروني</label>
+          <input id="email" type="email" required class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="you@gym.com" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Password -->
+        <div>
+          <div class="flex justify-between items-center mb-2">
+            <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Password / كلمة السر</label>
+            <a href="#" id="forgotLink" class="text-xs text-[#CCFF00] hover:underline">Forgot password?</a>
+          </div>
+          <input id="password" type="password" required minlength="8" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="8+ characters" style="color: #e2e4cf;" />
+        </div>
+
+        <!-- Submit -->
+        <button id="loginBtn" type="submit" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);">
+          <div class="flex flex-col items-center">
+            <span>SIGN IN</span>
+            <span class="text-xs opacity-80" dir="rtl">تسجيل الدخول</span>
+          </div>
+          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+
+        <!-- Divider -->
+        <div class="relative flex items-center my-2">
+          <div class="flex-1 h-px bg-[#333333]"></div>
+          <span class="px-4 text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">or continue with</span>
+          <div class="flex-1 h-px bg-[#333333]"></div>
+        </div>
+
+        <!-- Google Sign-In -->
+        <button id="googleBtn" type="button" class="w-full py-4 font-headline font-bold text-lg rounded-lg border border-[#CCFF00]/40 text-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-3">
+          <svg class="h-6 w-6" viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.82 14.97 2 12 2 7.7 2 3.99 4.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          <span class="ltr">Continue with Google</span>
+          <span class="font-arabic normal-case">متابعة بـ Google</span>
+        </button>
+
+        <!-- Sign Up Link -->
+        <p class="text-center text-sm" style="color:#c7c6c6;">
+          Don't have an account?
+          <a href="signup.html" class="text-[#CCFF00] font-headline hover:underline ml-1">Create Account / إنشاء حساب</a>
+        </p>
+
+        <!-- Message -->
+        <div class="h-6"><p id="loginMsg" class="text-sm text-center" style="color:#ff3366;"></p></div>
+      </form>
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="flex justify-center items-center py-4 border-t border-[#444933]" style="background-color:#000;">
+    <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script src="js/supabase-client.js" type="module"></script>
+  <script src="js/login.js" type="module"></script>
+</body>
+</html>
