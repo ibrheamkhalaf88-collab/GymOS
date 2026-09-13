@@ -47,8 +47,7 @@ async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean }> {
   };
 }
 const normCode = (raw: string) =>
-  String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
-    .replace(/^([A-Z0-9]{6})$/, "$1");
+  String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
 const randomCode = () =>
   "XXX-XXX".replace(/X/g, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]);
 
