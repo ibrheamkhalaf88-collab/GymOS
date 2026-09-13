@@ -107,14 +107,14 @@ form.addEventListener('submit', async (e) => {
     const subCheck = checkSubscription(result.user);
     if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
     storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); window.location.href = 'app.html'; return;
-  } catch (err) { console.log('Supabase failed, trying demo:', err.message); }
+  } catch (err) {  }
   // Demo fallback
   const result = await demoSignIn(email, password);
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
   const subCheck = checkSubscription(result.user);
   if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
   storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
-  console.log('Login OK (demo):', subCheck.reason); window.location.href = 'app.html';
+  window.location.href = 'app.html';
 });
 
 /* -------- Forgot password -------- */
@@ -160,3 +160,8 @@ googleBtn.addEventListener('click', async () => {
   }
   // Supabase redirects to redirectTo URL — the callback handles the rest
 });
+/* -------- Auto-redirect if session exists -------- */
+if (checkExistingSession()) {
+  // Auto-redirecting to app.html
+}
+

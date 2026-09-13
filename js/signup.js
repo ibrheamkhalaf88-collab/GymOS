@@ -1,14 +1,15 @@
 // ============================================================
-// signup.js — Sign-up logic (email/password)
+// signup.js — Sign-up logic with 2-week free trial
 // ============================================================
 import { supabase } from './supabase-client.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
+const btn  = $('#signupBtn');
 const form = $('#signupForm');
-const submitBtn = form.querySelector('button[type="submit"]');
 let loading = false;
 
+/* -------- helpers -------- */
 function setMsg(text, color = '#ff3366') {
   msg.textContent = text;
   msg.style.color = color;
@@ -16,71 +17,142 @@ function setMsg(text, color = '#ff3366') {
 
 async function setLoading(on) {
   loading = on;
-  submitBtn.disabled = on;
+  btn.disabled = on;
   if (on) {
-    submitBtn.innerHTML = `<div class="flex items-center gap-2">
+    btn.innerHTML = `<div class="flex items-center gap-2">
       <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="None"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
       </svg> Creating account...</div>`;
   } else {
-    submitBtn.innerHTML = `
+    btn.innerHTML = `
       <div class="flex flex-col items-center">
-        <span>CREATE ACCOUNT</span>
-        <span class="text-xs opacity-80" dir="rtl">إنشاء حساب</span>
+        <span>Create Account</span>
+        <span class="text-xs opacity-80" dir="rtl">إنشاء حساب جديد</span>
       </div>
       <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>`;
   }
 }
 
+// Demo mode: create user locally (when Supabase not connected)
+async function demoSignUp(email, password, name) {
+  const { demoUsersAll, demoUsersSave } = await import('./db.js');
+
+  // Check if email already exists
+  const existing = (await import('./db.js')).findDemoUser(email);
+  if (existing) {
+    return { ok: false, error: 'Account already exists with this email / حساب موجود مسبقاً' };
+  }
+
+  const now = Date.now();
+  const expiry = now + 14 * 86400000; // 2 weeks free trial
+
+  const newUser = {
+    id: 'U' + Date.now().toString(36).toUpperCase(),
+    email: email.toLowerCase(),
+    name: name || email.split('@')[0],
+    password: password,
+    status: 'active',
+    subscription: 'trial',
+    subStart: now,
+    subEnd: expiry,
+    subTier: 'free_trial',
+    createdAt: now,
+    lastLogin: null,
+  };
+
+  const list = demoUsersAll();
+  list.push(newUser);
+  demoUsersSave(list);
+
+  return { ok: true, user: newUser };
+}
+
+/* -------- Form submit -------- */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loading) return;
 
-  const name     = $('#name').value.trim();
-  const email    = $('#email').value.trim();
+  const email    = $('#email').value.trim().toLowerCase();
   const password = $('#password').value;
-  const confirm  = $('#confirm').value;
+  const name     = $('#name').value.trim() || email.split('@')[0];
 
-  if (!email || !password || !confirm) {
-    setMsg('All required fields must be filled / يجب تعبئة جميع الحقول المطلوبة');
+  // Validation
+  if (!email || !password) {
+    setMsg('Email and password are required / البريد وكلمة السر مطلوبة');
     return;
   }
-
-  if (password !== confirm) {
-    setMsg('Passwords do not match / كلمات السر غير متطابقة');
+  if (!email.includes('@')) {
+    setMsg('Invalid email / البريد غير صحيح');
     return;
   }
-
-  if (password.length < 8) {
-    setMsg('Password must be at least 8 characters / يجب أن تكون 8 أحرف على الأقل');
+  if (password.length < 7) {
+    setMsg('Password must be at least 7 characters / يجب أن تكون 7 أحرف على الأقل');
     return;
   }
 
   setLoading(true);
   setMsg('');
+  
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name: name || null,
+  // Try Supabase first
+  let result;
+  try {
+    const { error, data } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name,
+          subscription: 'trial',
+          subStart: Date.now(),
+          subEnd: Date.now() + 14 * 86400000,
+          subTier: 'free_trial',
+        },
       },
-    },
-  });
+    });
 
-  if (error) {
-    console.error('Signup error:', error);
-    if (error.message.toLowerCase().includes('already registered')) {
-      setMsg('An account with this email already exists — try signing in / حساب بهذا البريد مسجّل بالفعل');
+    if (error) throw error;
+
+    if (data.user) {
+      result = {
+        ok: true,
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          name: name,
+          status: 'active',
+          subscription: 'trial',
+          subStart: Date.now(),
+          subEnd: Date.now() + 14 * 86400000,
+          subTier: 'free_trial',
+        }
+      };
     } else {
-      setMsg(`Signup failed — ${error.message}`);
+      throw new Error('No user returned');
     }
-    setLoading(false);
-    return;
+  } catch (err) {
+    
+    result = await demoSignUp(email, password, name);
+    if (!result.ok) {
+      setMsg(result.error || 'Signup failed');
+      setLoading(false);
+      return;
+    }
   }
 
-  setMsg('✓ Account created — check your email to confirm / تم إنشاء الحساب — تفّقد بريدك لتأكيد الحساب', '#CCFF00');
+  // Success
+  // Signup OK - 2-week trial
+
+  // Store user for immediate login
+  localStorage.setItem('dp_current_user', JSON.stringify(result.user));
+  localStorage.setItem('dp_user_email', result.user.email);
+
+  // Auto-login after signup
+  setMsg('✓ Account created — signing you in / تم إنشاء حسابك — جاري الدخول', '#CCFF00');
   setLoading(false);
+
+  setTimeout(() => {
+    window.location.href = 'app.html';
+  }, 1500);
 });
