@@ -12,46 +12,102 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
     body { min-height: max(884px, 100dvh); }
+
+    /* Cyber grid background */
     .cyber-grid {
       background-image:
-        linear-gradient(to right, rgba(68, 73, 51, 0.1) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(68, 73, 51, 0.1) 1px, transparent 1px);
+        linear-gradient(to right, rgba(68, 73, 51, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.12) 1px, transparent 1px);
       background-size: 40px 40px;
     }
-    .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.14); }
+
+    /* Neon accent glow */
+    .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.12); }
     .neon-border { box-shadow: 0 0 15px rgba(204, 255, 0, 0.2); border: 1px solid rgba(204, 255, 0, 0.3); }
-    .digit-input {
-      width: 3rem; height: 4rem;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 2rem; font-weight: 700;
-      background-color: #000000;
-      border: 1px solid #333333;
-      color: #ccff00;
-      border-radius: 1rem;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-    .digit-input:focus {
-      outline: none;
-      border-color: #C3F400;
-      box-shadow: 0 0 8px rgba(195, 244, 0, 0.3);
+    .neon-shadow  { box-shadow: 0 0 20px rgba(204, 255, 0, 0.4); }
+
+    /* Form inputs — consistent across all auth pages */
+    .auth-input {
+      width: 100%;
       background-color: #171717;
+      border: 1px solid #333333;
+      color: #e2e4cf;
+      border-radius: 0.75rem;
+      padding: 1rem 1.125rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.0625rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      outline: none;
     }
-    .digit-input.success {
-      background-color: #ccff00 !important; color: #000000 !important;
-      border-color: #ccff00 !important;
-      box-shadow: 0 0 15px rgba(204, 255, 0, 0.6);
+    .auth-input::placeholder { color: #6b6f5a; opacity: 0.6; }
+    .auth-input:focus {
+      border-color: #C3F400;
+      box-shadow: 0 0 0 2px rgba(195, 244, 0, 0.12);
     }
-    .digit-input.error {
-      background-color: #ff3366 !important; color: #ffffff !important;
-      border-color: #ff3366 !important;
-      box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
+
+    /* Primary action button */
+    .auth-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background-color: #CCFF00;
+      color: #000000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .auth-btn:hover { background-color: #B8E600; transform: scale(1.01); }
+    .auth-btn:active { transform: scale(0.98); }
+    .auth-btn.loading { opacity: 0.85; cursor: wait; }
+
+    /* Secondary button (Google) */
+    .auth-alt-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background-color: transparent;
+      color: #CCFF00;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.0625rem;
+      font-weight: 600;
+      border: 1px solid rgba(204, 255, 0, 0.4);
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .auth-alt-btn:hover { background-color: rgba(204, 255, 0, 0.08); border-color: rgba(204, 255, 0, 0.7); }
+    .auth-alt-btn:active { transform: scale(0.98); }
+
+    /* Icons inside buttons */
+    .auth-btn svg, .auth-alt-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+
+    /* Responsive adjustments */
+    @media (min-width: 640px) {
+      .auth-card { max-width: 440px; }
+    }
+    @media (min-width: 768px) {
+      .auth-card { max-width: 480px; }
     }
   </style>
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
 
-  <!-- HEADER -->
+  <!-- HEADER (consistent on all auth pages) -->
   <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
     <div class="flex flex-col items-center text-center">
       <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Enter Your Credentials</span>
@@ -60,63 +116,76 @@
   </header>
 
   <!-- MAIN -->
-  <main class="flex-grow flex items-center justify-center p-4 sm:p-8">
-    <div class="w-full max-w-md border border-[#444933] rounded-lg p-8 shadow-2xl relative overflow-hidden" style="background-color: rgb(0, 0, 0);">
-      
-      <!-- Decorative accent -->
+  <main class="flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div class="auth-card w-full border border-[#444933] rounded-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden glow-volt" style="background-color: rgb(0, 0, 0);">
+
+      <!-- Decorative accent bar -->
       <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
 
-      <!-- Branding -->
-      <div class="flex flex-col items-center text-center mb-10">
-        <div class="w-16 h-16 rounded-full border border-[#8e9379] flex items-center justify-center mb-6" style="background-color:#333627;">
-          <img src="assets/img/commander-small.jpg" alt="Avatar" class="w-full h-full rounded-full object-cover border border-[#444933]" />
+      <!-- Branding block -->
+      <div class="flex flex-col items-center text-center mb-8">
+        <div class="w-14 h-14 rounded-full border-2 border-[#444933] flex items-center justify-center mb-5" style="background-color:#333627;">
+          <svg class="h-7 w-7 text-[#CCFF00]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L2 7l10 5 10-5-10-7zm0 9l2.5-1.25L12 7.5l-2.5 3.75L12 11zm0 2.5l-5-2.5-5 2.5V11l5 2.5 5-2.5v-1.5z"/>
+          </svg>
         </div>
-        <div class="bilingual-block mb-4">
-          <h2 class="font-headline uppercase tracking-tighter">Welcome Back</h2>
-          <h2 class="font-headline text-xl uppercase tracking-tighter arabic-text" dir="rtl" style="color:#c4c9ac;">مرحباً بعودتك</h2>
+        <div class="bilingual-block mb-3">
+          <h2 class="font-headline uppercase tracking-tighter text-2xl">Welcome Back</h2>
+          <h2 class="font-headline uppercase tracking-tighter arabic-text text-xl" dir="rtl" style="color:#c4c9ac;">مرحباً بعودتك</h2>
         </div>
-        <div class="bilingual-block max-w-sm" style="color:#c4c9ac;">
-          <p class="font-medium">Sign in with your email or Google account.</p>
-          <p class="arabic-text mt-2" dir="rtl">سجل دخولك عبر بريدك الإلكتروني أو بحساب جوجل.</p>
-        </div>
+        <p class="text-sm font-medium max-w-xs mx-auto" style="color:#c4c9ac;">
+          Sign in with your email or Google account.
+        </p>
+        <p class="arabic-text text-sm mt-1" dir="rtl" style="color:#c4c9ac;">سجل دخولك عبر بريدك الإلكتروني أو بحساب جوجل.</p>
       </div>
 
       <!-- FORM -->
-      <form class="space-y-5" id="loginForm" autocomplete="off">
+      <form class="space-y-4" id="loginForm" autocomplete="off" novalidate>
+
         <!-- Email -->
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-2" style="color:#c4c9ac;">Email / البريد الإلكتروني</label>
-          <input id="email" type="email" required class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="you@gym.com" style="color: #e2e4cf;" />
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-1.5" style="color:#c4c9ac;">
+            Email / البريد الإلكتروني
+          </label>
+          <input id="email" type="email" required autocomplete="email"
+            class="auth-input" placeholder="you@gym.com" />
         </div>
 
-        <!-- Password -->
+        <!-- Password with forgot link -->
         <div>
-          <div class="flex justify-between items-center mb-2">
-            <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Password / كلمة السر</label>
-            <a href="#" id="forgotLink" class="text-xs text-[#CCFF00] hover:underline">Forgot password?</a>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">
+              Password / كلمة السر
+            </label>
+            <a href="reset-password.html" id="forgotLink" class="text-xs text-[#CCFF00] hover:underline transition-colors">
+              Forgot password?
+            </a>
           </div>
-          <input id="password" type="password" required minlength="8" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="8+ characters" style="color: #e2e4cf;" />
+          <input id="password" type="password" required minlength="7" autocomplete="current-password"
+            class="auth-input" placeholder="7+ characters" />
         </div>
 
-        <!-- Submit -->
-        <button id="loginBtn" type="submit" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);">
-          <div class="flex flex-col items-center">
+        <!-- Submit button -->
+        <button id="loginBtn" type="submit" class="auth-btn">
+          <span class="flex flex-col items-center leading-none">
             <span>SIGN IN</span>
-            <span class="text-xs opacity-80" dir="rtl">تسجيل الدخول</span>
-          </div>
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            <span class="text-xs opacity-75 -mt-0.5" dir="rtl">تسجيل الدخول</span>
+          </span>
+          <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
         </button>
 
         <!-- Divider -->
-        <div class="relative flex items-center my-2">
+        <div class="relative flex items-center my-3">
           <div class="flex-1 h-px bg-[#333333]"></div>
-          <span class="px-4 text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">or continue with</span>
+          <span class="px-4 text-xs uppercase tracking-widest opacity-50" style="color:#c4c9ac;">or continue with</span>
           <div class="flex-1 h-px bg-[#333333]"></div>
         </div>
 
-        <!-- Google Sign-In -->
-        <button id="googleBtn" type="button" class="w-full py-4 font-headline font-bold text-lg rounded-lg border border-[#CCFF00]/40 text-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-3">
-          <svg class="h-6 w-6" viewBox="0 0 24 24">
+        <!-- Google button -->
+        <button id="googleBtn" type="button" class="auth-alt-btn">
+          <svg class="h-5 w-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
             <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
@@ -126,19 +195,23 @@
           <span class="font-arabic normal-case">متابعة بـ Google</span>
         </button>
 
-        <!-- Sign Up Link -->
-        <p class="text-center text-sm" style="color:#c7c6c6;">
+        <!-- Create account link (consistent) -->
+        <p class="text-center text-sm mt-2" style="color:#c7c6c6;">
           Don't have an account?
-          <a href="signup.html" class="text-[#CCFF00] font-headline hover:underline ml-1">Create Account / إنشاء حساب</a>
+          <a href="signup.html" class="text-[#CCFF00] font-headline hover:underline ml-1 transition-colors">
+            Create Account / إنشاء حساب
+          </a>
         </p>
 
-        <!-- Message -->
-        <div class="h-6"><p id="loginMsg" class="text-sm text-center" style="color:#ff3366;"></p></div>
+        <!-- Message area -->
+        <div class="h-6">
+          <p id="loginMsg" class="text-sm text-center" style="color:#ff3366;"></p>
+        </div>
       </form>
     </div>
   </main>
 
-  <!-- FOOTER -->
+  <!-- FOOTER (consistent) -->
   <footer class="flex justify-center items-center py-4 border-t border-[#444933]" style="background-color:#000;">
     <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
   </footer>
