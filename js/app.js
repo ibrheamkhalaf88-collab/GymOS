@@ -85,9 +85,36 @@ import { supabase } from "./supabase-client.js";
       localStorage.setItem('dp_user_email', session.user.email || '');
       const meta = session.user.app_metadata || {};
       if (meta.data_enabled && meta.sync_enabled) store.startSync();
+    } else {
+      // Check demo mode session
+      const demoUser = localStorage.getItem('dp_current_user');
+      if (demoUser) {
+        try {
+          const user = JSON.parse(demoUser);
+          localStorage.setItem('dp_user_email', user.email || '');
+          if (user.subscription === 'trial' && Date.now() > user.subEnd) {
+            localStorage.removeItem('dp_current_user');
+            localStorage.removeItem('dp_user_email');
+            window.location.href = 'login.html';
+            return;
+          }
+        } catch {}
+      }
     }
   } catch (e) {
-    // Offline or network error — app continues with local data
+    const demoUser = localStorage.getItem('dp_current_user');
+    if (demoUser) {
+      try {
+        const user = JSON.parse(demoUser);
+        localStorage.setItem('dp_user_email', user.email || '');
+        if (user.subscription === 'trial' && Date.now() > user.subEnd) {
+          localStorage.removeItem('dp_current_user');
+          localStorage.removeItem('dp_user_email');
+          window.location.href = 'login.html';
+          return;
+        }
+      } catch {}
+    }
     console.warn('[initAuth] skipped (no connection or auth error):', e?.message || e);
   }
 })();
