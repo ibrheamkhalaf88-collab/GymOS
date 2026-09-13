@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Digital Pulse — Admin Sign In</title>
+  <meta name="theme-color" content="#000000" />
+  <script src="vendor/tailwind.js"></script>
+  <script src="js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { min-height: max(884px, 100dvh); }
+    .cyber-grid {
+      background-image:
+        linear-gradient(to right, rgba(68, 73, 51, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.12) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.12); }
+
+    .auth-input {
+      width: 100%;
+      background-color: #171717;
+      border: 1px solid #333333;
+      color: #e2e4cf;
+      border-radius: 0.75rem;
+      padding: 0.875rem 1.125rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      outline: none;
+    }
+    .auth-input::placeholder { color: #6b6f5a; opacity: 0.6; }
+    .auth-input:focus {
+      border-color: #C3F400;
+      box-shadow: 0 0 0 2px rgba(195, 244, 0, 0.12);
+    }
+
+    .auth-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background-color: #CCFF00;
+      color: #000000;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .auth-btn:hover { background-color: #B8E600; transform: scale(1.01); }
+    .auth-btn:active { transform: scale(0.98); }
+    .auth-btn.loading { opacity: 0.85; cursor: wait; }
+    .auth-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+
+    @media (min-width: 640px) { .auth-card { max-width: 440px; } }
+    @media (min-width: 768px) { .auth-card { max-width: 480px; } }
+  </style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+
+  <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933]" style="background-color:#000;">
+    <div class="flex flex-col items-center text-center">
+      <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Admin Sign In</span>
+      <span class="arabic-text text-xs opacity-60" dir="rtl">تسجيل دخول المدير</span>
+    </div>
+  </header>
+
+  <main class="flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8">
+    <div class="auth-card w-full border border-[#444933] rounded-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden glow-volt" style="background-color: rgb(0, 0, 0);">
+
+      <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
+
+      <div class="flex flex-col items-center text-center mb-8">
+        <div class="w-14 h-14 rounded-full border-2 border-[#444933] flex items-center justify-center mb-5" style="background-color:#333627;">
+          <svg class="h-7 w-7 text-[#CCFF00]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15.5A2.5 2.5 0 1 0 9.5 12a.5.5 0 0 1 1 0v1.5zm3.5-7.5a.5.5 0 0 1 .5.5v4.695l-.62 3.414a2 2 0 0 1-1.88 1.106l-4.363-2.182a2 2 0 0 1-1.45-3.011l3.356-2.893.62-3.414a.5.5 0 0 1 .5-.5h4.5z"/>
+          </svg>
+        </div>
+        <div class="bilingual-block mb-3">
+          <h2 class="font-headline uppercase tracking-tighter text-2xl">Admin Access</h2>
+          <h2 class="font-headline uppercase tracking-tighter arabic-text text-xl" dir="rtl" style="color:#c4c9ac;">الوصول إلى لوحة المدير</h2>
+        </div>
+        <p class="text-sm font-medium max-w-xs mx-auto" style="color:#c4c9ac;">
+          Enter admin credentials to manage users and subscriptions.
+        </p>
+        <p class="arabic-text text-sm mt-1" dir="rtl" style="color:#c4c9ac;">أدخل بيانات المدير لإدارة المستخدمين والاشتراكات.</p>
+      </div>
+
+      <form id="adminLoginForm" class="space-y-4" autocomplete="off" novalidate>
+
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-1.5" style="color:#c4c9ac;">
+            Admin Email / بريد المدير
+          </label>
+          <input id="adminEmail" type="email" required autocomplete="email"
+            class="auth-input" placeholder="admin@gym.local" />
+        </div>
+
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-1.5" style="color:#c4c9ac;">
+            Admin Password / كلمة سر المدير
+          </label>
+          <input id="adminPassword" type="password" required minlength="7" autocomplete="current-password"
+            class="auth-input" placeholder="7+ characters" />
+        </div>
+
+        <button id="adminLoginBtn" type="submit" class="auth-btn">
+          <span class="flex flex-col items-center leading-none">
+            <span>Admin Sign In</span>
+            <span class="text-xs opacity-75 -mt-0.5" dir="rtl">تسجيل المدير</span>
+          </span>
+          <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+
+        <div id="adminLoginMsg" class="h-6"></div>
+      </form>
+
+      <p class="text-center text-xs mt-6 opacity-60" style="color:#c4c9ac;">
+        Demo credentials: <span class="text-[#CCFF00]">admin@gym.local</span> / <span class="text-[#CCFF00]">admin123</span>
+      </p>
+    </div>
+  </main>
+
+  <footer class="flex justify-center items-center py-4 border-t border-[#444933]" style="background-color:#000;">
+    <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
+  </footer>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const msg = $('#adminLoginMsg');
+    const btn = $('#adminLoginBtn');
+    const form = $('#adminLoginForm');
+    let loading = false;
+
+    function setMsg(text, color = '#ff3366') {
+      msg.innerHTML = `<p style="color:${color};font-size:13px">${text}</p>`;
+    }
+
+    async function setLoading(on) {
+      loading = on;
+      btn.disabled = on;
+      btn.innerHTML = on
+        ? `<div class="flex items-center gap-2">
+            <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg> Signing in...</div>`
+        : `<span class="flex flex-col items-center leading-none">
+            <span>Admin Sign In</span>
+            <span class="text-xs opacity-75 -mt-0.5" dir="rtl">تسجيل المدير</span>
+          </span>
+          <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 111.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>`;
+    }
+
+    // Demo admin credentials (when Supabase not connected)
+    const DEMO_EMAIL = 'admin@gym.local';
+    const DEMO_PASS  = 'admin123';
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (loading) return;
+
+      const email = $('#adminEmail').value.trim().toLowerCase();
+      const password = $('#adminPassword').value;
+
+      if (!email || !password) {
+        setMsg('All fields are required / جميع الحقول مطلوبة');
+        return;
+      }
+
+      setLoading(true);
+      setMsg('');
+
+      // Demo mode
+      if (email === DEMO_EMAIL && password === DEMO_PASS) {
+        sessionStorage.setItem('dp_admin_token', 'demo-admin-' + Date.now());
+        setMsg('✓ Admin authenticated — redirecting... / تم تسجيل دخول المدير', '#CCFF00');
+        setLoading(false);
+        setTimeout(() => { window.location.href = 'admin.html'; }, 800);
+        return;
+      }
+
+      // Try Supabase (if connected)
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        const user = data.user;
+        const isAdmin = user?.user_metadata?.role === 'admin' || user?.email === 'admin@gym.local';
+
+        if (!isAdmin) {
+          setMsg('Not an admin account / هذا ليس حساب مدير', '#ff3366');
+          setLoading(false);
+          return;
+        }
+
+        sessionStorage.setItem('dp_admin_token', data.session?.access_token || 'admin-jwt');
+        sessionStorage.setItem('dp_demo_admin', '0');
+        setMsg('✓ Admin authenticated — redirecting... / تم تسجيل دخول المدير', '#CCFF00');
+        setLoading(false);
+        setTimeout(() => { window.location.href = 'admin.html'; }, 800);
+      } catch (err) {
+        setMsg('Invalid admin email or password / البريد أو كلمة السر غير صحيحة', '#ff3366');
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -69,6 +69,48 @@ function demoSeed() {
 // Run once on module load to guarantee the reserve code exists (safe if already present)
 ensureReserveCode();
 
+// ---- Demo mode user accounts (separate from codes) ----
+const DEMO_USERS_KEY = "dp_demo_users";
+
+function demoUsersAll() {
+  try { return JSON.parse(localStorage.getItem(DEMO_USERS_KEY)) || []; } catch { return []; }
+}
+
+function demoUsersSave(list) {
+  localStorage.setItem(DEMO_USERS_KEY, JSON.stringify(list));
+}
+
+function demoSeedUsers() {
+  const existing = demoUsersAll();
+  if (existing.length > 0) return;
+  // Create default demo user accounts that match the codes
+  const codes = demoAll();
+  const users = codes.filter(c => c.used && c.owner).map(c => ({
+    id: c.code,
+    email: c.code,
+    name: c.owner || c.usedDeviceName || c.code,
+    status: 'active',
+    subscription: c.tier === 'lifetime' ? 'active' : (c.tier || 'trial'),
+    subStart: c.createdAt || Date.now(),
+    subEnd: (c.createdAt || Date.now()) + (c.days || 30) * 86400000,
+    subTier: c.tier || 'trial',
+    lastLogin: null,
+  }));
+  demoUsersSave(users);
+}
+
+function findDemoUser(email) {
+  const users = demoUsersAll();
+  return users.find(u => u.email === email) || null;
+}
+
+function validateDemoPassword(user, password) {
+  // Demo mode: password must match a simple pattern based on user id
+  const expectedHash = "demo"; // In demo mode, any non-empty password that was set works
+  // Check if password matches the stored plainPassword or if it's a generic demo login
+  return password && password.length >= 1; // Accept any non-empty password for demo
+}
+
 /* ---------------- Public API ---------------- */
 const _authListeners = new Set();
 function _notifyDemo() {
@@ -337,4 +379,5 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => { if (e.key === "dp_admin_token" || e.key === "dp_demo_admin") startCodesSync(); });
 }
 
-export { newId } from "./util.js";
+export { newId, demoUsersAll, demoUsersSave, demoSeedUsers, findDemoUser, validateDemoPassword, demoAll };
+

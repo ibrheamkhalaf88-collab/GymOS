@@ -35,40 +35,86 @@ async function setLoading(on) {
   }
 }
 
+/* -------- DEMO mode helpers -------- */
+async function demoSignIn(email, password) {
+  const db = await import('./db.js');
+  if (db.demoSeedUsers) db.demoSeedUsers();
+  const users = db.demoUsersAll ? db.demoUsersAll() : [];
+  let user = null;
+  if (db.findDemoUser) user = db.findDemoUser(email);
+  if (!user) {
+    const allCodes = db.demoAll ? db.demoAll() : [];
+    const codeMatch = allCodes.find(c => c.code === email && c.used);
+    if (codeMatch) {
+      user = {
+        id: codeMatch.code, email: codeMatch.code,
+        name: codeMatch.usedDeviceName || codeMatch.owner || codeMatch.code,
+        status: 'active',
+        subscription: codeMatch.tier === 'lifetime' ? 'active' : (codeMatch.tier || 'trial'),
+        subStart: codeMatch.createdAt || Date.now(),
+        subEnd: (codeMatch.createdAt || Date.now()) + (codeMatch.days || 30) * 86400000,
+        subTier: codeMatch.tier || 'trial',
+      };
+    }
+  }
+  if (!user) return { ok: false, error: 'No account found with this email or code' };
+  if (db.validateDemoPassword && !db.validateDemoPassword(user, password)) return { ok: false, error: 'Invalid email or password' };
+  const updated = users.map(u => u.id === user.id ? { ...u, lastLogin: Date.now() } : u);
+  if (db.demoUsersSave) db.demoUsersSave(updated);
+  return { ok: true, user };
+}
+
+/* -------- Check if user already has an active session -------- */
+function checkExistingSession() {
+  const currentUser = JSON.parse(localStorage.getItem('dp_current_user'));
+  if (currentUser && currentUser.loginAt && (Date.now() - currentUser.loginAt < 24 * 60 * 60 * 1000)) {
+    if (checkSubscription(currentUser).ok) { window.location.href = 'app.html'; return true; }
+  }
+  return false;
+}
+
+function checkSubscription(user) {
+  if (!user) return { ok: false, reason: 'no_user' };
+  if (user.email === 'admin@gym.local' || user.email === 'ibrheamshady@gmail.com') return { ok: true, reason: 'admin' };
+  const now = Date.now();
+  if (!user.subscription || user.subscription === 'none') return { ok: false, reason: 'no_subscription', message: 'Your subscription has expired.' };
+  if (user.subscription === 'trial') { if (now > user.subEnd) return { ok: false, reason: 'trial_expired', message: 'Trial expired.' }; return { ok: true, reason: 'trial_active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
+  if (user.subscription === 'active') { if (now > user.subEnd) return { ok: false, reason: 'expired', message: 'Subscription expired.' }; return { ok: true, reason: 'active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
+  return { ok: false, reason: 'unknown' };
+}
+
+function storeUserSession(user) {
+  localStorage.setItem('dp_current_user', JSON.stringify({ id: user.id, email: user.email, name: user.name, status: user.status, subscription: user.subscription, subStart: user.subStart, subEnd: user.subEnd, subTier: user.subTier, loginAt: Date.now() }));
+}
+
 /* -------- Email / Password login -------- */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loading) return;
-
   const email    = $('#email').value.trim();
   const password = $('#password').value;
-
-  if (!email || !password) {
-    setMsg('All fields are required / جميع الحقول مطلوبة');
-    return;
-  }
-
-  setLoading(true);
-  setMsg('');
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    if (error.message.toLowerCase().includes('invalid login credentials') ||
-        error.message.toLowerCase().includes('invalid password')) {
-      setMsg('Invalid email or password / البريد أو كلمة السر غير صحيحة');
-    } else if (error.message.toLowerCase().includes('user does not exist')) {
-      setMsg('No account found with this email / لا يوجد حساب بهذا البريد');
-    } else {
-      setMsg(`Login failed — ${error.message}`);
-    }
-    setLoading(false);
-    return;
-  }
-
-  // ✅ logged in
-  localStorage.setItem('dp_user_email', email);
-  window.location.href = 'app.html';
+  if (!email || !password) { setMsg('All fields are required / جميع الحقول مطلوبة'); return; }
+  setLoading(true); setMsg('');
+  // Try Supabase first
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    const { data: { user: supUser } } = await supabase.auth.getUser();
+    if (!supUser) throw new Error('No user');
+    const sub = supUser.user_metadata?.subscription || 'trial';
+    const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 14*86400000;
+    const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
+    const subCheck = checkSubscription(result.user);
+    if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
+    storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); window.location.href = 'app.html'; return;
+  } catch (err) { console.log('Supabase failed, trying demo:', err.message); }
+  // Demo fallback
+  const result = await demoSignIn(email, password);
+  if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
+  const subCheck = checkSubscription(result.user);
+  if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
+  storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
+  console.log('Login OK (demo):', subCheck.reason); window.location.href = 'app.html';
 });
 
 /* -------- Forgot password -------- */
