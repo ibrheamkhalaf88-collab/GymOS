@@ -1028,7 +1028,7 @@ function viewHardware() {
       <span class="material-symbols-outlined text-[20px]">download</span> EXPORT
     </button>`;
   $("#importBtn").onclick = importData;
-  $("#exportBtn2").onclick = exportData;
+  $("#exportBtn").onclick = exportData;
 }
 
 // Completes a repair: marks device + pushes its invoice to the Ledger as an expense
@@ -1053,15 +1053,6 @@ function markRepaired(d) {
   showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
 }
 
-function openDeviceModal() {
-  const t = i18n.t;
-  const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${t.addDevice}</h3>
-    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">إضافة جهاز للتصليح</p>
-    ${deviceFormHtml(null)}`);
-  readDeviceForm(mod, null, null);
-}
-
 function openDeviceDetail(id) {
   const t = i18n.t;
   const d = store.get("devices", id);
@@ -1081,14 +1072,8 @@ function openDeviceDetail(id) {
     <div class="flex gap-3">
       <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
       ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable" aria-label="Mark as repaired">✅ DONE تم</button>`
-                : `<button data-edit class="flex-1 py-3 rounded-xl border border-outline-variant font-bold uppercase text-sm pressable" aria-label="Edit device">${t.edit}</button>`}
+                : ``}
     </div>`);
-  const editBtn = mod.el.querySelector("[data-edit]");
-  if (editBtn) editBtn.onclick = () => {
-    mod.close();
-    const m2 = openModal(`<h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-5">${t.edit} — ${escapeHtml(d.name)}</h3>${deviceFormHtml(d)}`);
-    readDeviceForm(m2, d, id);
-  };
   const fixedBtn = mod.el.querySelector("[data-fixed]");
   if (fixedBtn) fixedBtn.onclick = () => { mod.close(); markRepaired(d); };
   mod.el.querySelector("[data-del]").onclick = async () => {
@@ -2021,6 +2006,7 @@ function codesDbMode() {
 
 async function listCodes() {
   const t = i18n.t;
+  const { codesDb } = await import("./db.js");
   const codes = await codesDb.list();
   const html = `
     <div class="bg-surface-container rounded-lg p-4 mb-6">
@@ -2038,6 +2024,7 @@ async function listCodes() {
 }
 
 async function showCodesTable() {
+  const { codesDb } = await import("./db.js");
   const codes = await codesDb.list();
   const html = `
     <div class="overflow-x-auto">
@@ -2114,6 +2101,7 @@ function addCode() {
     e.preventDefault();
     const fd = new FormData(e.target);
     try {
+      const { codesDb } = await import("./db.js");
       await codesDb.create({
         tier: fd.get("tier") || "monthly",
         days: Number(fd.get("days")) || 30,
