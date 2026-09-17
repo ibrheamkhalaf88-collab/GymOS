@@ -4,6 +4,7 @@
 // On success, stores admin JWT in sessionStorage for admin API calls.
 // ============================================================
 import { supabase } from './supabase-client.js';
+import { appConfig } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const form = $('#adminLoginForm');
@@ -53,7 +54,7 @@ form.addEventListener('submit', async (e) => {
   setMsg('');
 
   // Call the admin login endpoint directly
-  const url = 'https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api/api/admin/login';
+  const url = `${appConfig.apiUrl}/api/admin/login`;
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

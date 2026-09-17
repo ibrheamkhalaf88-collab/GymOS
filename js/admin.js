@@ -62,7 +62,7 @@ async function adminFetch(path, opts = {}) {
   let token = sessionStorage.getItem('dp_admin_token') || '';
   // Fallback: try to sign in as admin silently
   if (!token) {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabase?.auth.getSession?.() ?? { data: { session: null } };
     // If admin is logged in via the app, reuse that session
     if (session?.user?.email) {
       // Call the Edge Function with the user's session — but it checks admin=true JWT

@@ -2,6 +2,7 @@
 // signup.js — Sign-up logic with 2-week free trial
 // ============================================================
 import { supabase } from './supabase-client.js';
+import { validatePassword } from './validate.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
@@ -36,12 +37,17 @@ async function setLoading(on) {
 
 // Demo mode: create user locally (when Supabase not connected)
 async function demoSignUp(email, password, name) {
-  const { demoUsersAll, demoUsersSave } = await import('./db.js');
+  const { demoUsersAll, demoUsersSave, findDemoUser } = await import('./db.js');
 
   // Check if email already exists
-  const existing = (await import('./db.js')).findDemoUser(email);
+  const existing = findDemoUser(email);
   if (existing) {
     return { ok: false, error: 'Account already exists with this email / حساب موجود مسبقاً' };
+  }
+
+  // Validate password: must be 8+ chars with at least 1 letter + 1 digit
+  if (!validatePassword(password)) {
+    return { ok: false, error: 'Password must be 8+ chars with 1 letter + 1 digit / يجب أن تكون كلمة المرور 8 حروف على الأقل وتحتوي على رقم' };
   }
 
   const now = Date.now();
@@ -51,7 +57,8 @@ async function demoSignUp(email, password, name) {
     id: 'U' + Date.now().toString(36).toUpperCase(),
     email: email.toLowerCase(),
     name: name || email.split('@')[0],
-    password: password,
+    passHash: 'demo',
+    plainPassword: password,
     status: 'active',
     subscription: 'trial',
     subStart: now,
@@ -86,8 +93,8 @@ form.addEventListener('submit', async (e) => {
     setMsg('Invalid email / البريد غير صحيح');
     return;
   }
-  if (password.length < 7) {
-    setMsg('Password must be at least 7 characters / يجب أن تكون 7 أحرف على الأقل');
+  if (!validatePassword(password)) {
+    setMsg('Password must be 8+ chars with 1 letter + 1 digit / يجب أن تكون كلمة المرور 8 حروف على الأقل وتحتوي على رقم');
     return;
   }
 

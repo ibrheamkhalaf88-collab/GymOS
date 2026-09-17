@@ -129,8 +129,8 @@ async function askSetPassword(record) {
       <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔐 Set your website password</h3>
       <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تعيين كلمة سر حسابك على الموقع — تدخل بها لاحقاً من أي متصفح مع كودك</p>
       <form id="pwForm" class="flex flex-col gap-3">
-        <input name="p1" type="password" required minlength="4" placeholder="Password / كلمة السر" class="dp-field" dir="ltr"/>
-        <input name="p2" type="password" required minlength="4" placeholder="Repeat / تأكيد" class="dp-field" dir="ltr"/>
+        <input name="p1" type="password" required minlength="8" placeholder="Password / كلمة السر" class="dp-field" dir="ltr"/>
+        <input name="p2" type="password" required minlength="8" placeholder="Repeat / تأكيد" class="dp-field" dir="ltr"/>
         <p id="pwMsg" class="text-xs min-h-[1rem]" style="color:#ff3366"></p>
         <button type="submit" class="w-full py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">💾 Save & Continue / حفظ ومتابعة</button>
       </form>`);

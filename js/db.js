@@ -104,13 +104,6 @@ function findDemoUser(email) {
   return users.find(u => u.email === email) || null;
 }
 
-function validateDemoPassword(user, password) {
-  // Demo mode: password must match a simple pattern based on user id
-  const expectedHash = "demo"; // In demo mode, any non-empty password that was set works
-  // Check if password matches the stored plainPassword or if it's a generic demo login
-  return password && password.length >= 1; // Accept any non-empty password for demo
-}
-
 /* ---------------- Public API ---------------- */
 const _authListeners = new Set();
 function _notifyDemo() {
@@ -319,7 +312,7 @@ export const codesDb = {
     }
     const list = demoAll();
     const item = list.find((c) => c.code === id);
-    if (item) { item.passHash = "demo"; item.plainPassword = password; demoSave(list); } // demo-only convenience
+    if (item) { item.passHash = "demo"; demoSave(list); } // demo-only convenience
     return true;
   },
 
@@ -338,7 +331,7 @@ export const codesDb = {
     if (!chk.ok) return chk;
     const list = demoAll();
     const item = list.find((c) => c.code === id);
-    if (item) { item.passHash = "demo"; item.plainPassword = newPw; demoSave(list); }
+    if (item) { item.passHash = "demo"; demoSave(list); }
     return { ok: true };
   },
 
@@ -379,5 +372,5 @@ if (typeof window !== "undefined") {
   window.addEventListener("storage", (e) => { if (e.key === "dp_admin_token" || e.key === "dp_demo_admin") startCodesSync(); });
 }
 
-export { newId, demoUsersAll, demoUsersSave, demoSeedUsers, findDemoUser, validateDemoPassword, demoAll };
+export { demoUsersAll, demoUsersSave, demoSeedUsers, findDemoUser, demoAll };
 

@@ -34,12 +34,19 @@
   </div>
 
   <!-- Handle the OAuth callback — runs immediately -->
+  <script src="../vendor/supabase-js.js"></script>
   <script type="module">
     import { supabase } from '../js/supabase-client.js';
 
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
     const error = params.get('error');
+
+    if (!supabase) {
+      // Supabase not configured — nothing to authenticate against
+      window.location.href = 'login.html';
+      return;
+    }
 
     if (error) {
       document.querySelector('h2').textContent = 'Login failed';

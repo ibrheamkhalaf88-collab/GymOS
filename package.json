@@ -1,7 +1,8 @@
 {
     "name": "gymos",
     "version": "1.0.0",
-    "description": "Digital Pulse â€” Gym & Facility Management App (Web + Android)",
+    "type": "module",
+    "description": "Digital Pulse",
     "main": "index.html",
     "scripts": {
         "dev": "npx serve -l 5173 .",

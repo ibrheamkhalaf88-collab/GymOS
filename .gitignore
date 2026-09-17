@@ -66,3 +66,8 @@ CREDENTIALS.md
 deploy-fn-only.ps1
 probe.ps1
 run_deploy.ps1
+
+# Local diagnostic/debug scratch files
+_check*.cjs
+_check*.mjs
+_test*.cjs

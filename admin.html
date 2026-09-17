@@ -264,11 +264,12 @@
     </div>
   </div>
 
+  <script src="vendor/supabase-js.js"></script>
   <script type="module">
     // ============================================================
     // admin.js — Admin dashboard logic
     // ============================================================
-    import { supabase } from '../js/supabase-client.js';
+    import { supabase } from './js/supabase-client.js';
 
     const $ = (sel, root = document) => root.querySelector(sel);
 

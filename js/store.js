@@ -5,7 +5,7 @@
 // ============================================================
 
 const PREFIX = "dp_";
-const COLLECTIONS = ["members", "trainers", "ledger", "checkins", "notifications"];
+const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
 const TOMB_KEY = "dp_tombstones";
 
 const listeners = new Map();
@@ -416,15 +416,14 @@ export const store = {
 
     const thisMonthRev = revenueBetween(monthStart.getTime(), Infinity);
     const lastMonthRev = revenueBetween(lastMonthStart.getTime(), monthStart.getTime());
-    const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : 100;
+    const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : (thisMonthRev > 0 ? 100 : 0);
 
-    return {
-      activeMembers: members.filter((m) => m.status === "active").length,
-      endedToday: members.filter((m) => m.status === "expired" && m.expiresAt >= startOfToday.getTime()).length,
-      totalExpired: members.filter((m) => m.status === "expired").length,
-      maintAlerts: devices.filter((d) => d.maintenanceStatus !== "completed").length,
-      failedPayments: members.filter((m) => m.status === "expired").length,
-      revenueThisMonth: thisMonthRev,
+     return {
+       activeMembers: members.filter((m) => m.status === "active").length,
+       endedToday: members.filter((m) => m.status === "expired" && m.expiresAt >= startOfToday.getTime()).length,
+       totalExpired: members.filter((m) => m.status === "expired").length,
+       maintAlerts: devices.filter((d) => d.maintenanceStatus !== "completed").length,
+       revenueThisMonth: thisMonthRev,
       revenueGrowthPct: Math.round(growth * 10) / 10,
       totalRevenue: ledger.filter((l) => l.type === "revenue").reduce((s, l) => s + Number(l.amount || 0), 0),
       totalExpenses: ledger.filter((l) => l.type === "expense").reduce((s, l) => s + Number(l.amount || 0), 0),

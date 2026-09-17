@@ -1,13 +1,13 @@
 // ============================================================
 // login.js — Sign-in logic (email/password + Google OAuth)
 // ============================================================
-import { supabase } from './supabase-client.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
 const btn  = $('#loginBtn');
 const form = $('#loginForm');
 const googleBtn = $('#googleBtn');
+const forgotLink = $('#forgotLink');
 let loading = false;
 
 /* -------- helpers -------- */
@@ -38,27 +38,20 @@ async function setLoading(on) {
 /* -------- DEMO mode helpers -------- */
 async function demoSignIn(email, password) {
   const db = await import('./db.js');
-  if (db.demoSeedUsers) db.demoSeedUsers();
+  const { validatePassword } = await import('./validate.js');
+  if (!validatePassword(password)) return { ok: false, error: 'Invalid email or password' };
   const users = db.demoUsersAll ? db.demoUsersAll() : [];
   let user = null;
   if (db.findDemoUser) user = db.findDemoUser(email);
   if (!user) {
     const allCodes = db.demoAll ? db.demoAll() : [];
     const codeMatch = allCodes.find(c => c.code === email && c.used);
-    if (codeMatch) {
-      user = {
-        id: codeMatch.code, email: codeMatch.code,
-        name: codeMatch.usedDeviceName || codeMatch.owner || codeMatch.code,
-        status: 'active',
-        subscription: codeMatch.tier === 'lifetime' ? 'active' : (codeMatch.tier || 'trial'),
-        subStart: codeMatch.createdAt || Date.now(),
-        subEnd: (codeMatch.createdAt || Date.now()) + (codeMatch.days || 30) * 86400000,
-        subTier: codeMatch.tier || 'trial',
-      };
-    }
+    if (codeMatch) user = { id: codeMatch.code, email: codeMatch.code, name: codeMatch.usedDeviceName || codeMatch.owner || codeMatch.code, status: 'active', subscription: codeMatch.tier === 'lifetime' ? 'active' : (codeMatch.tier || 'trial'), subStart: codeMatch.createdAt || Date.now(), subEnd: (codeMatch.createdAt || Date.now()) + (codeMatch.days || 30) * 86400000, subTier: codeMatch.tier || 'trial' };
   }
   if (!user) return { ok: false, error: 'No account found with this email or code' };
-  if (db.validateDemoPassword && !db.validateDemoPassword(user, password)) return { ok: false, error: 'Invalid email or password' };
+  const demoUsers = db.demoUsersAll();
+  const du = demoUsers.find(u => u.id === user.id);
+  if (du && du.passHash === 'demo' && du.plainPassword !== password) return { ok: false, error: 'Invalid email or password' };
   const updated = users.map(u => u.id === user.id ? { ...u, lastLogin: Date.now() } : u);
   if (db.demoUsersSave) db.demoUsersSave(updated);
   return { ok: true, user };
@@ -94,9 +87,13 @@ form.addEventListener('submit', async (e) => {
   const email    = $('#email').value.trim();
   const password = $('#password').value;
   if (!email || !password) { setMsg('All fields are required / جميع الحقول مطلوبة'); return; }
+  const { validatePassword } = await import('./validate.js');
+  if (!validatePassword(password)) { setMsg('Weak password / كلمة سر ضعيفة (8+ chars, 1 letter + 1 digit)'); setLoading(false); return; }
   setLoading(true); setMsg('');
-  // Try Supabase first
-  try {
+  // Try Supabase first (lazy-loaded)
+  let supabase = null;
+  try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
+  if (supabase) try {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const { data: { user: supUser } } = await supabase.auth.getUser();
@@ -107,7 +104,7 @@ form.addEventListener('submit', async (e) => {
     const subCheck = checkSubscription(result.user);
     if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
     storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); window.location.href = 'app.html'; return;
-  } catch (err) {  }
+  } catch (err) { /* fall through to demo */ }
   // Demo fallback
   const result = await demoSignIn(email, password);
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
@@ -118,7 +115,7 @@ form.addEventListener('submit', async (e) => {
 });
 
 /* -------- Forgot password -------- */
-$('#forgotLink').addEventListener('click', async (e) => {
+forgotLink.addEventListener('click', async (e) => {
   e.preventDefault();
   const email = $('#email').value.trim();
   if (!email) {
@@ -127,10 +124,12 @@ $('#forgotLink').addEventListener('click', async (e) => {
   }
   setMsg('Reset link sent — check your inbox / تم إرسال رابط إعادة الضبط');
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password.html`,
-    });
-    if (error) throw error;
+    let supabase = null;
+    try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
+    if (supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password.html` });
+      if (error) throw error;
+    }
   } catch (err) {
     console.error(err);
     setMsg('Could not send reset email — try again later');
@@ -142,26 +141,21 @@ googleBtn.addEventListener('click', async () => {
   if (loading) return;
   setLoading(true);
   setMsg('');
-
+  let supabase = null;
+  try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
+  if (!supabase) { setMsg('No connection / لا اتصال'); setLoading(false); return; }
+  const origin = window.location.origin;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      prompt: 'select_account',
-      // 🔴 REPLACE with your real Supabase project URL before deploying
-      redirectTo: `${window.location.origin}/auth/callback`,
-    },
+    options: { prompt: 'select_account', redirectTo: `${origin}/auth/callback` },
   });
-
   if (error) {
     console.error('Google OAuth error:', error);
     setMsg('Could not start Google login — try again');
     setLoading(false);
     return;
   }
-  // Supabase redirects to redirectTo URL — the callback handles the rest
 });
-/* -------- Auto-redirect if session exists -------- */
-if (checkExistingSession()) {
-  // Auto-redirecting to app.html
-}
 
+/* -------- Auto-redirect if session exists -------- */
+if (checkExistingSession()) { /* auto-redirecting to app.html */ }
