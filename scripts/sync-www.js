@@ -1,7 +1,9 @@
 // Copies the web app into www/ for Capacitor (Android build)
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const DEST = path.join(ROOT, "www");
 
@@ -18,4 +20,4 @@ for (const f of FILES) fs.copyFileSync(path.join(ROOT, f), path.join(DEST, f));
 for (const d of DIRS) {
   fs.cpSync(path.join(ROOT, d), path.join(DEST, d), { recursive: true });
 }
-console.log("www/ ready for Capacitor ✓");
+console.log("www/ ready for Capacitor");
