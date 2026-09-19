@@ -43,7 +43,6 @@
     const error = params.get('error');
 
     if (!supabase) {
-      // Supabase not configured — nothing to authenticate against
       window.location.href = 'login.html';
       return;
     }
@@ -55,26 +54,21 @@
     }
 
     if (code) {
-      // Exchange the OAuth code for a session
-      const { error: sessionError } = await supabase.auth.getSession();
+      const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
       if (sessionError) {
-        console.error(sessionError);
+        console.error('OAuth exchange failed:', sessionError);
         document.querySelector('h2').textContent = 'Session error';
         document.querySelector('p').textContent = 'Try logging in again.';
         return;
       }
-
-      // Success — redirect to the app
       window.location.href = 'app.html';
       return;
     }
 
-    // Fallback: try to get any existing session
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
       window.location.href = 'app.html';
     } else {
-      // No session — go back to login
       window.location.href = 'login.html';
     }
   </script>
