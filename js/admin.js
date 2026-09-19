@@ -80,6 +80,51 @@ async function adminFetch(path, opts = {}) {
 }
 
 /* -------- Load users -------- */
+// Demo fallback: read local users when the API is unreachable (demo mode)
+async function demoUsers() {
+  const { demoUsersAll, demoUsersSave } = await import('./db.js');
+  const { demoAll } = await import('./db.js');
+  // Codes → user shape (so demo codes show up in admin)
+  const demoCodes = demoAll().filter(c => c.used);
+  return demoCodes.map(c => ({
+    id: c.code,
+    email: c.code,
+    full_name: c.owner || c.usedDeviceName || c.code,
+    status: c.revoked ? 'suspended' : 'active',
+    created: c.createdAt,
+    lastSignIn: c.usedAt,
+    subscription: c.tier === 'lifetime' ? 'active' : 'trial',
+    subEnd: (c.createdAt || Date.now()) + (c.days || 30) * 86400000,
+    _demo: true,
+  }));
+}
+
+// Demo-mode mutations on localStorage
+async function demoAction(userId, action) {
+  const { demoAll, demoSave } = await import('./db.js');
+  if (action === 'delete') {
+    demoSave(demoAll().filter(c => c.code !== userId));
+    return { ok: true };
+  }
+  const list = demoAll();
+  const item = list.find(c => c.code === userId);
+  if (!item) throw new Error('User not found');
+  if (action === 'suspend') {
+    item.revoked = true;
+  } else if (action === 'resume') {
+    item.revoked = false;
+  } else if (action === 'activate') {
+    // Activate: grant 30 more days from now
+    item.revoked = false;
+    item.used = true;
+    item.usedAt = Date.now();
+    item.days = 30;
+    item.tier = 'monthly';
+  }
+  demoSave(list);
+  return { ok: true };
+}
+
 async function loadUsers() {
   if (loading) return;
   loading = true;
@@ -91,12 +136,11 @@ async function loadUsers() {
     renderTable(users);
     renderStats(users);
   } catch (err) {
-    console.error(err);
-    table.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center">
-      <div class="text-[#ff3366] font-headline mb-2">⚠️ Failed to load users</div>
-      <p class="text-sm text-muted">${err.message}</p>
-      <p class="text-xs text-muted mt-2">Make sure you're logged in as admin and the Edge Function is deployed.</p>
-    </td></tr>`;
+    console.warn('Admin API unreachable — using demo mode', err);
+    const users = await demoUsers();
+    allUsers = users;
+    renderTable(users);
+    renderStats(users);
   } finally {
     loading = false;
   }
@@ -112,7 +156,11 @@ function renderTable(users) {
     u.email?.toLowerCase().includes(q) ||
     u.full_name?.toLowerCase().includes(q)
   );
-  if (status !== 'all') filtered = filtered.filter(u => u.status === status);
+  if (status === 'trial_expired') {
+    filtered = filtered.filter(u => u.subscription === 'trial' && u.subEnd && Date.now() > u.subEnd);
+  } else if (status !== 'all') {
+    filtered = filtered.filter(u => u.status === status);
+  }
 
   if (!filtered.length) {
     table.innerHTML = `<tr><td colspan="6" class="px-6 py-12 text-center text-muted">
@@ -122,10 +170,27 @@ function renderTable(users) {
   }
 
   table.innerHTML = filtered.map(u => {
-    const statusColor = u.status === 'active' ? '#CCFF00' : '#ff3366';
-    const statusBg = u.status === 'active' ? 'bg-[#CCFF00]/10 border-[#CCFF00]/30' : 'bg-[#ff3366]/10 border-[#ff3366]/30';
-    const statusText = u.status === 'active' ? 'ACTIVE' : 'SUSPENDED';
-    const statusAr = u.status === 'active' ? 'نشط' : 'معلق';
+    const trialExpired = u.subscription === 'trial' && u.subEnd && Date.now() > u.subEnd;
+    const isSuspended = u.status === 'suspended' || u.revoked;
+    const isPending = trialExpired && !isSuspended;
+
+    let statusColor, statusBg, statusText, statusAr;
+    if (isSuspended) {
+      statusColor = '#ff3366';
+      statusBg = 'bg-[#ff3366]/10 border-[#ff3366]/30';
+      statusText = 'SUSPENDED';
+      statusAr = 'معلق';
+    } else if (isPending) {
+      statusColor = '#ff9800';
+      statusBg = 'bg-[#ff9800]/10 border-[#ff9800]/30';
+      statusText = 'TRIAL ENDED';
+      statusAr = 'انتهى التجريبي';
+    } else {
+      statusColor = '#CCFF00';
+      statusBg = 'bg-[#CCFF00]/10 border-[#CCFF00]/30';
+      statusText = 'ACTIVE';
+      statusAr = 'نشط';
+    }
     return `
       <tr class="hover:bg-[#171717]/50 transition-colors">
         <td class="px-6 py-4 font-mono text-sm" style="color: #CCFF00;">${u.email || '—'}</td>
@@ -144,13 +209,17 @@ function renderTable(users) {
         <td class="px-6 py-4 text-sm text-muted font-mono whitespace-nowrap">${formatDate(u.lastSignIn)}</td>
         <td class="px-6 py-4 text-right">
           <div class="flex justify-end gap-2">
-            ${u.status === 'active' ? `
-              <button data-action="suspend" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
-                SUSPEND / تعليق
+            ${isSuspended ? `
+              <button data-action="activate" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+                ACTIVATE / تفعيل
+              </button>
+            ` : isPending ? `
+              <button data-action="activate" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+                ACTIVATE / تفعيل
               </button>
             ` : `
-              <button data-action="resume" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
-                RESUME / تفعيل
+              <button data-action="suspend" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+                SUSPEND / تعليق
               </button>
             `}
             <button data-action="delete" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
@@ -236,38 +305,42 @@ createForm.addEventListener('submit', async (e) => {
   }
 });
 
-/* -------- Row actions (suspend/resume/delete) -------- */
+/* -------- Row actions (suspend/resume/delete/activate) -------- */
 table.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
   const action = btn.dataset.action;
   const userId = btn.dataset.id;
+  const isDemo = allUsers.some(u => u.id === userId && u._demo);
 
-  if (!confirm(
-    action === 'suspend'
-      ? `Suspend this user? / تعليق هذا المستخدم؟`
-      : action === 'resume'
-        ? `Resume this user? / تفعيل هذا المستخدم؟`
-        : `Delete this user permanently? / حذف هذا المستخدم نهائياً؟`
-  )) return;
+  const confirmMsg = {
+    suspend:   `Suspend this user? / تعليق هذا المستخدم؟`,
+    resume:    `Activate this user? / تفعيل هذا المستخدم؟`,
+    activate:  `Activate this user permanently? / تفعيل هذا المستخدم نهائياً (30 يوم إضافية)؟`,
+    delete:    `Delete this user permanently? / حذف هذا المستخدم نهائياً؟`,
+  };
+
+  if (!confirm(confirmMsg[action])) return;
 
   try {
-    const data = await adminFetch(`/api/users/${userId}`, {
-      method: action === 'suspend' ? 'PATCH' : action === 'resume' ? 'PATCH' : 'DELETE',
-      body: action === 'suspend' || action === 'resume'
-        ? JSON.stringify({ suspend: action === 'suspend' })
-        : undefined,
-    });
-
-    if (action === 'delete') {
-      toast(`User deleted: ${userId.slice(-8)}`);
-      await loadUsers();
-      return;
+    if (isDemo) {
+      await demoAction(userId, action);
+    } else {
+      await adminFetch(`/api/users/${userId}`, {
+        method: action === 'suspend' || action === 'resume' ? 'PATCH' : 'DELETE',
+        body: action === 'suspend' || action === 'resume'
+          ? JSON.stringify({ suspend: action === 'suspend' })
+          : undefined,
+      });
     }
 
-    toast(data.suspended
-      ? `User suspended / تم تعليق المستخدم`
-      : `User resumed / تم تفعيل المستخدم`);
+    const msgs = {
+      suspend:  `User suspended / تم تعليق المستخدم`,
+      resume:   `User resumed / تم تفعيل المستخدم`,
+      activate: `User activated — 30 days granted / تم التفعيل — 30 يوم مجاني`,
+      delete:   `User deleted / تم حذف المستخدم`,
+    };
+    toast(msgs[action]);
     await loadUsers();
   } catch (err) {
     console.error(err);

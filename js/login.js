@@ -71,7 +71,7 @@ function checkSubscription(user) {
   if (user.email === 'admin@gym.local' || user.email === 'ibrheamshady@gmail.com') return { ok: true, reason: 'admin' };
   const now = Date.now();
   if (!user.subscription || user.subscription === 'none') return { ok: false, reason: 'no_subscription', message: 'Your subscription has expired.' };
-  if (user.subscription === 'trial') { if (now > user.subEnd) return { ok: false, reason: 'trial_expired', message: 'Trial expired.' }; return { ok: true, reason: 'trial_active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
+  if (user.subscription === 'trial') { if (now > user.subEnd) return { ok: false, reason: 'trial_expired', message: 'Free trial ended — waiting for admin activation / انتهى التجريبي — ينتظر تفعيل الأدمن' }; return { ok: true, reason: 'trial_active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
   if (user.subscription === 'active') { if (now > user.subEnd) return { ok: false, reason: 'expired', message: 'Subscription expired.' }; return { ok: true, reason: 'active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
   return { ok: false, reason: 'unknown' };
 }

@@ -51,7 +51,7 @@ async function demoSignUp(email, password, name) {
   }
 
   const now = Date.now();
-  const expiry = now + 14 * 86400000; // 2 weeks free trial
+  const expiry = now + 30 * 86400000; // 30-day free trial (admin approves after)
 
   const newUser = {
     id: 'U' + Date.now().toString(36).toUpperCase(),
@@ -113,7 +113,7 @@ form.addEventListener('submit', async (e) => {
           name: name,
           subscription: 'trial',
           subStart: Date.now(),
-          subEnd: Date.now() + 14 * 86400000,
+          subEnd: Date.now() + 30 * 86400000,
           subTier: 'free_trial',
         },
       },
@@ -131,7 +131,7 @@ form.addEventListener('submit', async (e) => {
           status: 'active',
           subscription: 'trial',
           subStart: Date.now(),
-          subEnd: Date.now() + 14 * 86400000,
+          subEnd: Date.now() + 30 * 86400000,
           subTier: 'free_trial',
         }
       };
@@ -149,14 +149,14 @@ form.addEventListener('submit', async (e) => {
   }
 
   // Success
-  // Signup OK - 2-week trial
+  // Signup OK — 30-day free trial, then admin approves
 
   // Store user for immediate login
   localStorage.setItem('dp_current_user', JSON.stringify(result.user));
   localStorage.setItem('dp_user_email', result.user.email);
 
   // Auto-login after signup
-  setMsg('✓ Account created — signing you in / تم إنشاء حسابك — جاري الدخول', '#CCFF00');
+  setMsg('✓ Account created — 30 days free / أنشأت حسابك — لديك 30 يوم مجاني ثم يفعّل الأدمن', '#CCFF00');
   setLoading(false);
 
   setTimeout(() => {
