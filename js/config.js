@@ -21,10 +21,9 @@ export const appConfig = {
   // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر) — تم توليدها تلقائياً، غيّرها بعد أول دخول
   demoAdminPassword: "E20062006kh@",
 
-  // 🗄️ Supabase Edge Function API — التشغيل السحابي (بدون فيزا)
-  // مثال: "https://<project>.functions.supabase.co/gymos-api"
-  // اتركها فارغة لتفعيل DEMO MODE تلقائي
-  // عند النشر على GitHub Pages: ضع الرابط الفعلي هنا
+  // 🗄️ Supabase — Authentication + Edge Functions
+  supabaseUrl: "https://mwfbgucayjgbbvcyelbo.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13ZmJndWNheWpnYmJ2Y3llbGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDQwMjEsImV4cCI6MjEwMzMyMDAyMX0.FP2qGp9pNhnC17xhBLN_81Pz0Lg1PS4B04VRrd7M9hY",
   apiUrl: "https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api",
 
   language: "en",
