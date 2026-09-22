@@ -474,7 +474,6 @@ let rosterQuery = "";
 
 function viewRoster() {
   const nowM = new Date(); nowM.setDate(1); nowM.setHours(0, 0, 0, 0);
-  const dueTrainers = store.all("trainers").filter((t) => !trainerStatus(t).active && !trainerStatus(t).ended).length;
 
   screen.innerHTML = `
     <!-- Search & Filters (all screens) -->
@@ -1026,9 +1025,42 @@ function viewHardware() {
     </button>
     <button id="exportBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
       <span class="material-symbols-outlined text-[20px]">download</span> EXPORT
-    </button>`;
+    </button>
+
+    <!-- device list -->
+    <div class="bg-surface cyber-border rounded-xl p-4 fade-up">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-headline font-bold uppercase tracking-tight">Devices / الأجهزة</h2>
+        <span class="text-[10px] uppercase tracking-widest text-muted font-headline">${pending.length} in repair / قيد التصليح</span>
+      </div>
+      ${devices.length ? `
+        <div class="flex flex-col gap-2">
+          ${devices.map((d) => `
+            <div class="flex items-center justify-between gap-3 border border-outline-variant rounded-lg px-4 py-3">
+              <div class="min-w-0">
+                <p class="font-headline font-bold truncate">${escapeHtml(d.name)}</p>
+                <p class="text-xs text-muted font-mono" dir="ltr">${fmt.money(Number(d.cost) || 0)}</p>
+              </div>
+              ${d.maintenanceStatus === "completed"
+                ? `<span class="text-[10px] font-headline uppercase tracking-widest text-primary whitespace-nowrap">✓ Repaired / تم</span>`
+                : `<button data-done="${d.id}" class="px-3 py-1.5 rounded-lg bg-primary-fixed text-black font-headline font-bold uppercase text-[10px] tracking-widest neon-shadow pressable whitespace-nowrap">DONE / تم</button>`}
+            </div>`).join("")}
+        </div>` : `<p class="text-center text-muted py-6">No devices yet / لا توجد أجهزة</p>`}
+    </div>`;
   $("#importBtn").onclick = importData;
   $("#exportBtn").onclick = exportData;
+  screen.querySelectorAll("[data-done]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const d = store.get("devices", btn.dataset.done);
+      if (!d) return;
+      const ok = await confirmDialog({
+        titleEn: "Mark as repaired?",
+        titleAr: "تأكيد إنهاء التصليح — تُخصم الفاتورة من المالية",
+        confirmText: "DONE",
+      });
+      if (ok) markRepaired(d);
+    });
+  });
 }
 
 // Completes a repair: marks device + pushes its invoice to the Ledger as an expense
@@ -1051,36 +1083,6 @@ function markRepaired(d) {
     ...(ledgerId ? { ledgerId } : {}),
   });
   showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
-}
-
-function openDeviceDetail(id) {
-  const t = i18n.t;
-  const d = store.get("devices", id);
-  const isDone = d.maintenanceStatus === "completed";
-  const mod = openModal(`
-    <div class="flex justify-between items-start mb-5">
-      <div>
-        <h3 class="font-headline font-bold uppercase text-lg">${escapeHtml(d.name)}</h3>
-        <p class="text-sm ${isDone ? "text-primary" : "text-alert"}">${isDone ? "Repaired / تم التصليح" : "Under repair / قيد التصليح"}</p>
-      </div>
-      <span class="material-symbols-outlined ${isDone ? "text-primary" : "text-alert"} text-3xl">${isDone ? "check_circle" : "build"}</span>
-    </div>
-    <div class="grid grid-cols-2 gap-3 text-sm mb-5">
-      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">Repair price / سعر التصليح</p><p class="font-headline" dir="ltr">${fmt.money(d.cost)}</p></div>
-      <div class="bg-surface-container rounded-xl p-3"><p class="text-[10px] uppercase tracking-widest text-muted mb-1">${isDone ? "Deducted / خُصمت من الأرباح" : "Waiting / بالانتظار"}</p><p class="font-headline">${isDone ? "✓ Ledger" : "—"}</p></div>
-    </div>
-    <div class="flex gap-3">
-      <button data-del class="flex-1 py-3 rounded-xl border border-alert/40 text-alert font-bold uppercase text-sm pressable">${t.delete}</button>
-      ${!isDone ? `<button data-fixed class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm neon-shadow pressable" aria-label="Mark as repaired">✅ DONE تم</button>`
-                : ``}
-    </div>`);
-  const fixedBtn = mod.el.querySelector("[data-fixed]");
-  if (fixedBtn) fixedBtn.onclick = () => { mod.close(); markRepaired(d); };
-  mod.el.querySelector("[data-del]").onclick = async () => {
-    mod.close();
-    const ok = await confirmDialog({ titleEn: t.confirmDelete, titleAr: "سيتم حذف الجهاز نهائياً", confirmText: "Delete", danger: true });
-    if (ok) { store.remove("devices", id); showToast("Deleted / تم الحذف"); }
-  };
 }
 
 /* ============================================================
@@ -1213,9 +1215,8 @@ function payTrainer(t, { silent = false } = {}) {
     return;
   }
   const amount = Number(t.salary || 0);
-  let ledgerId = null;
   if (amount > 0) {
-    const tx = store.insert("ledger", {
+    store.insert("ledger", {
       type: "expense",
       amount,
       description: `Salary: ${t.name} / راتب: ${t.name}`,
@@ -1223,7 +1224,6 @@ function payTrainer(t, { silent = false } = {}) {
       trainerId: t.id,
       date: Date.now(),
     });
-    ledgerId = tx.id;
   }
   store.update("trainers", t.id, { lastPaidAt: Date.now() });
   if (!silent) showToast(`🔁 Renewed ${t.name} — ${fmt.money(amount)} deducted to Ledger / تم تجديد الراتب وخصمه بالمالية`);
@@ -1953,7 +1953,7 @@ function openChangePassword() {
       }
       mod.close();
       showToast("🔐 Password changed / تم تغيير كلمة السر");
-    } catch (err) {
+    } catch {
       msgEl.textContent = "Connection error / خطأ بالاتصال";
     }
   });
@@ -2002,117 +2002,6 @@ function importData(e) {
 
 function codesDbMode() {
   return localStorage.getItem("dp_license_mode") === "online";
-}
-
-async function listCodes() {
-  const t = i18n.t;
-  const { codesDb } = await import("./db.js");
-  const codes = await codesDb.list();
-  const html = `
-    <div class="bg-surface-container rounded-lg p-4 mb-6">
-      <h3 class="font-headline text-lg font-bold uppercase tracking-tight mb-4">${t.codesManagement}</h3>
-      <div class="grid grid-cols-2 gap-4">
-        ${codes.length ? codes.map(c => `
-          <div class="bg-surface p-3 rounded-lg border border-outline-variant hover:border-primary transition-colors">
-            <p class="font-bold text-primary truncate" style="max-width:200px;direction:ltr">${escapeHtml(c.code || "—")}</p>
-            <p class="text-sm text-muted direction:rtl">${escapeHtml(c.owner || "—")}</p>
-            <p class="text-xs text-muted">${c.used ? "Used" : "Available"}</p>
-          </div>`).join("") : `<p class="text-center text-muted py-8">لا توجد أكواد بعد / No codes yet</p>`}
-      </div>
-    </div>`;
-  showModal(html || "");
-}
-
-async function showCodesTable() {
-  const { codesDb } = await import("./db.js");
-  const codes = await codesDb.list();
-  const html = `
-    <div class="overflow-x-auto">
-      <table class="w-full text-left whitespace-nowrap">
-        <thead class="bg-surface border-b border-outline-variant">
-          <tr>
-            <th class="p-4 font-label tracking-widest text-muted uppercase">كود / Code</th>
-            <th class="p-4 font-label tracking-widest text-muted uppercase">الباقية / Tier</th>
-            <th class="p-4 font-label tracking-widest text-muted uppercase">المالك / Owner</th>
-            <th class="p-4 font-label tracking-widest text-muted uppercase">الحالة / Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${codes.length ? codes.map(c => `
-            <tr class="border-b border-outline-variant/50">
-              <td class="p-4 font-bold truncate" style="max-width:200px;direction:ltr">${escapeHtml(c.code || "—")}</td>
-              <td class="p-4">${escapeHtml(c.tier || "—")}</td>
-              <td class="p-4">${escapeHtml(c.owner || "—")}</td>
-              <td class="p-4 ${c.used ? "text-alert" : "text-primary"}">
-                ${c.used ? "🟡 Used" : "🟢 Available"}
-              </td>
-            </tr>`).join("") : `<tr><td class="p-12 text-center text-muted">لا توجد أكواد</td></tr>`}
-        </tbody>
-      </table>
-    </div>`;
-  showModal(html);
-}
-
-function showModal(html) {
-  const mod = openModal(`
-    <div class="p-6">
-      <button class="absolute top-2 right-2 text-muted hover:text-primary transition-colors" onclick="this.closest('.modal').remove()">✕</button>
-      ${html}
-    </div>`);
-  setTimeout(() => mod.el.querySelectorAll('.material-symbols-outlined').forEach(icon => {
-    icon.style.fontVariationSettings = "'FILL' 1";
-  }), 100);
-}
-
-function addCode() {
-  const t = i18n.t;
-  const mod = openModal(`
-    <div class="p-6">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-4">${t.addCode || "Add Code"}</h3>
-      <form id="codeForm" class="flex flex-col gap-4">
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Tier</label>
-            <select name="tier" class="dp-field mt-1">
-              <option value="monthly">Monthly</option>
-              <option value="yearly">Yearly</option>
-              <option value="lifetime">Lifetime</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days</label>
-            <input name="days" type="number" min="1" step="1" value="30" class="dp-field mt-1" />
-          </div>
-        </div>
-        <div>
-          <label class="text-[10px] uppercase tracking-widest text-muted font-headline">Owner</label>
-          <input name="owner" type="text" class="dp-field mt-1" placeholder="Pulse Gym" />
-        </div>
-        <div class="flex gap-3 pt-2">
-          <button type="button" class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm cancel-code pressable">${t.cancel}</button>
-          <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase tracking-widest text-sm neon-shadow hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2 save-code">
-            <span class="material-symbols-outlined">save</span> ${t.save}
-          </button>
-        </div>
-      </form>
-    </div>`);
-  mod.el.querySelector(".cancel-code").onclick = mod.close;
-  $("#codeForm", mod.el).addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    try {
-      const { codesDb } = await import("./db.js");
-      await codesDb.create({
-        tier: fd.get("tier") || "monthly",
-        days: Number(fd.get("days")) || 30,
-        owner: fd.get("owner").trim() || ""
-      });
-      showToast("Code added / تم إضافة الكود");
-      mod.close();
-    } catch (err) {
-      showToast(err.message || "Error", "err");
-    }
-  });
 }
 
 // ---------- Boot ----------

@@ -151,7 +151,7 @@ async function askSetPassword(record) {
   });
 }
 
-async function restoreCloudData(code) {
+async function restoreCloudData(_code) {
   if (!isOnline) return;
   try {
     await store.syncNow();

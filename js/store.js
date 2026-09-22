@@ -41,7 +41,7 @@ function cloudDump() {
     if (c === "checkins" || c === "notifications") return; // logs stay local-only
     const list = read(c);
     if (c === "members") {
-      dump[c] = list.map(({ photo, ...m }) => m); // drop heavy base64 photos
+      dump[c] = list.map(({ photo: _photo, ...m }) => m); // drop heavy base64 photos
     } else {
       dump[c] = list;
     }

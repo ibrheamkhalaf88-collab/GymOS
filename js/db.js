@@ -335,7 +335,7 @@ export const codesDb = {
     return { ok: true };
   },
 
-  async loadGym(code) {
+  async loadGym(_code) {
     if (!onlineMode()) return null;
     try {
       const g = await api("/api/gym", { auth: true });

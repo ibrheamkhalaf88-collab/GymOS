@@ -3,7 +3,6 @@
 // Admins log in with ADMIN_EMAIL / ADMIN_PASSWORD (same as Edge Function).
 // On success, stores admin JWT in sessionStorage for admin API calls.
 // ============================================================
-import { supabase } from './supabase-client.js';
 import { appConfig } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);

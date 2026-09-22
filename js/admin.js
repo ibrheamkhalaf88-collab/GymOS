@@ -52,7 +52,7 @@ function toast(msg, type = 'ok') {
   el.className = `p-4 rounded-lg border ${type === 'err' ? 'border-[#ff3366] bg-[#ff3366]/10' : 'border-[#CCFF00] bg-[#CCFF00]/10'} text-sm font-headline tracking-widest`;
   el.style.color = type === 'err' ? '#ff3366' : '#CCFF00';
   el.innerHTML = `${type === 'err' ? '⚠️ ' : '✅ '}${msg}`;
-  toast.appendChild(el);
+  root.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 2500);
 }
 
@@ -82,7 +82,6 @@ async function adminFetch(path, opts = {}) {
 /* -------- Load users -------- */
 // Demo fallback: read local users when the API is unreachable (demo mode)
 async function demoUsers() {
-  const { demoUsersAll, demoUsersSave } = await import('./db.js');
   const { demoAll } = await import('./db.js');
   // Codes → user shape (so demo codes show up in admin)
   const demoCodes = demoAll().filter(c => c.used);
