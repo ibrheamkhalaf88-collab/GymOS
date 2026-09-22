@@ -8,6 +8,7 @@ const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
 const btn  = $('#signupBtn');
 const form = $('#signupForm');
+const googleBtn = $('#googleBtn');
 let loading = false;
 
 /* -------- helpers -------- */
@@ -162,4 +163,22 @@ form.addEventListener('submit', async (e) => {
   setTimeout(() => {
     window.location.href = 'app.html';
   }, 1500);
+});
+
+/* -------- Google OAuth (signup = sign-in or create new) -------- */
+googleBtn.addEventListener('click', async () => {
+  if (loading) return;
+  if (!supabase) { setMsg('No connection / لا اتصال'); return; }
+  const origin = window.location.origin;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      prompt: 'select_account',
+      redirectTo: `${origin}/auth/callback?intent=signup`,
+    },
+  });
+  if (error) {
+    console.error('Google OAuth error:', error);
+    setMsg('Could not start Google signup — try again');
+  }
 });

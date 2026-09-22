@@ -19,6 +19,28 @@
       background-size: 40px 40px;
     }
     .neon-shadow { box-shadow: 0 0 12px rgba(195, 244, 0, 0.4); }
+    .auth-alt-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.625rem;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background-color: transparent;
+      color: #CCFF00;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.0625rem;
+      font-weight: 600;
+      border: 1px solid rgba(204, 255, 0, 0.4);
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .auth-alt-btn:hover { background-color: rgba(204, 255, 0, 0.08); border-color: rgba(204, 255, 0, 0.7); }
+    .auth-alt-btn:active { transform: scale(0.98); }
+    .auth-alt-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
   </style>
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
@@ -90,6 +112,25 @@
             <span class="text-xs opacity-80" dir="rtl">إنشاء حساب</span>
           </div>
           <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+
+        <!-- Google divider -->
+        <div class="relative flex items-center">
+          <div class="flex-1 h-px bg-[#333333]"></div>
+          <span class="px-4 text-xs uppercase tracking-widest opacity-50" style="color:#c4c9ac;">or continue with</span>
+          <div class="flex-1 h-px bg-[#333333]"></div>
+        </div>
+
+        <!-- Google button -->
+        <button id="googleBtn" type="button" class="auth-alt-btn">
+          <svg viewBox="0 0 24 24">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.82 14.97 2 12 2 7.7 2 3.99 4.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          <span class="ltr">Sign up with Google</span>
+          <span class="font-arabic normal-case">التسجيل بـ Google</span>
         </button>
 
         <!-- Login link -->
