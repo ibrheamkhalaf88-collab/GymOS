@@ -1,5 +1,5 @@
 // ============================================================
-// signup.js — Sign-up logic with 2-week free trial
+// signup.js — Sign-up logic with 30-day free trial
 // ============================================================
 import { supabase } from './supabase-client.js';
 import { validatePassword } from './validate.js';
@@ -23,7 +23,7 @@ async function setLoading(on) {
   if (on) {
     btn.innerHTML = `<div class="flex items-center gap-2">
       <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="None"/>
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
       </svg> Creating account...</div>`;
   } else {
@@ -98,14 +98,17 @@ form.addEventListener('submit', async (e) => {
     setMsg('Password must be 8+ chars with 1 letter + 1 digit / يجب أن تكون كلمة المرور 8 حروف على الأقل وتحتوي على رقم');
     return;
   }
+  if (password !== $('#confirm').value) {
+    setMsg('Passwords do not match / كلمتا المرور غير متطابقتين');
+    return;
+  }
 
   setLoading(true);
   setMsg('');
-  
 
   // Try Supabase first
   let result;
-  try {
+  if (supabase) try {
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
@@ -140,7 +143,10 @@ form.addEventListener('submit', async (e) => {
       throw new Error('No user returned');
     }
   } catch (err) {
-    
+    console.warn('[signup] Supabase failed, falling back to demo:', err?.message || err);
+  }
+
+  if (!result) {
     result = await demoSignUp(email, password, name);
     if (!result.ok) {
       setMsg(result.error || 'Signup failed');
@@ -174,7 +180,7 @@ googleBtn.addEventListener('click', async () => {
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: `${origin}/auth/callback?intent=signup`,
+      redirectTo: `${origin}/auth/callback`,
     },
   });
   if (error) {

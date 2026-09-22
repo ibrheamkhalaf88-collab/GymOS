@@ -94,17 +94,17 @@ form.addEventListener('submit', async (e) => {
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
   if (supabase) try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const { data: { user: supUser } } = await supabase.auth.getUser();
     if (!supUser) throw new Error('No user');
     const sub = supUser.user_metadata?.subscription || 'trial';
-    const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 14*86400000;
+    const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
     const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
     const subCheck = checkSubscription(result.user);
     if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
     storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); window.location.href = 'app.html'; return;
-  } catch (err) { /* fall through to demo */ }
+  } catch { /* fall through to demo */ }
   // Demo fallback
   const result = await demoSignIn(email, password);
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }

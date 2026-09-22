@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Digital Pulse — Authentication</title>
   <meta name="theme-color" content="#000000" />
-  <script src="vendor/tailwind.js"></script>
-  <script src="js/tailwind-config.js"></script>
-  <link rel="stylesheet" href="css/theme.css" />
+  <script src="../vendor/tailwind.js"></script>
+  <script src="../js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="../css/theme.css" />
   <style>
     body { min-height: max(884px, 100dvh); background-color: #000; }
     .cyber-grid {
@@ -42,6 +42,34 @@
     const code = params.get('code');
     const error = params.get('error');
 
+    async function finishLogin(user) {
+      const meta = user.user_metadata || {};
+      const now = Date.now();
+      if (!meta.subscription) {
+        await supabase.auth.updateUser({
+          data: {
+            subscription: 'trial',
+            subStart: now,
+            subEnd: now + 30 * 86400000,
+            subTier: 'free_trial',
+          },
+        });
+      }
+      localStorage.setItem('dp_current_user', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: meta.name || user.email?.split('@')[0] || 'User',
+        status: 'active',
+        subscription: meta.subscription || 'trial',
+        subStart: meta.subStart || now,
+        subEnd: meta.subEnd || now + 30 * 86400000,
+        subTier: meta.subTier || 'free_trial',
+        loginAt: now,
+      }));
+      localStorage.setItem('dp_user_email', user.email);
+      window.location.href = 'app.html';
+    }
+
     if (!supabase) {
       window.location.href = 'login.html';
       return;
@@ -61,70 +89,17 @@
         document.querySelector('p').textContent = 'Try logging in again.';
         return;
       }
-
-      const user = data?.user;
-      if (user) {
-        const meta = user.user_metadata || {};
-        const now = Date.now();
-
-        // First Google login → persist 30-day trial in user_metadata
-        if (!meta.subscription) {
-          await supabase.auth.updateUser({
-            data: {
-              subscription: 'trial',
-              subStart: now,
-              subEnd: now + 30 * 86400000,
-              subTier: 'free_trial',
-            },
-          });
-        }
-
-        const session = {
-          id: user.id,
-          email: user.email,
-          name: meta.name || user.email?.split('@')[0] || 'User',
-          status: 'active',
-          subscription: meta.subscription || 'trial',
-          subStart: meta.subStart || now,
-          subEnd: meta.subEnd || now + 30 * 86400000,
-          subTier: meta.subTier || 'free_trial',
-          loginAt: now,
-        };
-        localStorage.setItem('dp_current_user', JSON.stringify(session));
-        localStorage.setItem('dp_user_email', session.email);
+      if (data?.user) {
+        await finishLogin(data.user);
+      } else {
+        window.location.href = 'login.html';
       }
-      window.location.href = 'app.html';
       return;
     }
 
     const { data: { session: sbSession } } = await supabase.auth.getSession();
     if (sbSession?.user) {
-      const u = sbSession.user;
-      const meta = u.user_metadata || {};
-      const now = Date.now();
-      if (!meta.subscription) {
-        await supabase.auth.updateUser({
-          data: {
-            subscription: 'trial',
-            subStart: now,
-            subEnd: now + 30 * 86400000,
-            subTier: 'free_trial',
-          },
-        });
-      }
-      localStorage.setItem('dp_current_user', JSON.stringify({
-        id: u.id,
-        email: u.email,
-        name: meta.name || u.email?.split('@')[0] || 'User',
-        status: 'active',
-        subscription: meta.subscription || 'trial',
-        subStart: meta.subStart || now,
-        subEnd: meta.subEnd || now + 30 * 86400000,
-        subTier: meta.subTier || 'free_trial',
-        loginAt: now,
-      }));
-      localStorage.setItem('dp_user_email', u.email);
-      window.location.href = 'app.html';
+      await finishLogin(sbSession.user);
     } else {
       window.location.href = 'login.html';
     }
