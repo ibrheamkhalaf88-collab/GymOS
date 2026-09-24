@@ -184,7 +184,7 @@ form.addEventListener('submit', async (e) => {
   // Signup OK — 30-day free trial, then admin approves
 
   // Store user for immediate login
-  localStorage.setItem('dp_current_user', JSON.stringify(result.user));
+  localStorage.setItem('dp_current_user', JSON.stringify({ ...result.user, loginAt: Date.now() }));
   localStorage.setItem('dp_user_email', result.user.email);
 
   // Auto-login after signup
