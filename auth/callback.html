@@ -26,8 +26,8 @@
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
       </svg>
     </div>
-    <h2 class="font-headline text-xl uppercase tracking-widest mb-2">Signing you in…</h2>
-    <p class="text-sm text-muted mb-6">Redirecting to your dashboard.</p>
+    <h2 class="font-headline text-xl uppercase tracking-widest mb-2" id="cbStatus">Signing you in…</h2>
+    <p class="text-sm text-muted mb-6" id="cbSub">Redirecting to your dashboard.</p>
     <div class="flex justify-center">
       <div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div>
     </div>
@@ -38,27 +38,24 @@
   <script type="module">
     import { supabase } from '../js/supabase-client.js';
 
+    const statusEl = document.getElementById('cbStatus');
+    const subEl = document.getElementById('cbSub');
+    const setStatus = (t, s) => {
+      if (t) statusEl.textContent = t;
+      if (s) subEl.textContent = s;
+    };
+
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
     const error = params.get('error');
 
-    async function finishLogin(user) {
+    function persistLogin(user) {
       const meta = user.user_metadata || {};
       const now = Date.now();
-      if (!meta.subscription) {
-        await supabase.auth.updateUser({
-          data: {
-            subscription: 'trial',
-            subStart: now,
-            subEnd: now + 30 * 86400000,
-            subTier: 'free_trial',
-          },
-        });
-      }
       localStorage.setItem('dp_current_user', JSON.stringify({
         id: user.id,
         email: user.email,
-        name: meta.name || user.email?.split('@')[0] || 'User',
+        name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
         status: 'active',
         subscription: meta.subscription || 'trial',
         subStart: meta.subStart || now,
@@ -66,43 +63,79 @@
         subTier: meta.subTier || 'free_trial',
         loginAt: now,
       }));
-      localStorage.setItem('dp_user_email', user.email);
-      window.location.href = 'app.html';
+      localStorage.setItem('dp_user_email', user.email || '');
+      window.location.replace('app.html');
+    }
+
+    async function recoverUser() {
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s?.user) return s.user;
+      } catch (err) { console.warn('getSession failed:', err); }
+      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
+      const at = hash.get('access_token');
+      const rt = hash.get('refresh_token');
+      if (at) {
+        try {
+          const { data } = await supabase.auth.setSession({ access_token: at, refresh_token: rt || '' });
+          if (data?.user) return data.user;
+        } catch (err) { console.warn('setSession failed:', err); }
+      }
+      return null;
     }
 
     if (!supabase) {
-      window.location.href = 'login.html';
+      window.location.replace('login.html');
       return;
     }
 
     if (error) {
-      document.querySelector('h2').textContent = 'Login failed';
-      document.querySelector('p').textContent = 'Please try again.';
+      setStatus('Login failed', 'Please try again. (' + error + ')');
+      console.error('OAuth callback error param:', error);
       return;
     }
+
+    let user = null;
 
     if (code) {
-      const { data, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
-      if (sessionError) {
-        console.error('OAuth exchange failed:', sessionError);
-        document.querySelector('h2').textContent = 'Session error';
-        document.querySelector('p').textContent = 'Try logging in again.';
-        return;
+      setStatus('Signing you in…', 'Verifying secure login.');
+      try {
+        const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
+        if (e1) {
+          console.error('OAuth exchange failed:', e1);
+        } else if (data?.user) {
+          user = data.user;
+        }
+      } catch (err) {
+        console.warn('exchangeCodeForSession threw:', err);
       }
-      if (data?.user) {
-        await finishLogin(data.user);
-      } else {
-        window.location.href = 'login.html';
-      }
+    }
+
+    if (!user) {
+      setStatus('Signing you in…', 'Confirming your session.');
+      user = await recoverUser();
+    }
+
+    if (!user) {
+      setStatus('Could not sign you in', 'The login did not complete. Please return and try again.');
+      console.warn('No recoverable session on callback page.');
       return;
     }
 
-    const { data: { session: sbSession } } = await supabase.auth.getSession();
-    if (sbSession?.user) {
-      await finishLogin(sbSession.user);
-    } else {
-      window.location.href = 'login.html';
+    const meta = user.user_metadata || {};
+    if (!meta.subscription) {
+      supabase.auth.updateUser({
+        data: {
+          subscription: 'trial',
+          subStart: Date.now(),
+          subEnd: Date.now() + 30 * 86400000,
+          subTier: 'free_trial',
+        },
+      }).catch((err) => console.warn('metadata update failed:', err));
     }
+
+    setStatus('Signing you in…', 'Redirecting to your dashboard.');
+    persistLogin(user);
   </script>
 </body>
 </html>
