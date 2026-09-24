@@ -169,6 +169,7 @@
     // Demo admin credentials (when Supabase not connected)
     const DEMO_EMAIL = 'admin@gym.local';
     const DEMO_PASS  = 'admin123';
+    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13ZmJndWNheWpnYmJ2Y3llbGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDQwMjEsImV4cCI6MjEwMzMyMDAyMX0.FP2qGp9pNhnC17xhBLN_81Pz0Lg1PS4B04VRrd7M9hY';
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -197,9 +198,9 @@
 
       // Online admin — authenticate via the GymOS Edge Function (admin JWT)
       try {
-        const res = await fetch('https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api/api/admin/login', {
+        const res = await fetch('https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api/api/admin/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
           body: JSON.stringify({ email, password }),
         });
         const data = await res.json();

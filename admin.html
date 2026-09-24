@@ -306,7 +306,8 @@
     // ============================================================
     const $ = (sel, root = document) => root.querySelector(sel);
 
-    const API_BASE = 'https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api';
+    const API_BASE = 'https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api';
+    const { appConfig } = await import('./js/config.js');
     const TIER_LABEL = {
       trial: 'Trial / تجربة', monthly: 'Monthly / شهر', yearly: 'Yearly / سنة',
       lifetime: 'Lifetime / دائم', none: 'None / بدون',
@@ -405,6 +406,7 @@
         ...opts,
         headers: {
           'Content-Type': 'application/json',
+          apikey: appConfig.supabaseAnonKey || '',
           Authorization: 'Bearer ' + TOKEN,
           ...(opts.headers || {}),
         },

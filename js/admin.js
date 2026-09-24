@@ -4,6 +4,7 @@
 // Requires admin JWT from sessionStorage (set after admin login).
 // ============================================================
 import { supabase } from './supabase-client.js';
+import { appConfig } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const table = $('#usersTableBody');
@@ -71,8 +72,9 @@ async function adminFetch(path, opts = {}) {
   }
   // For now assume dp_admin_token is set (user went through admin login)
   const headers = { 'Content-Type': 'application/json' };
+  if (appConfig.supabaseAnonKey) headers['apikey'] = appConfig.supabaseAnonKey;
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const url = `https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api${path}`;
+  const url = `${appConfig.apiUrl}${path}`;
   const res = await fetch(url, { ...opts, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);

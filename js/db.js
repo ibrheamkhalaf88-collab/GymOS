@@ -17,6 +17,7 @@ export const onlineMode = () => !!API();
 
 async function api(path, { method = "GET", body, auth = false, admin = false } = {}) {
   const headers = { "Content-Type": "application/json" };
+  if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
   if (auth) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_jwt") || ""}`;
   if (admin) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_admin_token") || ""}`;
   const res = await fetch(`${API()}${path}`, {

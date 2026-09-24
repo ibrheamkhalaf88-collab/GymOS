@@ -56,7 +56,7 @@ form.addEventListener('submit', async (e) => {
   const url = `${appConfig.apiUrl}/api/admin/login`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', apikey: appConfig.supabaseAnonKey || '' },
     body: JSON.stringify({ email, password }),
   });
 

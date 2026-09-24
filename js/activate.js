@@ -97,7 +97,7 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
   if (codesDb.mode() === "online" && navigator.onLine) {
     setLoading(true);
     try {
-      const res = await fetch(`${appConfig.apiUrl}/api/trial`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ deviceId: localStorage.getItem("dp_device_id") || "" }) });
+      const res = await fetch(`${appConfig.apiUrl}/api/trial`, { method: "POST", headers: { "Content-Type": "application/json", apikey: appConfig.supabaseAnonKey || "" }, body: JSON.stringify({ deviceId: localStorage.getItem("dp_device_id") || "" }) });
       if (res.ok) {
         const data = await res.json();
         license.save({ code: data.code, tier: "trial", days: 30 });

@@ -491,9 +491,10 @@ async function handler(req: Request): Promise<Response> {
     /* admin: list users */
     if (req.method === "GET" && path === "/api/users") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const { data: users, error } = await sb.auth.admin.listUsers();
+      const { data, error } = await sb.auth.admin.listUsers();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      const mapped = (users || []).map((u) => {
+      const users = data?.users || [];
+      const mapped = users.map((u) => {
         const meta = u.user_metadata || {};
         const ts = (v: any): number | null => {
           if (v == null) return null;
