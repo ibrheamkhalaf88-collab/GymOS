@@ -229,6 +229,14 @@ body::before {
   pointer-events: none;
   transition: transform var(--transition-fast) var(--ease-out), color var(--transition-fast) var(--ease-out), font-size var(--transition-fast) var(--ease-out);
 }
+.field-wrapper label button { pointer-events: auto; }
+.field-wrapper .field-action {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  pointer-events: auto;
+}
 .field-wrapper input:focus + label,
 .field-wrapper input:not(:placeholder-shown) + label,
 .field-wrapper select:focus + label,

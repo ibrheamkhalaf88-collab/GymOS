@@ -707,7 +707,7 @@ function memberCard(m, index = 0) {
       </div>
       <div class="flex-1 min-w-0">
         <div class="flex flex-wrap items-start justify-between gap-2">
-          <h3 class="font-headline font-bold uppercase truncate">${escapeHtml(m.name)}</span>
+          <h3 class="font-headline font-bold uppercase truncate">${escapeHtml(m.name)}</h3>
           <span class="font-label text-xs tracking-widest text-muted opacity-70 shrink-0">#${m.id.slice(-4)}</span>
         </div>
         <div class="flex items-center gap-2 mt-1 flex-wrap">
@@ -753,12 +753,11 @@ function openMemberModal(id = null) {
       </div>
       <div class="grid ${m ? "grid-cols-2" : "grid-cols-[1fr_auto]"} gap-4 items-end">
         <div class="field-wrapper">
-          <label class="flex justify-between items-center">
-            <span>${t.plan}</span>
-            <button type="button" id="editPricesBtn" title="Edit plan prices / تعديل أسعار الباقات" class="btn-ghost text-xs px-2 py-1">
-              <span class="material-symbols-outlined text-[16px]">settings_suggest</span>
-            </button></label>
           <select name="plan" class="dp-field">${planOptions}${legacyOpt}</select>
+          <label>${t.plan}</label>
+          <button type="button" id="editPricesBtn" title="Edit plan prices / تعديل أسعار الباقات" class="field-action btn-ghost">
+            <span class="material-symbols-outlined text-[16px]">settings_suggest</span>
+          </button>
         </div>
         ${m ? "" : `<div class="field-wrapper">
           <input name="days" type="number" min="1" max="1095" value="30" class="dp-field w-24" placeholder=" " />
@@ -940,8 +939,8 @@ function openPlanPrices(onSaved) {
     <form id="pricesForm" class="flex flex-col gap-4">
       ${PLANS.map((p) => `
         <div class="field-wrapper">
-          <label>${p.en} / ${p.ar}</label>
           <input name="${p.key}" type="number" min="0" step="0.5" value="${prices[p.key] ?? 0}" class="dp-field" dir="ltr" placeholder=" " />
+          <label>${p.en} / ${p.ar}</label>
         </div>`).join("")}
       <div class="flex gap-3 pt-2">
         <button type="button" data-close class="btn-secondary flex-1">${t.cancel}</button>
