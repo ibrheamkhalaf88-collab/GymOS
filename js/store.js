@@ -11,19 +11,55 @@ const TOMB_KEY = "dp_tombstones";
 const listeners = new Map();
 let _suppressCloud = false;
 
+// ---- Per-account data isolation ----
+// كل حساب له نطاق تخزين خاص به (dp_<id>_members …) حتى لا يرى أو يمسح أحدهم
+// بيانات الآخر على نفس الجهاز. قبل الحسابات كانت البيانات عمومية على الجهاز.
+function currentAccountId() {
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    if (u && u.id) return String(u.id).replace(/[^A-Za-z0-9_-]/g, "") || null;
+  } catch {}
+  return null;
+}
+
+function memColKey(col) {
+  const uid = currentAccountId();
+  return uid ? `${PREFIX}${uid}_${col}` : `${PREFIX}${col}`;
+}
+function memTombKey() {
+  const uid = currentAccountId();
+  return uid ? `${PREFIX}${uid}_tombstones` : TOMB_KEY;
+}
+function memSeededKey() {
+  const uid = currentAccountId();
+  return uid ? `${PREFIX}${uid}_seeded` : "dp_seeded";
+}
+// السحابة مرتبطة بترخيص الجهاز — لا تسمح بدفع بيانات حساب آخر إلى سحابة
+// ترخيص لا يملكه، ولا تعطل المزامنة إلا إذا كان الحساب مالك الترخيص.
+function cloudAllowed(lic) {
+  if (!lic) return false;
+  if (!lic.owner) return true;
+  const o = String(lic.owner).toLowerCase();
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    if (!u) return true;
+    return String(u.email || "").toLowerCase() === o || String(u.email || "").toLowerCase() === "ibrheamshady@gmail.com";
+  } catch { return true; }
+}
+
 function read(col) {
-  try { return JSON.parse(localStorage.getItem(PREFIX + col)) || []; }
+  try { return JSON.parse(localStorage.getItem(memColKey(col))) || []; }
   catch { return []; }
 }
 function readTomb() {
-  try { return JSON.parse(localStorage.getItem(TOMB_KEY)) || {}; }
+  try { return JSON.parse(localStorage.getItem(memTombKey())) || {}; }
   catch { return {}; }
 }
-function writeTomb(t) { localStorage.setItem(TOMB_KEY, JSON.stringify(t)); }
+function writeTomb(t) { localStorage.setItem(memTombKey(), JSON.stringify(t)); }
 function tsOf(it) { return Number(it && it.updatedAt) || Number(it && it.createdAt) || 0; }
 
 function write(col, list) {
-  localStorage.setItem(PREFIX + col, JSON.stringify(list));
+  localStorage.setItem(memColKey(col), JSON.stringify(list));
   emit(col, list);
   if (!_suppressCloud) queueCloudSave();
 }
@@ -56,7 +92,7 @@ function queueCloudSave() {
   _cloudTimer = setTimeout(async () => {
     try {
       const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-      if (!lic || !lic.code) return;
+      if (!lic || !lic.code || !cloudAllowed(lic)) return;
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) return;
       const dump = cloudDump();
@@ -122,7 +158,7 @@ async function syncNow() {
   if (_syncing) return;
   if (localStorage.getItem("dp_cloud") !== "1") return;
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-  if (!lic || !lic.code) return;
+  if (!lic || !lic.code || !cloudAllowed(lic)) return;
   _syncing = true;
   try {
     const { codesDb } = await import("./db.js");
@@ -165,6 +201,8 @@ let _onFocus = null;
 function startSync() {
   if (_syncTimer) return;
   if (localStorage.getItem("dp_cloud") !== "1") return;
+  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  if (!lic || !lic.code || !cloudAllowed(lic)) return;
   syncNow();
   _syncTimer = setInterval(syncNow, 20000);
   _onVis = () => { if (document.visibilityState === "visible") syncNow(); };
@@ -318,12 +356,26 @@ export function savePlanPrices(prices) {
 export const store = {
   all(col) {
     if (!COLLECTIONS.includes(col)) throw new Error(`Unknown collection: ${col}`);
-    const raw = localStorage.getItem(PREFIX + col);
+    const key = memColKey(col);
+    const raw = localStorage.getItem(key);
     if (raw !== null) return read(col);
+    const seedFlag = localStorage.getItem(memSeededKey());
+    // Migration: account يدخل أول مرة على جهاز فيه داتا قديمة (داتا ما قبل
+    // الحسابات) → نستورد نسخة إلى نطاقه حتى لا تضيع بيانات المالك السابق.
+    if (seedFlag !== "1") {
+      const uid = currentAccountId();
+      if (uid && localStorage.getItem(PREFIX + col) !== null) {
+        try {
+          const legacy = JSON.parse(localStorage.getItem(PREFIX + col)) || [];
+          localStorage.setItem(key, JSON.stringify(legacy));
+          return legacy;
+        } catch { /* fallthrough */ }
+      }
+    }
     // لا تعيد زرع تلقائياً بعد مسح المستخدم — ارجع فارغاً، الزرع فقط عند أول تثبيت
-    if (localStorage.getItem("dp_seeded") === "1") return [];
+    if (seedFlag === "1") return [];
     const data = seed(col);
-    if (COLLECTIONS.every((c) => localStorage.getItem(PREFIX + c) !== null)) localStorage.setItem("dp_seeded", "1");
+    if (COLLECTIONS.every((c) => localStorage.getItem(memColKey(c)) !== null)) localStorage.setItem(memSeededKey(), "1");
     return data;
   },
 
@@ -376,10 +428,11 @@ export const store = {
   },
 
   resetAll() {
-    COLLECTIONS.forEach((c) => localStorage.removeItem(PREFIX + c));
-    localStorage.removeItem("dp_tombstones");
+    // يمسح بيانات الحساب الحالي فقط — لا يمس أحداً آخر على نفس الجهاز
+    COLLECTIONS.forEach((c) => localStorage.removeItem(memColKey(c)));
+    localStorage.removeItem(memTombKey());
     // لا تعد زرع بيانات وهمية بعد المسح — اتركها فارغة للعميل النهائي
-    localStorage.setItem("dp_seeded", "1");
+    localStorage.setItem(memSeededKey(), "1");
   },
 
   exportAll() {
