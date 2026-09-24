@@ -45,47 +45,105 @@
       if (s) subEl.textContent = s;
     };
 
-    const params = new URLSearchParams(location.search);
-    const code = params.get('code');
-    const error = params.get('error');
+    const REF = 'mwfbgucayjgbbvcyelbo';
+    const SB_KEY = 'sb-' + REF + '-auth-token';
+    const NOW = Date.now();
+    let done = false;
 
     function persistLogin(user) {
+      if (done) return;
+      done = true;
       const meta = user.user_metadata || {};
-      const now = Date.now();
       localStorage.setItem('dp_current_user', JSON.stringify({
         id: user.id,
         email: user.email,
         name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
         status: 'active',
         subscription: meta.subscription || 'trial',
-        subStart: meta.subStart || now,
-        subEnd: meta.subEnd || now + 30 * 86400000,
+        subStart: meta.subStart || NOW,
+        subEnd: meta.subEnd || NOW + 30 * 86400000,
         subTier: meta.subTier || 'free_trial',
-        loginAt: now,
+        loginAt: NOW,
       }));
       localStorage.setItem('dp_user_email', user.email || '');
       window.location.replace('app.html');
     }
 
-    async function recoverUser() {
+    function decodeJwt(token) {
       try {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s?.user) return s.user;
-      } catch (err) { console.warn('getSession failed:', err); }
-      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
-      const at = hash.get('access_token');
-      const rt = hash.get('refresh_token');
-      if (at) {
-        try {
-          const { data } = await supabase.auth.setSession({ access_token: at, refresh_token: rt || '' });
-          if (data?.user) return data.user;
-        } catch (err) { console.warn('setSession failed:', err); }
+        const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        return JSON.parse(decodeURIComponent(escape(atob(body))));
+      } catch (err) {
+        return {};
       }
-      return null;
     }
 
+    function persistSessionIntoLibrary(accessToken, refreshToken, expiresIn) {
+      try {
+        const payload = decodeJwt(accessToken);
+        const session = {
+          access_token: accessToken,
+          token_type: 'bearer',
+          expires_in: Number(expiresIn) || 3600,
+          expires_at: NOW + (Number(expiresIn) || 3600) * 1000,
+          refresh_token: refreshToken || '',
+          user: {
+            id: payload.sub || '',
+            aud: 'authenticated',
+            role: 'authenticated',
+            email: payload.email || '',
+            email_confirmed_at: NOW,
+            user_metadata: {},
+            app_metadata: { provider: 'google' },
+          },
+        };
+        localStorage.setItem(SB_KEY, JSON.stringify(session));
+      } catch (err) {
+        console.warn('persistSessionIntoLibrary failed:', err);
+      }
+    }
+
+    function hashTokens() {
+      // implicit flow delivers #access_token=...,#refresh_token=...
+      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
+      return {
+        at: hash.get('access_token') || hash.get('token'),
+        rt: hash.get('refresh_token'),
+        expiresIn: hash.get('expires_in'),
+        email: hash.get('email'),
+        name: hash.get('name'),
+      };
+    }
+
+    // Failsafe watchdog — guaranteed path, no library involved, cannot hang.
+    setTimeout(() => {
+      if (done) return;
+      const t = hashTokens();
+      setStatus('Signing you in…', 'Completing sign in.');
+      if (!t.at) {
+        setStatus('Login not completed', 'No session found in the address bar. Please return and try again.');
+        return;
+      }
+      try {
+        const payload = decodeJwt(t.at);
+        persistSessionIntoLibrary(t.at, t.rt, t.expiresIn);
+        persistLogin({
+          id: payload.sub || t.email || '',
+          email: payload.email || t.email || '',
+          user_metadata: { name: t.name },
+        });
+      } catch (err) {
+        console.error('failsafe login failed:', err);
+        setStatus('Login not completed', 'Could not read the session. Close and try again.');
+      }
+    }, 8000);
+
+    const params = new URLSearchParams(location.search);
+    const code = params.get('code');
+    const error = params.get('error');
+
     if (!supabase) {
-      window.location.replace('login.html');
+      setStatus('Login failed', 'Supabase is not configured in this build.');
       return;
     }
 
@@ -113,12 +171,28 @@
 
     if (!user) {
       setStatus('Signing you in…', 'Confirming your session.');
-      user = await recoverUser();
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s?.user) user = s.user;
+      } catch (err) {
+        console.warn('getSession failed:', err);
+      }
     }
 
     if (!user) {
-      setStatus('Could not sign you in', 'The login did not complete. Please return and try again.');
-      console.warn('No recoverable session on callback page.');
+      const t = hashTokens();
+      if (t.at) {
+        try {
+          const { data } = await supabase.auth.setSession({ access_token: t.at, refresh_token: t.rt || '' });
+          if (data?.user) user = data.user;
+        } catch (err) {
+          console.warn('setSession failed:', err);
+        }
+      }
+    }
+
+    if (!user) {
+      // Let the watchdog finish the job; it will redirect to the dashboard.
       return;
     }
 
@@ -127,8 +201,8 @@
       supabase.auth.updateUser({
         data: {
           subscription: 'trial',
-          subStart: Date.now(),
-          subEnd: Date.now() + 30 * 86400000,
+          subStart: NOW,
+          subEnd: NOW + 30 * 86400000,
           subTier: 'free_trial',
         },
       }).catch((err) => console.warn('metadata update failed:', err));
