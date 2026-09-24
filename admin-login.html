@@ -188,27 +188,24 @@
       // Demo mode
       if (email === DEMO_EMAIL && password === DEMO_PASS) {
         sessionStorage.setItem('dp_admin_token', 'demo-admin-' + Date.now());
+        sessionStorage.setItem('dp_demo_admin', '1');
         setMsg('✓ Admin authenticated — redirecting... / تم تسجيل دخول المدير', '#CCFF00');
         setLoading(false);
         setTimeout(() => { window.location.href = 'admin.html'; }, 800);
         return;
       }
 
-      // Try Supabase (if connected)
+      // Online admin — authenticate via the GymOS Edge Function (admin JWT)
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const res = await fetch('https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.token) throw new Error(data.error || 'HTTP ' + res.status);
 
-        const user = data.user;
-        const isAdmin = user?.user_metadata?.role === 'admin' || user?.email === 'admin@gym.local';
-
-        if (!isAdmin) {
-          setMsg('Not an admin account / هذا ليس حساب مدير', '#ff3366');
-          setLoading(false);
-          return;
-        }
-
-        sessionStorage.setItem('dp_admin_token', data.session?.access_token || 'admin-jwt');
+        sessionStorage.setItem('dp_admin_token', data.token);
         sessionStorage.setItem('dp_demo_admin', '0');
         setMsg('✓ Admin authenticated — redirecting... / تم تسجيل دخول المدير', '#CCFF00');
         setLoading(false);

@@ -51,6 +51,25 @@ const normCode = (raw: string) =>
 const randomCode = () =>
   "XXX-XXX".replace(/X/g, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]);
 
+// Build a subscription block for user_metadata from a desired tier + days.
+// subEnd is computed from NOW so "stays open N days" always holds.
+function subMeta(tierRaw: any, daysRaw: any) {
+  const tier = ["trial", "monthly", "yearly", "lifetime", "none"].includes(tierRaw)
+    ? tierRaw : "monthly";
+  const now = Date.now();
+  const days = tier === "none" || tier === "lifetime"
+    ? 0
+    : Math.max(1, Math.floor(Number(daysRaw) || (tier === "monthly" ? 30 : tier === "yearly" ? 365 : tier === "trial" ? 14 : 30)));
+  const subEnd = tier === "lifetime" ? now + 36500 * 86400000 : tier === "none" ? null : now + days * 86400000;
+  return {
+    subscription: tier === "lifetime" ? "active" : tier,   // 'trial' stays 'trial'
+    subTier: tier,
+    subStart: new Date(now).toISOString(),
+    subEnd: subEnd ? new Date(subEnd).toISOString() : null,
+    days,
+  };
+}
+
 const signJwt = (payload: Record<string, unknown>, admin = false): string =>
   jwt.sign(payload, JWT_SECRET, { expiresIn: admin ? "12h" : "30d" });
 
@@ -474,38 +493,78 @@ async function handler(req: Request): Promise<Response> {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const { data: users, error } = await sb.auth.admin.listUsers();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      const mapped = (users || []).map(u => ({
-        id: u.id,
-        email: u.email,
-        created: u.created_at,
-        lastSignIn: u.last_sign_in_at,
-        status: u.app_metadata?.suspended ? "suspended" : "active",
-        role: u.role,
-      }));
+      const mapped = (users || []).map((u) => {
+        const meta = u.user_metadata || {};
+        const ts = (v: any): number | null => {
+          if (v == null) return null;
+          return Number(v) ? Number(v) : Date.parse(String(v)) || null;
+        };
+        return {
+          id: u.id,
+          email: u.email,
+          full_name: meta.full_name || u.email || "",
+          created: u.created_at,
+          lastSignIn: u.last_sign_in_at,
+          status: u.app_metadata?.suspended ? "suspended" : "active",
+          role: u.role,
+          subscription: meta.subscription || "none",
+          subTier: meta.subTier || null,
+          subStart: ts(meta.subStart),
+          subEnd: ts(meta.subEnd),
+          days: Number(meta.days) || null,
+        };
+      });
       return json(mapped, 200, origin);
     }
 
     /* admin: create user */
     if (req.method === "POST" && path === "/api/users") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const { email, password, full_name } = body || {};
+      const { email, password, full_name, subscription } = body || {};
       if (!email || !password) return json({ error: "MISSING_FIELDS" }, 400, origin);
+      const sm = subMeta(subscription?.tier, subscription?.days);
       const { data: newUser, error } = await sb.auth.admin.createUser({
         email,
         password,
-        user_metadata: { full_name: String(full_name || "").slice(0, 100) },
+        user_metadata: {
+          full_name: String(full_name || "").slice(0, 100),
+          subscription: sm.subscription,
+          subTier: sm.subTier,
+          subStart: sm.subStart,
+          subEnd: sm.subEnd,
+          days: sm.days,
+        },
       });
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
-      return json({ id: newUser.id, email: newUser.email }, 201, origin);
+      return json({ id: newUser.id, email: newUser.email, ...sm }, 201, origin);
     }
 
-    /* admin: suspend/resume user */
+    /* admin: suspend/resume OR set subscription (tier + days) for a user */
     if (req.method === "PATCH" && path.startsWith("/api/users/")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const userId = path.split("/")[3];
       if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
-      const { data: existing } = await sb.auth.admin.getUserById(userId);
+      const { data: ed } = await sb.auth.admin.getUserById(userId);
+      const existing = ed?.user;
       if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
+
+      const sub = body?.subscription;
+      if (sub && typeof sub === "object") {
+        // Set package + how long the account stays open (from NOW).
+        const sm = subMeta(sub.tier, sub.days);
+        const meta = { ...(existing.user_metadata || {}) };
+        if (meta.subStart) sm.subStart = meta.subStart; // keep original start
+        meta.subscription = sm.subscription;
+        meta.subTier = sm.subTier;
+        meta.subStart = sm.subStart;
+        meta.subEnd = sm.subEnd;
+        meta.days = sm.days;
+        if (body?.name !== undefined) meta.full_name = String(body.name).slice(0, 100);
+        const { error } = await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+        if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+        return json({ ok: true, id: userId, ...sm }, 200, origin);
+      }
+
       const { suspend } = body || {};
       const meta = { ...existing.app_metadata, suspended: !!suspend };
       const { error } = await sb.auth.admin.updateUserById(userId, { app_metadata: meta });

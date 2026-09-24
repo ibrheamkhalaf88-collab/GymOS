@@ -80,6 +80,19 @@
     }
     .btn-deactivate:hover { background-color: rgba(255, 51, 102, 0.2); }
 
+    .preset-chip {
+      padding: 0.3rem 0.65rem;
+      border: 1px solid #444933;
+      border-radius: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #c4c9ac;
+      background-color: #171717;
+      transition: all 0.15s ease;
+    }
+    .preset-chip:hover { color: #000; background-color: #CCFF00; border-color: #CCFF00; }
+
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -110,6 +123,8 @@
       <span class="arabic-text text-xs opacity-60" dir="rtl">لوحة المدير</span>
     </div>
     <div class="flex items-center gap-3">
+      <span class="hidden sm:inline text-xs opacity-60" style="color:#c4c9ac;">Online / مباشر — أونلاين</span>
+      <span id="modeBadge" class="text-[10px] font-headline tracking-widest uppercase px-2 py-1 rounded border" style="color:#8888ff;border-color:#8888ff55;">DEMO</span>
       <span id="adminEmailDisplay" class="text-sm opacity-70"></span>
       <button id="adminLogoutBtn" class="text-xs text-[#ff3366] hover:underline">Logout / خروج</button>
     </div>
@@ -184,12 +199,12 @@
     <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
   </footer>
 
-  <!-- Create/Edit User Modal -->
+  <!-- Create / Edit User Modal -->
   <div id="userModal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h3 class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
+      <h3 id="userModalTitle" class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
         <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        Add User / إضافة مستخدم
+        <span id="userModalTitleText">Add User / إضافة مستخدم</span>
       </h3>
       <form id="userForm" class="space-y-4">
         <div>
@@ -200,20 +215,37 @@
           <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Email / البريد</label>
           <input id="userEmail" type="email" required class="auth-input" />
         </div>
-        <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Password / كلمة السر (7+ chars)</label>
-          <input id="userPassword" type="password" required minlength="7" class="auth-input" />
+        <div id="passwordRow">
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Password / كلمة السر (8+ chars)</label>
+          <input id="userPassword" type="password" required minlength="8" class="auth-input" />
         </div>
-        <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Subscription Type</label>
+
+        <div class="p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-2" style="color:#c4c9ac;">
+            Package Type / نوع الباقة
+          </label>
           <select id="userSubType" class="auth-input" style="background-color:#171717; cursor:pointer;">
-            <option value="trial">Free Trial (2 weeks) / تجربة مجانية</option>
-            <option value="monthly">Monthly / شهر</option>
+            <option value="trial">Free Trial (14 days) / تجربة مجانية (14 يوم)</option>
+            <option value="monthly" selected>Monthly / شهر</option>
             <option value="yearly">Yearly / سنة</option>
             <option value="lifetime">Lifetime / مدى الحياة</option>
             <option value="none">No subscription / بدون اشتراك</option>
           </select>
+
+          <label class="text-xs uppercase tracking-widest opacity-60 block mt-3 mb-1" style="color:#c4c9ac;">
+            Days Open / عدد الأيام
+          </label>
+          <div class="flex gap-2">
+            <input id="userDays" type="number" min="1" value="30" class="auth-input" style="background-color:#171717;" />
+            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(7)">+7</button>
+            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(30)">+30</button>
+            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(90)">+90</button>
+            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(180)">+180</button>
+            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(365)">+365</button>
+          </div>
+          <p id="subPreview" class="text-xs mt-2 font-mono" style="color:#CCFF00;"></p>
         </div>
+
         <div id="couponSection" class="hidden p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
           <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Apply Coupon Code</label>
           <div class="flex gap-2">
@@ -222,9 +254,10 @@
           </div>
           <p id="couponResult" class="text-xs mt-1" style="color:#c4c9ac;"></p>
         </div>
+
         <div class="flex justify-end gap-2 mt-4">
           <button type="button" id="cancelUserBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
-          <button type="submit" class="btn-sm bg-[#CCFF00] text-black">Create User / إنشاء</button>
+          <button type="submit" id="submitUserBtn" class="btn-sm bg-[#CCFF00] text-black">Create User / إنشاء</button>
         </div>
       </form>
       <p id="userModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
@@ -265,14 +298,20 @@
     </div>
   </div>
 
-  <script src="vendor/supabase-js.js"></script>
   <script type="module">
     // ============================================================
-    // admin.js — Admin dashboard logic
+    // Admin dashboard — users, subscriptions (package + days), cloud
+    // Users come from the GymOS Edge Function /api/users (auth users +
+    // their user_metadata subscription). Offline → local dp_demo_users.
     // ============================================================
-    import { supabase } from './js/supabase-client.js';
-
     const $ = (sel, root = document) => root.querySelector(sel);
+
+    const API_BASE = 'https://mwfbgucayjgbbvcyelbo.supabase.co/gymos-api';
+    const TIER_LABEL = {
+      trial: 'Trial / تجربة', monthly: 'Monthly / شهر', yearly: 'Yearly / سنة',
+      lifetime: 'Lifetime / دائم', none: 'None / بدون',
+    };
+    const DEFAULT_DAYS = { trial: 14, monthly: 30, yearly: 365, lifetime: 0, none: 0 };
 
     // Elements
     const tableBody = $('#usersTableBody');
@@ -286,21 +325,28 @@
     const statExpired = $('#statExpired');
     const adminEmailDisplay = $('#adminEmailDisplay');
     const adminLogoutBtn = $('#adminLogoutBtn');
+    const modeBadge = $('#modeBadge');
 
-    // Modals
+    // User modal
     const userModal = $('#userModal');
+    const userModalTitleText = $('#userModalTitleText');
     const userForm = $('#userForm');
     const userName = $('#userName');
     const userEmail = $('#userEmail');
     const userPassword = $('#userPassword');
+    const passwordRow = $('#passwordRow');
     const userSubType = $('#userSubType');
+    const userDays = $('#userDays');
+    const subPreview = $('#subPreview');
+    const submitUserBtn = $('#submitUserBtn');
+    const userModalMsg = $('#userModalMsg');
+    const cancelUserBtn = $('#cancelUserBtn');
     const couponSection = $('#couponSection');
     const couponCode = $('#couponCode');
     const applyCouponBtn = $('#applyCouponBtn');
     const couponResult = $('#couponResult');
-    const userModalMsg = $('#userModalMsg');
-    const cancelUserBtn = $('#cancelUserBtn');
 
+    // Coupon modal
     const couponModal = $('#couponModal');
     const couponForm = $('#couponForm');
     const couponCodeInput = $('#couponCodeInput');
@@ -309,18 +355,22 @@
     const couponModalMsg = $('#couponModalMsg');
     const cancelCouponBtn = $('#cancelCouponBtn');
 
+    const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
+    const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
+
     let allUsers = [];
     let loading = false;
+    let editId = null;
 
-    // Check admin session
-    if (!sessionStorage.getItem('dp_admin_token') && !sessionStorage.getItem('dp_demo_admin')) {
-      window.location.href = 'admin.html';
-    }
+    // ---- Session guard ----
+    if (!TOKEN) { window.location.href = 'admin-login.html'; }
 
-    const adminEmail = sessionStorage.getItem('dp_demo_admin') === '1'
+    modeBadge.textContent = IS_DEMO ? 'OFFLINE / محلي' : 'ONLINE / أونلاين';
+    modeBadge.style.color = IS_DEMO ? '#ff9800' : '#CCFF00';
+    modeBadge.style.borderColor = IS_DEMO ? '#ff980055' : '#CCFF0055';
+    adminEmailDisplay.textContent = IS_DEMO
       ? 'admin@gym.local'
-      : (JSON.parse(localStorage.getItem('dp_current_user') || 'null') || {}).email || 'admin@gym.local';
-    adminEmailDisplay.textContent = adminEmail;
+      : (JSON.parse(localStorage.getItem('dp_current_user') || 'null') || {}).email || 'Admin';
 
     adminLogoutBtn.addEventListener('click', () => {
       sessionStorage.removeItem('dp_admin_token');
@@ -329,411 +379,360 @@
       window.location.href = 'index.html';
     });
 
-    // ---- Demo helpers ----
+    // ---- Helpers ----
+    const ts = (v) => {
+      if (v == null) return null;
+      return typeof v === 'number' ? v : (Date.parse(v) || null);
+    };
+    function normalizeUser(u) {
+      return {
+        id: u.id,
+        email: u.email,
+        name: u.full_name || u.name || '',
+        status: u.status || 'active',
+        subscription: u.subTier || u.subscription || 'none',
+        subStart: ts(u.subStart),
+        subEnd: ts(u.subEnd),
+        subTier: u.subTier || null,
+        days: u.days != null ? u.days : null,
+        password: u.password,
+        _demo: !!u._demo,
+      };
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API_BASE + path, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + TOKEN,
+          ...(opts.headers || {}),
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+
+    // ---- Demo helpers (offline accounts via db.js) ----
     async function demoGetUsers() {
-      const { demoUsersAll } = await import('../js/db.js');
+      const { demoUsersAll } = await import('./js/db.js');
       return demoUsersAll();
     }
-    async function demoCreateUser(userData) {
-      const { demoUsersAll, demoUsersSave, findDemoUser } = await import('../js/db.js');
-      if (findDemoUser(userData.email)) {
-        throw new Error('Email already exists / البريد موجود مسبقاً');
-      }
+    async function demoCreateUser(data) {
+      const { demoUsersAll, demoUsersSave, findDemoUser } = await import('./js/db.js');
+      if (findDemoUser(data.email)) throw new Error('Email already exists / البريد موجود مسبقاً');
       const users = demoUsersAll();
-      users.push({ ...userData, id: 'U' + Date.now().toString(36).toUpperCase(), createdAt: Date.now() });
+      users.push({ ...data, id: 'U' + Date.now().toString(36).toUpperCase(), createdAt: Date.now() });
       demoUsersSave(users);
       return users[users.length - 1];
     }
     async function demoUpdateUser(userId, updates) {
-      const { demoUsersAll, demoUsersSave } = await import('../js/db.js');
+      const { demoUsersAll, demoUsersSave } = await import('./js/db.js');
       const users = demoUsersAll();
-      const idx = users.findIndex(u => u.id === userId);
-      if (idx === -1) throw new Error('User not found / المستخدم غير موجود');
-      users[idx] = { ...users[idx], ...updates };
+      const i = users.findIndex(u => u.id === userId);
+      if (i === -1) throw new Error('User not found / المستخدم غير موجود');
+      users[i] = { ...users[i], ...updates };
       demoUsersSave(users);
-      return users[idx];
-    }
-    async function demoSuspendUser(userId) {
-      return demoUpdateUser(userId, { status: 'suspended' });
-    }
-    async function demoActivateUser(userId) {
-      return demoUpdateUser(userId, { status: 'active' });
+      return users[i];
     }
 
-    // ---- Coupon system (demo) ----
-    const COUPON_KEY = 'dp_coupons';
-    function getCoupons() {
-      try { return JSON.parse(localStorage.getItem(COUPON_KEY)) || []; }
-      catch { return []; }
-    }
-    function saveCoupons(coupons) {
-      localStorage.setItem(COUPON_KEY, JSON.stringify(coupons));
-    }
-    function findCoupon(code) {
-      const coupons = getCoupons();
-      return coupons.find(c => c.code.toUpperCase() === code.toUpperCase() && !c.used);
+    async function loadUsers() {
+      if (loading) return;
+      loading = true;
+      tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm opacity-60">Loading users...</td></tr>`;
+      let users;
+      try {
+        if (IS_DEMO) throw new Error('demo');
+        const data = await api('/api/users');
+        users = (data || []).map(u => normalizeUser({ ...u, _demo: false }));
+      } catch (err) {
+        if (!IS_DEMO) console.log('Admin API unreachable — offline mode:', err.message);
+        users = (await demoGetUsers()).map(u => normalizeUser({ ...u, _demo: true }));
+      }
+      allUsers = users;
+      renderUsers(users);
+      updateStats(users);
+      loading = false;
     }
 
-    // ---- Render users ----
+    // ---- Render ----
+    function tierBadge(user) {
+      const now = Date.now();
+      const tier = user.subscription;
+      const expired = user.status !== 'suspended' &&
+        (tier === 'trial' || tier === 'monthly' || tier === 'yearly' || tier === 'active') &&
+        user.subEnd && user.subEnd <= now;
+      const suspended = user.status === 'suspended';
+      if (suspended) return '<span class="badge badge-expired">Suspended / موقوف</span>';
+      if (expired) return '<span class="badge badge-expired">Expired / منتهي</span>';
+      if (tier === 'trial') return '<span class="badge badge-trial">Trial / تجربة</span>';
+      if (tier === 'lifetime' || tier === 'active' || tier === 'monthly' || tier === 'yearly') return '<span class="badge badge-active">Active / نشط</span>';
+      return '<span class="badge badge-none">None / بدون</span>';
+    }
+    function expiryText(user) {
+      if (user.subscription === 'lifetime') return '<span style="color:#CCFF00;">Lifetime</span>';
+      if (!user.subEnd) return '—';
+      return new Date(user.subEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    const esc = (t) => String(t ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
+
     function renderUsers(users) {
-      if (!users.length) {
+      const q = searchInput.value.trim().toLowerCase();
+      const st = statusFilter.value;
+      let list = users;
+      if (q) list = list.filter(u => (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q));
+      if (st !== 'all') {
+        list = list.filter(u => {
+          const now = Date.now();
+          if (st === 'active') return u.status !== 'suspended' && u.subscription !== 'none' && (!u.subEnd || u.subEnd > now);
+          if (st === 'trial') return u.subscription === 'trial' && u.subEnd && u.subEnd > now;
+          if (st === 'trial_expired') return u.subscription === 'trial' && u.subEnd && u.subEnd <= now && u.status !== 'suspended';
+          if (st === 'expired') return u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now;
+          if (st === 'suspended') return u.status === 'suspended';
+          return true;
+        });
+      }
+
+      if (!list.length) {
         tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm opacity-60">No users found / لا توجد مستخدمين</td></tr>`;
         return;
       }
 
-      const now = Date.now();
-      tableBody.innerHTML = users.map(user => {
-        const isExpired = user.subscription !== 'none' &&
-          (user.subscription === 'trial' || user.subscription === 'active') &&
-          now > user.subEnd;
-
-        const statusBadge = isExpired
-          ? '<span class="badge badge-expired">Expired / منتهي</span>'
-          : user.subscription === 'trial'
-          ? '<span class="badge badge-trial">Trial / تجربة</span>'
-          : user.subscription === 'active'
-          ? '<span class="badge badge-active">Active / نشط</span>'
-          : user.status === 'suspended'
-          ? '<span class="badge badge-expired">Suspended / موقوف</span>'
-          : '<span class="badge badge-none">None / بدون</span>';
-
-        const expiryDate = user.subEnd ? new Date(user.subEnd).toLocaleDateString('en-GB', {
-          day: 'numeric', month: 'short', year: 'numeric'
-        }) : '—';
-
-        const canActivate = user.status === 'suspended' || !user.status;
-        const canDeactivate = user.status === 'active' || user.subscription === 'active';
-
-        return `<tr>
+      tableBody.innerHTML = list.map(u => `
+        <tr class="hover:bg-[#171717]/50 transition-colors">
           <td>
             <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color:#CCFF00;">
-                ${user.name?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-              <span>${escapeHtml(user.name || '—')}</span>
+              <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color:#CCFF00;">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
+              <span>${esc(u.name || '—')}</span>
             </div>
           </td>
-          <td>${escapeHtml(user.email)}</td>
-          <td>${user.subscription === 'trial' ? 'Free Trial (2 weeks)' :
-               user.subscription === 'monthly' ? 'Monthly' :
-               user.subscription === 'yearly' ? 'Yearly' :
-               user.subscription === 'lifetime' ? 'Lifetime' :
-               'None'}</td>
-          <td>${expiryDate}</td>
-          <td>${statusBadge}</td>
+          <td class="font-mono text-sm" style="color:#CCFF00;">${esc(u.email || '—')}</td>
+          <td>${esc(TIER_LABEL[u.subscription] || u.subscription || 'None')}</td>
+          <td class="whitespace-nowrap">${expiryText(u)}</td>
+          <td>${tierBadge(u)}</td>
           <td>
-            <div class="flex gap-1 flex-wrap">
-              ${canActivate ? `<button class="btn-sm btn-activate activate-user" data-id="${user.id}">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                Activate
-              </button>` : ''}
-              ${canDeactivate ? `<button class="btn-sm btn-deactivate deactivate-user" data-id="${user.id}">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 16.17L15.59 7.58 14.17 9l-4.35 4.35L5.33 9l1.41 1.41L12 16.17V22H10V16.17l1.41-1.41L5.33 9 9 12.67 4.35 8.01 9 3.65 17 10.35 20.04 13.39 17 16.17z"/></svg>
-                Suspend
-              </button>` : ''}
-              <button class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._editUser('${user.id}')">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.812 9.937a1 1 0 1 1 1.5 1.536l-3.75 3.75a1 1 0 0 1-1.5-.036L3 21zM20.71 4.63a1 1 0 0 0-.96-1.27l-3.36-1.62a1 1 0 0 0-.96 0l-3.36 1.62a1 1 0 0 0-.96 1.27c-.56.87-1.07 1.99-1.25 2.29-.23.38-.15 1.02.46 1.68l5.05 5.05c.5.5 1.15.78 1.85.78h3.32c.7.01 1.35-.27 1.85-.78l5.05-5.05c.57-.66.66-1.3.46-1.68-.18-.3-1.59-2.42-4.75-4.13z"/></svg>
-                Edit
-              </button>
+            <div class="flex gap-1 flex-wrap justify-end">
+              <button class="btn-sm btn-activate" data-action="edit" data-id="${esc(u.id)}">✎ Edit / تعديل</button>
+              ${u.status === 'suspended'
+                ? `<button class="btn-sm btn-activate" data-action="activate" data-id="${esc(u.id)}">Activate / تفعيل</button>`
+                : `<button class="btn-sm btn-deactivate" data-action="suspend" data-id="${esc(u.id)}">Suspend / تعليق</button>`}
             </div>
           </td>
-        </tr>`;
-      }).join('');
+        </tr>`).join('');
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // ---- Stats ----
     function updateStats(users) {
       const now = Date.now();
+      const active = users.filter(u => u.status !== 'suspended' && u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd > now).length
+        + users.filter(u => u.subscription === 'lifetime' && u.status !== 'suspended').length;
+      const trial = users.filter(u => u.subscription === 'trial' && u.subEnd && u.subEnd > now && u.status !== 'suspended').length;
+      const expired = users.filter(u => u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now).length;
       statTotal.textContent = users.length;
-      statActive.textContent = users.filter(u => u.status === 'active' && (!u.subEnd || u.subEnd > now)).length;
-      statTrial.textContent = users.filter(u => u.subscription === 'trial' && (!u.subEnd || u.subEnd > now)).length;
-      statExpired.textContent = users.filter(u => (u.subscription === 'trial' || u.subscription === 'active') && u.subEnd && u.subEnd <= now).length;
+      statActive.textContent = active;
+      statTrial.textContent = trial;
+      statExpired.textContent = expired;
     }
 
-    // ---- Load users ----
-    async function loadUsers() {
-      let users;
-      try {
-        const { data, error } = await supabase.from('users').select('*').order('createdAt', { ascending: false });
-        if (error) throw error;
-        users = data || [];
-      } catch (err) {
-        console.log('Supabase users fetch failed, using demo:', err.message);
-        users = await demoGetUsers();
+    // ---- Subscription preview ----
+    function previewText() {
+      const tier = userSubType.value;
+      if (tier === 'lifetime') return 'Lifetime — never expires / مدى الحياة — لا ينتهي';
+      if (tier === 'none') return 'No subscription / بدون اشتراك';
+      const days = parseInt(userDays.value) || DEFAULT_DAYS[tier] || 30;
+      const end = Date.now() + days * 86400000;
+      return `${days} days → ${new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  (${days} يوم)`;
+    }
+    function refreshPreview() {
+      if (userSubType.value === 'lifetime' || userSubType.value === 'none') userDays.disabled = true;
+      else userDays.disabled = false;
+      subPreview.textContent = previewText();
+    }
+    window._setDays = (d) => { userDays.value = d; refreshPreview(); };
+
+    userSubType.addEventListener('change', () => {
+      if (userSubType.value !== 'lifetime' && userSubType.value !== 'none') {
+        userDays.value = parseInt(userDays.value) || DEFAULT_DAYS[userSubType.value] || 30;
       }
-      allUsers = users;
-      const filtered = applyFilters(users);
-      renderUsers(filtered);
-      updateStats(users);
-    }
-
-    function applyFilters(users) {
-      const search = searchInput.value.toLowerCase();
-      const status = statusFilter.value;
-      return users.filter(u => {
-        if (status !== 'all') {
-          if (status === 'active' && u.status !== 'active' && u.status !== 'trial') return false;
-          if (status === 'trial' && u.subscription !== 'trial') return false;
-          if (status === 'expired' && (!u.subEnd || u.subEnd > Date.now())) return false;
-          if (status === 'suspended' && u.status !== 'suspended') return false;
-        }
-        if (search) {
-          const match = (u.email || '').toLowerCase().includes(search) ||
-            (u.name || '').toLowerCase().includes(search);
-          if (!match) return false;
-        }
-        return true;
-      });
-    }
-
-    // ---- Event listeners ----
-    searchInput.addEventListener('input', () => {
-      renderUsers(applyFilters(allUsers));
+      refreshPreview();
     });
-    statusFilter.addEventListener('change', () => {
-      renderUsers(applyFilters(allUsers));
-    });
-    refreshBtn.addEventListener('click', loadUsers);
+    userDays.addEventListener('input', refreshPreview);
 
-    // ---- Activate / Deactivate ----
-    tableBody.addEventListener('click', (e) => {
-      const btn = e.target.closest('.activate-user, .deactivate-user');
-      if (!btn) return;
-      if (loading) return;
-      const userId = btn.dataset.id;
-      const action = btn.classList.contains('activate-user') ? 'activate' : 'suspend';
-
-      setLoading(true);
-      btn.disabled = true;
-      btn.textContent = 'Processing...';
-
-      try {
-        let updated;
-        try {
-          const { error } = await supabase.from('users').update({
-            status: action === 'activate' ? 'active' : 'suspended'
-          }).eq('id', userId);
-          if (error) throw error;
-          updated = { ...allUsers.find(u => u.id === userId), status: action === 'activate' ? 'active' : 'suspended' };
-        } catch (err) {
-          console.log('Supabase update failed, using demo:', err.message);
-          if (action === 'activate') updated = await demoActivateUser(userId);
-          else updated = await demoSuspendUser(userId);
-        }
-        allUsers = allUsers.map(u => u.id === userId ? updated : u);
-        loadUsers();
-      } catch (err) {
-        console.error('Action failed:', err);
-      }
-
-      setLoading(false);
-      btn.disabled = false;
-      btn.innerHTML = action === 'activate'
-        ? `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Activate`
-        : `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M17 16.17L15.59 7.58 14.17 9l-4.35 4.35L5.33 9l1.41 1.41L12 16.17V22H10V16.17l1.41-1.41L5.33 9 9 12.67 4.35 8.01 9 3.65 17 10.35 20.04 13.39 17 16.17z"/></svg> Suspend`;
-    });
-
-    // ---- Add User Modal ----
-    const openUserModal = () => {
-      userModal.classList.remove('hidden');
+    // ---- Modal (create / edit) ----
+    window._openCreate = () => {
+      editId = null;
+      userModalTitleText.textContent = 'Add User / إضافة مستخدم';
+      passwordRow.classList.remove('hidden');
+      userPassword.required = true;
+      userEmail.disabled = false;
       userForm.reset();
+      userSubType.value = 'monthly';
+      userDays.value = 30;
+      submitUserBtn.textContent = 'Create User / إنشاء';
+      couponSection.classList.add('hidden');
       userModalMsg.textContent = '';
-      couponSection.classList.add('hidden');
+      refreshPreview();
+      userModal.classList.remove('hidden');
     };
 
-    window._editUser = (userId) => {
-      const user = allUsers.find(u => u.id === userId);
-      if (!user) return;
-      userName.value = user.name || '';
-      userEmail.value = user.email;
-      userPassword.value = '';
-      userSubType.value = user.subscription === 'trial' ? 'trial' :
-        user.subscription === 'monthly' ? 'monthly' :
-        user.subscription === 'yearly' ? 'yearly' :
-        user.subscription === 'lifetime' ? 'lifetime' : 'none';
-      userModal.dataset.editId = userId;
-      openUserModal();
+    window._editUser = (id) => {
+      const u = allUsers.find(x => x.id === id);
+      if (!u) return;
+      editId = id;
+      userModalTitleText.textContent = 'Edit Subscription / تعديل الاشتراك';
+      passwordRow.classList.add('hidden');
+      userPassword.required = false;
+      userName.value = u.name || '';
+      userEmail.value = u.email || '';
+      userEmail.disabled = true;
+      const tier = ['trial', 'monthly', 'yearly', 'lifetime', 'none'].includes(u.subscription) ? u.subscription : 'none';
+      userSubType.value = tier;
+      userDays.value = u.days || (tier === 'yearly' ? 365 : tier === 'trial' ? 14 : tier === 'lifetime' ? 0 : 30);
+      submitUserBtn.textContent = 'Save Changes / حفظ';
+      couponSection.classList.add('hidden');
+      userModalMsg.textContent = '';
+      refreshPreview();
+      userModal.classList.remove('hidden');
     };
 
-    addCouponBtn.addEventListener('click', () => {
-      openUserModal();
-      couponSection.classList.toggle('hidden');
-    });
+    cancelUserBtn.addEventListener('click', () => userModal.classList.add('hidden'));
+    userModal.addEventListener('click', (e) => { if (e.target === userModal) userModal.classList.add('hidden'); });
 
-    cancelUserBtn.addEventListener('click', () => {
-      userModal.classList.add('hidden');
-      couponSection.classList.add('hidden');
-    });
-
-    // Apply coupon in create modal
-    applyCouponBtn.addEventListener('click', async () => {
-      const code = couponCode.value.trim().toUpperCase();
-      if (!code) {
-        couponResult.textContent = 'Enter coupon code / أدخل رمز الكوبون';
-        return;
-      }
-
-      const coupon = findCoupon(code);
-      if (!coupon) {
-        couponResult.textContent = 'Invalid or used coupon / كوبون غير صحيح أو مستخدم';
-        couponResult.style.color = '#ff3366';
-        return;
-      }
-
-      // Apply coupon to form
-      if (coupon.type === 'days_14') userSubType.value = 'trial';
-      else if (coupon.type === 'days_30') userSubType.value = 'monthly';
-      else if (coupon.type === 'days_365') userSubType.value = 'yearly';
-
-      couponResult.textContent = `Coupon applied! / تم تطبيق الكوبون — ${coupon.description || 'Free period'}`;
-      couponResult.style.color = '#CCFF00';
-
-      // Mark coupon as used
-      const coupons = getCoupons();
-      const idx = coupons.findIndex(c => c.code.toUpperCase() === code);
-      if (idx !== -1) coupons[idx].used = true;
-      saveCoupons(coupons);
-      couponCode.value = '';
-    });
-
-    // ---- Create User ----
+    // ---- Save (create or edit subscription) ----
     userForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (loading) return;
-
       const name = userName.value.trim();
       const email = userEmail.value.trim().toLowerCase();
       const password = userPassword.value;
-      const subType = userSubType.value;
+      const tier = userSubType.value;
+      const days = parseInt(userDays.value) || DEFAULT_DAYS[tier] || 0;
 
-      if (!name || !email || !password) {
-        userModalMsg.textContent = 'All fields are required / جميع الحقول مطلوبة';
-        return;
-      }
-      if (password.length < 7) {
-        userModalMsg.textContent = 'Password must be at least 7 characters / 7 أحرف على الأقل';
-        return;
-      }
+      if (!name || !email) { userModalMsg.textContent = 'Name and email are required / الاسم والبريد مطلوبان'; return; }
+      if (editId === null && password.length < 8) { userModalMsg.textContent = 'Password must be 8+ characters / 8 أحرف على الأقل'; return; }
 
       loading = true;
       userModalMsg.textContent = '';
+      submitUserBtn.disabled = true;
 
       const now = Date.now();
-      let subStart = now;
-      let subEnd = null;
-      let subscription = 'none';
-
-      if (subType === 'trial') {
-        subscription = 'trial';
-        subEnd = now + 14 * 86400000; // 2 weeks
-      } else if (subType === 'monthly') {
-        subscription = 'active';
-        subEnd = now + 30 * 86400000;
-      } else if (subType === 'yearly') {
-        subscription = 'active';
-        subEnd = now + 365 * 86400000;
-      } else if (subType === 'lifetime') {
-        subscription = 'active';
-        subEnd = null;
-      }
-
-      const newUser = {
-        id: 'U' + Date.now().toString(36).toUpperCase(),
-        name,
-        email,
-        password,
-        status: 'active',
-        subscription,
-        subStart,
-        subEnd,
-        subTier: subType,
-        createdAt: now,
-        lastLogin: null,
+      const subEnd = tier === 'lifetime' ? now + 36500 * 86400000 : tier === 'none' ? null : now + days * 86400000;
+      const subscription = {
+        tier,
+        days: tier === 'lifetime' || tier === 'none' ? 0 : days,
       };
 
       try {
-        let created;
-        try {
-          const { error } = await supabase.from('users').insert({
-            name, email, password, status: 'active',
-            subscription, subStart, subEnd, subTier: subType,
-            created_at: new Date().toISOString()
-          });
-          if (error) throw error;
-          created = { ...newUser, id: 'sup-' + Date.now() };
-        } catch (err) {
-          console.log('Supabase insert failed, using demo:', err.message);
-          created = await demoCreateUser(newUser);
+        if (editId === null) {
+          if (IS_DEMO) {
+            await demoCreateUser({
+              name, email, password, status: 'active',
+              subscription: tier === 'none' ? 'none' : (tier === 'lifetime' ? 'active' : tier),
+              subStart: now, subEnd, subTier: tier, days: subscription.days,
+              lastLogin: null,
+            });
+          } else {
+            await api('/api/users', { method: 'POST', body: JSON.stringify({ email, password, full_name: name, subscription }) });
+          }
+        } else {
+          if (IS_DEMO) {
+            await demoUpdateUser(editId, {
+              name,
+              subscription: tier === 'none' ? 'none' : (tier === 'lifetime' ? 'active' : tier),
+              subStart: (allUsers.find(x => x.id === editId) || {}).subStart || now,
+              subEnd, subTier: tier, days: subscription.days, status: 'active',
+            });
+          } else {
+            await api('/api/users/' + editId, { method: 'PATCH', body: JSON.stringify({ name, subscription }) });
+          }
         }
-        allUsers.unshift(created);
-        loadUsers();
-        userModalMsg.textContent = '✓ User created successfully / تم إنشاء المستخدم بنجاح';
-        userModalMsg.style.color = '#CCFF00';
-        setTimeout(() => {
-          userModal.classList.add('hidden');
-          userModalMsg.textContent = '';
-        }, 2000);
+        userModal.classList.add('hidden');
+        await loadUsers();
       } catch (err) {
-        userModalMsg.textContent = err.message || 'Failed to create user / فشل إنشاء المستخدم';
+        console.error(err);
+        userModalMsg.textContent = err.message || 'Failed / فشل';
+      } finally {
         loading = false;
+        submitUserBtn.disabled = false;
       }
     });
 
-    // ---- Create Coupon ----
+    // ---- Row actions: suspend / activate ----
+    tableBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn || loading) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action === 'edit') { window._editUser(id); return; }
+
+      if (!confirm(action === 'suspend'
+        ? 'Suspend this user? / تعليق هذا المستخدم؟'
+        : 'Activate this user? / تفعيل هذا المستخدم؟')) return;
+
+      loading = true;
+      try {
+        const suspend = action === 'suspend';
+        if (IS_DEMO) {
+          await demoUpdateUser(id, { status: suspend ? 'suspended' : 'active' });
+        } else {
+          await api('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ suspend }) });
+        }
+        await loadUsers();
+      } catch (err) {
+        console.error(err);
+        alert('Action failed / العملية فشلت: ' + err.message);
+      } finally { loading = false; }
+    });
+
+    // ---- Filters / refresh ----
+    searchInput.addEventListener('input', () => renderUsers(allUsers));
+    statusFilter.addEventListener('change', () => renderUsers(allUsers));
+    refreshBtn.addEventListener('click', loadUsers);
+
+    // ---- Coupon system ----
+    const COUPON_KEY = 'dp_coupons';
+    const getCoupons = () => { try { return JSON.parse(localStorage.getItem(COUPON_KEY)) || []; } catch { return []; } };
+    const saveCoupons = (c) => localStorage.setItem(COUPON_KEY, JSON.stringify(c));
+    const findCoupon = (code) => getCoupons().find(c => c.code.toUpperCase() === code.toUpperCase() && !c.used);
+
+    applyCouponBtn.addEventListener('click', () => {
+      const code = couponCode.value.trim().toUpperCase();
+      if (!code) { couponResult.textContent = 'Enter coupon code / أدخل رمز الكوبون'; couponResult.style.color = '#ff3366'; return; }
+      const coupon = findCoupon(code);
+      if (!coupon) { couponResult.textContent = 'Invalid or used coupon / كوبون غير صحيح'; couponResult.style.color = '#ff3366'; return; }
+      if (coupon.type === 'days_14') { userSubType.value = 'trial'; userDays.value = 14; }
+      else if (coupon.type === 'days_30') { userSubType.value = 'monthly'; userDays.value = 30; }
+      else if (coupon.type === 'days_365') { userSubType.value = 'yearly'; userDays.value = 365; }
+      const coupons = getCoupons();
+      const i = coupons.findIndex(c => c.code.toUpperCase() === code);
+      if (i !== -1) coupons[i].used = true;
+      saveCoupons(coupons);
+      couponResult.textContent = 'Coupon applied! / تم تطبيق الكوبون';
+      couponResult.style.color = '#CCFF00';
+      couponCode.value = '';
+      refreshPreview();
+    });
+
+    addCouponBtn.addEventListener('click', () => { couponModal.classList.remove('hidden'); couponForm.reset(); couponModalMsg.textContent = ''; });
+    cancelCouponBtn.addEventListener('click', () => couponModal.classList.add('hidden'));
     couponForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const code = couponCodeInput.value.trim().toUpperCase();
       const type = couponType.value;
       const value = parseInt(couponValue.value) || 50;
-
-      if (!code) {
-        couponModalMsg.textContent = 'Enter coupon code / أدخل رمز الكوبون';
-        return;
-      }
-
+      if (!code) { couponModalMsg.textContent = 'Enter coupon code / أدخل رمز الكوبون'; return; }
       const coupons = getCoupons();
-      if (coupons.some(c => c.code.toUpperCase() === code)) {
-        couponModalMsg.textContent = 'Coupon code already exists / رمز الكوبون موجود مسبقاً';
-        return;
-      }
-
-      const newCoupon = {
-        code,
-        type,
-        value,
-        description: type === 'days_14' ? 'Free 2 weeks' :
-                    type === 'days_30' ? 'Free 1 month' :
-                    type === 'days_365' ? 'Free 1 year' :
-                    ` ${value}% discount`,
-        used: false,
-        createdAt: Date.now(),
-      };
-
-      coupons.push(newCoupon);
+      if (coupons.some(c => c.code.toUpperCase() === code)) { couponModalMsg.textContent = 'Coupon code already exists / رمز الكوبون موجود مسبقاً'; return; }
+      coupons.push({
+        code, type, value,
+        description: type === 'days_14' ? 'Free 2 weeks' : type === 'days_30' ? 'Free 1 month' : type === 'days_365' ? 'Free 1 year' : ` ${value}% discount`,
+        used: false, createdAt: Date.now(),
+      });
       saveCoupons(coupons);
-
       couponModalMsg.textContent = '✓ Coupon created successfully / تم إنشاء الكوبون بنجاح';
       couponModalMsg.style.color = '#CCFF00';
       couponForm.reset();
-      setTimeout(() => {
-        couponModal.classList.add('hidden');
-        couponModalMsg.textContent = '';
-      }, 2000);
-    });
-
-    cancelCouponBtn.addEventListener('click', () => {
-      couponModal.classList.add('hidden');
-      couponModalMsg.textContent = '';
-    });
-
-    addCouponBtn.addEventListener('click', () => {
-      couponModal.classList.toggle('hidden');
+      setTimeout(() => { couponModal.classList.add('hidden'); couponModalMsg.textContent = ''; }, 1500);
     });
 
     // ---- Load ----

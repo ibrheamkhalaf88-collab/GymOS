@@ -266,15 +266,22 @@ $("#logoutBtnSide").addEventListener("click", deactivateLicense);
 
 async function deactivateLicense() {
   const ok = await confirmDialog({
-    titleEn: "Clear all data?",
-    titleAr: "مسح جميع البيانات؟",
-    confirmText: "Clear",
-    danger: true,
+    titleEn: "Log out?",
+    titleAr: "تسجيل الخروج؟",
+    confirmText: "Logout",
   });
-  if (ok) {
-    store.resetAll();
-    location.reload();
-  }
+  if (!ok) return;
+  // Sign out only — keep the account data so the next login shows it again.
+  try { store.stopSync && store.stopSync(); } catch {}
+  localStorage.removeItem('dp_current_user');
+  localStorage.removeItem('dp_user_email');
+  localStorage.removeItem('dp_user_id');
+  localStorage.removeItem('dp_google_email');
+  Object.keys(localStorage).forEach(k => {
+    if (k.startsWith('sb-') && (k.includes('auth-token') || k.includes('code-verifier'))) localStorage.removeItem(k);
+  });
+  sessionStorage.clear();
+  window.location.href = 'login.html';
 }
 
 // ---------- FAB ----------
