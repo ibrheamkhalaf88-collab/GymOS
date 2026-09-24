@@ -378,8 +378,8 @@ export const store = {
   resetAll() {
     COLLECTIONS.forEach((c) => localStorage.removeItem(PREFIX + c));
     localStorage.removeItem("dp_tombstones");
-    localStorage.removeItem("dp_seeded");
-    // لا تعد زرع بيانات وهمية — اتركها فارغة للعميل النهائي
+    // لا تعد زرع بيانات وهمية بعد المسح — اتركها فارغة للعميل النهائي
+    localStorage.setItem("dp_seeded", "1");
   },
 
   exportAll() {

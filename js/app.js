@@ -83,8 +83,10 @@ import { supabase } from "./supabase-client.js";
     const { data: { session } } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
     if (session && session.user) {
       localStorage.setItem('dp_user_email', session.user.email || '');
-      const meta = session.user.app_metadata || {};
-      if (meta.data_enabled && meta.sync_enabled) store.startSync();
+      // data_enabled/sync_enabled live on the license record (codes table),
+      // not on the auth user's app_metadata — read them from dp_license.
+      const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
+      if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
     } else {
       // Check demo mode session
       const demoUser = localStorage.getItem('dp_current_user');
@@ -124,6 +126,23 @@ const DAY = 86400000;
 function effStatus(m) {
   if (Date.now() > m.expiresAt) return "expired";
   return m.status === "frozen" ? "frozen" : (m.status === "trial" && Date.now() <= m.expiresAt ? "trial" : "active");
+}
+// Orphaned/trial accounts sign in without a dp_license record — synthesize one
+// from the demo session so the dashboard & profile always render.
+function effectiveLicense() {
+  const lic = license.get();
+  if (lic) return { lic, left: license.daysLeft() };
+  let code = "TRIAL", owner = "", end = Date.now() + 30 * 86400000;
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    if (u) {
+      if (u.email) code = u.email.split("@")[0].toUpperCase();
+      owner = u.name || u.email || "";
+      if (u.subEnd) end = Number(u.subEnd);
+    }
+  } catch {}
+  const left = Math.max(1, Math.ceil((end - Date.now()) / 86400000));
+  return { lic: { code, tier: "trial", expiresAt: end, owner }, left };
 }
 const nf = new Intl.NumberFormat("en-US");
 
@@ -270,7 +289,8 @@ document.getElementById("fab").addEventListener("click", () => {
    ============================================================ */
 function viewDashboard() {
   const s = store.stats();
-  const lic = license.get();
+  const licInfo = effectiveLicense();
+  const lic = licInfo.lic;
 
   // System feed derived from real data + notifications
   const feed = [];
@@ -339,7 +359,7 @@ function viewDashboard() {
       <div class="flex flex-col">
         <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} <span class="text-primary">· ${tierLabel(lic.tier)}</span></p>
         <p class="font-display font-bold text-xs text-white mt-1 uppercase">
-          <span>${license.daysLeft() === Infinity ? "♾️ LIFETIME" : license.daysLeft() + " Days Left"}</span><span class="ml-1 opacity-70">${license.daysLeft() === Infinity ? "دائم" : "يوم متبقي"}</span>
+          <span>${licInfo.left === Infinity ? "♾️ LIFETIME" : licInfo.left + " Days Left"}</span><span class="ml-1 opacity-70">${licInfo.left === Infinity ? "دائم" : "يوم متبقي"}</span>
         </p>
       </div>
       <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
@@ -642,6 +662,7 @@ const LICENSE_TIER = {
   standard:["🔑", "STANDARD", "عادية"],
   vip:     ["💎", "VIP", "مميزة"],
   guest:   ["👤", "GUEST", "زائر"],
+  trial:   ["🎁", "TRIAL", "تجربة"],
 };
 const tierLabel = (tier) => {
   const m = LICENSE_TIER[tier];
@@ -1625,7 +1646,8 @@ function viewReports() {
    PROFILE  (docs/design/profile_unified)
    ============================================================ */
 function viewProfile() {
-  const lic = license.get();
+  const licInfo = effectiveLicense();
+  const lic = licInfo.lic;
   const isOnline = codesDbMode();
 
   screen.innerHTML = `
@@ -1696,7 +1718,7 @@ function viewProfile() {
           <div class="flex items-center justify-between group cursor-pointer" id="secReset">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Reset Data</p>
-              <p class="text-muted text-xs mt-1 font-headline">Restore demo dataset / بيانات تجريبية</p>
+              <p class="text-muted text-xs mt-1 font-headline">Erase all data (members, devices, finance) / مسح كل البيانات</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Reset</button>
           </div>
@@ -1797,7 +1819,7 @@ function viewProfile() {
               <div>
                 <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
                 <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
-                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${license.daysLeft() === Infinity ? "♾️ دائم / LIFETIME" : license.daysLeft() + " Days / يومًا"}</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "♾️ دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
               </div>
               <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             </div>

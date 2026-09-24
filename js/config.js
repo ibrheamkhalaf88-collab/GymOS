@@ -3,6 +3,10 @@
 // عدّل القيم هنا حسب إعداداتك
 // ============================================================
 
+// الجذر المطلق للتطبيق (يشتغل على GitHub Pages تحت /GymOS/ وعلى localhost)
+// يُحسب من موقع ملف config.js (js/config.js → الجذر)
+export const APP_BASE = new URL("../", import.meta.url).href;
+
 export const appConfig = {
   brand: "DIGITAL PULSE",
   brandAr: "النبض الرقمي",

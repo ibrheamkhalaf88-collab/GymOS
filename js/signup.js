@@ -3,6 +3,7 @@
 // ============================================================
 import { supabase } from './supabase-client.js';
 import { validatePassword } from './validate.js';
+import { APP_BASE } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
@@ -76,6 +77,20 @@ async function demoSignUp(email, password, name) {
   return { ok: true, user: newUser };
 }
 
+function mapSignupError(err) {
+  const msg = (err?.message || 'unknown error').toLowerCase();
+  if (msg.includes('already registered') || msg.includes('already been registered')) {
+    return 'An account already exists with this email — try signing in / حساب موجود مسبقاً بهذا البريد — سجّل الدخول';
+  }
+  if (msg.includes('over_email_send_rate_limit') || msg.includes('rate limit')) {
+    return 'Too many signups — try again later / تسجيلات كثيرة — حاول لاحقاً';
+  }
+  if (msg.includes('weak password') || msg.includes('password should be')) {
+    return 'Password too weak — use 8+ chars with 1 letter + 1 digit / كلمة السر ضعيفة';
+  }
+  return `Signup failed — ${err?.message || 'unknown error'}`;
+}
+
 /* -------- Form submit -------- */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -108,42 +123,52 @@ form.addEventListener('submit', async (e) => {
 
   // Try Supabase first
   let result;
-  if (supabase) try {
-    const { error, data } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name,
-          subscription: 'trial',
-          subStart: Date.now(),
-          subEnd: Date.now() + 30 * 86400000,
-          subTier: 'free_trial',
+  if (supabase) {
+    let realError = null;
+    try {
+      const { error, data } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            subscription: 'trial',
+            subStart: Date.now(),
+            subEnd: Date.now() + 30 * 86400000,
+            subTier: 'free_trial',
+          },
         },
-      },
-    });
+      });
 
-    if (error) throw error;
+      if (error) { realError = error; throw error; }
 
-    if (data.user) {
-      result = {
-        ok: true,
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-          name: name,
-          status: 'active',
-          subscription: 'trial',
-          subStart: Date.now(),
-          subEnd: Date.now() + 30 * 86400000,
-          subTier: 'free_trial',
-        }
-      };
-    } else {
-      throw new Error('No user returned');
+      if (data.user) {
+        result = {
+          ok: true,
+          user: {
+            id: data.user.id,
+            email: data.user.email,
+            name: name,
+            status: 'active',
+            subscription: 'trial',
+            subStart: Date.now(),
+            subEnd: Date.now() + 30 * 86400000,
+            subTier: 'free_trial',
+          }
+        };
+      } else {
+        throw new Error('No user returned');
+      }
+    } catch (err) {
+      if (realError) {
+        // Real Supabase error (already-registered email, weak remote password, …) —
+        // surface it instead of silently creating a local demo account.
+        setMsg(mapSignupError(realError));
+        setLoading(false);
+        return;
+      }
+      console.warn('[signup] Supabase failed, falling back to demo:', err?.message || err);
     }
-  } catch (err) {
-    console.warn('[signup] Supabase failed, falling back to demo:', err?.message || err);
   }
 
   if (!result) {
@@ -175,12 +200,11 @@ form.addEventListener('submit', async (e) => {
 googleBtn.addEventListener('click', async () => {
   if (loading) return;
   if (!supabase) { setMsg('No connection / لا اتصال'); return; }
-  const origin = window.location.origin;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${APP_BASE}auth/callback.html`,
     },
   });
   if (error) {

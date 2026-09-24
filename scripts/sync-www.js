@@ -8,10 +8,11 @@ const ROOT = path.join(__dirname, "..");
 const DEST = path.join(ROOT, "www");
 
 const FILES = [
-  "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
+  "index.html", "onboarding.html", "login.html", "signup.html", "reset-password.html",
+  "activate.html", "app.html", "ibrheam.html",
   "manifest.webmanifest", "sw.js",
 ];
-const DIRS = ["js", "css", "vendor", "assets"];
+const DIRS = ["js", "css", "vendor", "assets", "auth"];
 
 fs.rmSync(DEST, { recursive: true, force: true });
 fs.mkdirSync(DEST, { recursive: true });

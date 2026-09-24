@@ -1,8 +1,9 @@
 // Digital Pulse — minimal service worker
-// Cache-first for local static assets; network-first for pages.
-const CACHE = "dp-cache-v2";
+// Network-first for pages and code; cache-first for other static assets.
+const CACHE = "dp-cache-v3";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
+  "login.html", "signup.html", "reset-password.html", "auth/callback.html",
   "css/theme.css", "js/tailwind-config.js",
   "vendor/tailwind.js", "vendor/chart.umd.min.js",
   "assets/icons/icon.svg", "assets/icons/icon-192.png", "assets/icons/icon-512.png",
@@ -32,6 +33,21 @@ self.addEventListener("fetch", (e) => {
 
   // Pages: network-first so updates land immediately, fall back offline
   if (url.pathname.endsWith(".html") || url.pathname === "/") {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Code assets (js/css): network-first so deployed fixes reach existing
+  // users too, with cache fallback for offline.
+  if (/\.(js|css)$/.test(url.pathname)) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {

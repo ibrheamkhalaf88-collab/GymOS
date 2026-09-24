@@ -15,5 +15,8 @@
     { "src": "vendor/**", "use": "@vercel/static" },
     { "src": "js/**", "use": "@vercel/static" },
     { "src": "assets/**", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/auth/callback", "dest": "/auth/callback.html" }
   ]
 }

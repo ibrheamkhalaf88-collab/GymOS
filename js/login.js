@@ -1,6 +1,7 @@
 // ============================================================
 // login.js — Sign-in logic (email/password + Google OAuth)
 // ============================================================
+import { APP_BASE } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
@@ -80,6 +81,20 @@ function storeUserSession(user) {
   localStorage.setItem('dp_current_user', JSON.stringify({ id: user.id, email: user.email, name: user.name, status: user.status, subscription: user.subscription, subStart: user.subStart, subEnd: user.subEnd, subTier: user.subTier, loginAt: Date.now() }));
 }
 
+function mapSupabaseAuthError(err) {
+  const code = (err?.code || err?.message || '').toLowerCase();
+  if (code.includes('invalid login credentials') || code.includes('invalid_login_credentials') || code.includes('wrong password')) {
+    return 'Invalid email or password / كلمة السر أو البريد غير صحيح';
+  }
+  if (code.includes('email not confirmed') || code.includes('email_not_confirmed')) {
+    return 'Email not confirmed — check your inbox / البريد غير مؤكد — راجع بريدك';
+  }
+  if (code.includes('over_request_rate_limit') || code.includes('rate limit')) {
+    return 'Too many attempts — try again later / محاولات كثيرة — حاول لاحقاً';
+  }
+  return `Login failed — ${err?.message || 'unknown error'}`;
+}
+
 /* -------- Email / Password login -------- */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -93,18 +108,35 @@ form.addEventListener('submit', async (e) => {
   // Try Supabase first (lazy-loaded)
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
-  if (supabase) try {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    const { data: { user: supUser } } = await supabase.auth.getUser();
-    if (!supUser) throw new Error('No user');
-    const sub = supUser.user_metadata?.subscription || 'trial';
-    const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
-    const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
-    const subCheck = checkSubscription(result.user);
-    if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
-    storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); window.location.href = 'app.html'; return;
-  } catch { /* fall through to demo */ }
+  if (supabase) {
+    let credError = false;
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        // Real auth failure (wrong password, unconfirmed email, …) — surface it,
+        // do NOT silently fall back to a demo account.
+        credError = true;
+        throw error;
+      }
+      const { data: { user: supUser } } = await supabase.auth.getUser();
+      if (!supUser) { credError = true; throw new Error('No user'); }
+      const sub = supUser.user_metadata?.subscription || 'trial';
+      const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
+      const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
+      const subCheck = checkSubscription(result.user);
+      if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
+      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); window.location.href = 'app.html'; return;
+    } catch (err) {
+      if (credError) {
+        console.warn('[login] Supabase rejected credentials:', err?.message || err);
+        setMsg(mapSupabaseAuthError(err));
+        setLoading(false);
+        return;
+      }
+      // Network/transient error only → fall through to demo
+      console.warn('[login] Supabase unavailable, using demo fallback:', err?.message || err);
+    }
+  }
   // Demo fallback
   const result = await demoSignIn(email, password);
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
@@ -127,7 +159,7 @@ forgotLink.addEventListener('click', async (e) => {
     let supabase = null;
     try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
     if (supabase) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password.html` });
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${APP_BASE}reset-password.html` });
       if (error) throw error;
     }
   } catch (err) {
@@ -144,10 +176,9 @@ googleBtn.addEventListener('click', async () => {
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
   if (!supabase) { setMsg('No connection / لا اتصال'); setLoading(false); return; }
-  const origin = window.location.origin;
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { prompt: 'select_account', redirectTo: `${origin}/auth/callback` },
+    options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html` },
   });
   if (error) {
     console.error('Google OAuth error:', error);
