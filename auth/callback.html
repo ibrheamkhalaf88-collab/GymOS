@@ -66,7 +66,7 @@
         loginAt: NOW,
       }));
       localStorage.setItem('dp_user_email', user.email || '');
-      window.location.replace('app.html');
+      window.location.replace(new URL('../app.html', import.meta.url).href);
     }
 
     function decodeJwt(token) {
