@@ -362,12 +362,14 @@ export const store = {
     const seedFlag = localStorage.getItem(memSeededKey());
     // Migration: account يدخل أول مرة على جهاز فيه داتا قديمة (داتا ما قبل
     // الحسابات) → نستورد نسخة إلى نطاقه حتى لا تضيع بيانات المالك السابق.
+    // الهجرة مرة واحدة فقط على الجهاز — فلا تتسرب الداتا القديمة لحسابات أخرى.
     if (seedFlag !== "1") {
       const uid = currentAccountId();
-      if (uid && localStorage.getItem(PREFIX + col) !== null) {
+      if (uid && localStorage.getItem(PREFIX + col) !== null && localStorage.getItem("dp_legacy_migrated") !== "1") {
         try {
           const legacy = JSON.parse(localStorage.getItem(PREFIX + col)) || [];
           localStorage.setItem(key, JSON.stringify(legacy));
+          localStorage.setItem("dp_legacy_migrated", "1");
           return legacy;
         } catch { /* fallthrough */ }
       }
