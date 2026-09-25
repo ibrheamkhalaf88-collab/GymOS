@@ -56,7 +56,7 @@ function toast(msg, type = 'ok') {
   const el = document.createElement('div');
   el.className = `p-4 rounded-lg border ${type === 'err' ? 'border-[#ff3366] bg-[#ff3366]/10' : 'border-[#CCFF00] bg-[#CCFF00]/10'} text-sm font-headline tracking-widest`;
   el.style.color = type === 'err' ? '#ff3366' : '#CCFF00';
-  el.innerHTML = `${type === 'err' ? '⚠️ ' : '✅ '}${msg}`;
+  el.innerHTML = `${type === 'err' ? '⚠️ ' : '✅ '}${esc(msg)}`;
   root.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 2500);
 }
@@ -142,6 +142,7 @@ async function loadUsers() {
     renderStats(users);
   } catch (err) {
     console.warn('Admin API unreachable — using demo mode', err);
+    toast('DEMO MODE — API unreachable, showing local data only', 'err');
     const users = await demoUsers();
     allUsers = users;
     renderTable(users);

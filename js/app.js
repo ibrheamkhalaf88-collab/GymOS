@@ -244,15 +244,16 @@ document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click",
 $("#mNotifBtn").addEventListener("click", () => {
   const t = i18n.t;
   const list = store.all("notifications");
+  const sevStyle = (sev) => sev === "alert" ? "#ff3366" : sev === "info" ? "#ccff00" : "#d1e5f3";
   openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight mb-4">${t.systemFeed}</h3>
     <div class="flex flex-col gap-2">
       ${list.map((n) => `
         <div class="rounded-2xl bg-surface-container p-3 flex justify-between items-center gap-2"
-             style="border-inline-start:2px solid ${n.severity === "alert" ? "#ff3366" : n.severity === "info" ? "#ccff00" : "#d1e5f3"}">
+             style="border-inline-start:2px solid ${sevStyle(n.severity)}">
           <div>
-            <p class="font-headline font-bold text-sm">${currentLang() === "ar" ? n.titleAr : n.titleEn}</p>
-            <p class="text-xs text-muted mt-0.5">${currentLang() === "ar" ? n.subAr : n.subEn}</p>
+            <p class="font-headline font-bold text-sm">${escapeHtml(currentLang() === "ar" ? n.titleAr : n.titleEn)}</p>
+            <p class="text-xs text-muted mt-0.5">${escapeHtml(currentLang() === "ar" ? n.subAr : n.subEn)}</p>
           </div>
           <span class="text-[10px] text-muted whitespace-nowrap font-mono">${fmt.timeAgo(n.time, currentLang())}</span>
         </div>`).join("")}
@@ -277,6 +278,9 @@ async function deactivateLicense() {
   localStorage.removeItem('dp_user_email');
   localStorage.removeItem('dp_user_id');
   localStorage.removeItem('dp_google_email');
+  // Drop the device license so a *different* account signing in afterwards can
+  // never inherit this code/cloud scope (cross-account leak guard).
+  license.clear();
   Object.keys(localStorage).forEach(k => {
     if (k.startsWith('sb-') && (k.includes('auth-token') || k.includes('code-verifier'))) localStorage.removeItem(k);
   });
@@ -729,7 +733,7 @@ function openMemberModal(id = null) {
   const planOptions = PLANS.map((p) =>
     `<option value="${p.key}" ${m?.plan === p.key ? "selected" : ""}>${p.en} / ${p.ar} — $${prices[p.key]}</option>`).join("");
   const legacyOpt = m && !PLANS.some((p) => p.key === m.plan)
-    ? `<option value="${m.plan}" selected>${m.plan}</option>` : "";
+    ? `<option value="${escapeHtml(m.plan)}" selected>${escapeHtml(m.plan)}</option>` : "";
 
   const mod = openModal(`
     <div class="modal-header mb-6">
@@ -1159,7 +1163,7 @@ function viewLedger() {
     <div class="bg-alert/10 border border-alert/40 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
       <div class="min-w-0">
         <p class="font-headline text-sm text-alert uppercase tracking-wide">⏰ Salaries due this month / رواتب مستحقة</p>
-        <p class="text-xs text-muted mt-1 truncate">${due.map((t) => `${t.name} ($${t.salary})`).join(" · ")} — الإجمالي: ${fmt.money(dueTotal)}</p>
+        <p class="text-xs text-muted mt-1 truncate">${due.map((t) => `${escapeHtml(t.name)} ($${t.salary})`).join(" · ")} — الإجمالي: ${fmt.money(dueTotal)}</p>
       </div>
       <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">🔁 Renew all / تجديد الكل</button>
     </div>` : "";
@@ -1500,11 +1504,13 @@ function viewReports() {
 
   const rev = ledger.filter((l) => l.type === "revenue" && inRange(l)).reduce((s, l) => s + Number(l.amount || 0), 0);
   const prevRev = ledger.filter((l) => l.type === "revenue" && l.date >= prevStart && l.date < mStart).reduce((s, l) => s + Number(l.amount || 0), 0);
-  const growth = prevRev > 0 ? ((rev - prevRev) / prevRev) * 100 : (rev > 0 ? 12.4 : 0);
+  const growth = prevRev > 0 ? ((rev - prevRev) / prevRev) * 100 : 0;
   const netGrowth = members.filter((m) => m.joinDate >= mStart && m.joinDate < mEnd).length;
-  const expiredInMonth = members.filter((m) => m.status === "expired" && m.expiresAt >= mStart && m.expiresAt < mEnd).length;
+  // Count by the actual expiry window (don't trust the stored status, which goes
+  // stale once a member is renewed) so past months report correctly.
+  const expiredInMonth = members.filter((m) => m.expiresAt >= mStart && m.expiresAt < mEnd).length;
   const activeNow = members.filter((m) => effStatus(m) !== "expired").length;
-  const retention = activeNow + expiredInMonth > 0 ? Math.round((activeNow / (activeNow + expiredInMonth)) * 100) : 92;
+  const retention = activeNow + expiredInMonth > 0 ? Math.round((activeNow / (activeNow + expiredInMonth)) * 100) : 0;
 
   // Weekly revenue trend within the month (7 bars like the design)
   const daysInMonth = Math.round((mEnd - mStart) / DAY);

@@ -22,8 +22,9 @@ export const appConfig = {
   adminEmail: "ibrheamshady@gmail.com",
   adminDisplayName: "ADM_ROOT",
 
-  // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر) — تم توليدها تلقائياً، غيّرها بعد أول دخول
-  demoAdminPassword: "E20062006kh@",
+  // كلمة مرور لوحة الإدارة في الوضع التجريبي فقط (عند عدم ربط سيرفر) — هذه
+  // للمطالعة عرضياً، لا تعمل على السيرفر الحي. السر الحقيقي في Supabase secret.
+  demoAdminPassword: "DemoGym2026!",
 
   // 🗄️ Supabase — Authentication + Edge Functions
   supabaseUrl: "https://mwfbgucayjgbbvcyelbo.supabase.co",

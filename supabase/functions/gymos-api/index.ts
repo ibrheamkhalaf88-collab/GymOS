@@ -38,13 +38,26 @@ const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 // For gym data, sync-on codes share one row (device_id ''); sync-off codes
 // keep an isolated per-device row keyed by the real device id.
-async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean }> {
-  if (!p || !p.code) return { sync: true, data: true };
-  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled").eq("code", p.code).maybeSingle();
+// A missing code row now yields revoked=true (JWT must not outlive deletion).
+async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoked: boolean }> {
+  if (!p || !p.code) return { sync: true, data: true, revoked: true };
+  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled, revoked").eq("code", p.code).maybeSingle();
   return {
     sync: rec ? (rec.sync_enabled !== false) : true,
     data: rec ? (rec.data_enabled !== false) : true,
+    revoked: !rec ? true : !!rec.revoked,
   };
+}
+
+const DAY_MS = 86400000;
+// Subscription length counts from first activation (used_at). Return how many
+// days are actually left so a re-login can never reset the countdown.
+function remainingDays(rec: any): number {
+  const days = Number(rec?.days) || 0;
+  if (days <= 0) return 0; // lifetime / none
+  if (!rec?.used_at) return days;
+  const end = Date.parse(rec.used_at) + days * DAY_MS;
+  return Math.max(0, Math.ceil((end - Date.now()) / DAY_MS));
 }
 const normCode = (raw: string) =>
   String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
@@ -175,6 +188,13 @@ const failCode = (code: string) => {
 };
 const clearCode = (code: string) => actAttempts.delete(code);
 
+// free-trial issuance cap — deviceId is client-controlled and clearable, so the
+// per-IP cap is the real anti-abuse boundary. Keyed by clientIp (never per "TRIAL").
+const trialIssued = new Map<string, number>();
+const MAX_TRIALS_PER_IP = 3;
+const tooManyTrials = (ip: string) => (trialIssued.get(ip) || 0) >= MAX_TRIALS_PER_IP;
+const noteTrial = (ip: string) => trialIssued.set(ip, (trialIssued.get(ip) || 0) + 1);
+
 // Client IP for rate limiting. Prefer x-real-ip (trusted proxy); otherwise take
 // the LAST x-forwarded-for hop — the gateway/CDN appends the real client IP after
 // whatever the client sent, so reading the first entry lets an attacker rotate a
@@ -246,9 +266,10 @@ async function handler(req: Request): Promise<Response> {
 
     /* free 30-day trial (server-issued) */
     if (req.method === "POST" && path === "/api/trial") {
-      const MAX_TRIALS = 20;
-      if (tooManyCode("TRIAL")) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      const ip = clientIp(req);
+      if (tooManyTrials(ip)) return json({ error: "RATE_LIMITED", secs: 86400 }, 429, origin);
       const devId = String(body?.deviceId || "").slice(0, 80);
+      if (!devId) return json({ error: "BAD_REQUEST" }, 400, origin);
       const { data: existing } = await sb.from("codes")
         .select("id").eq("owner", devId).eq("tier", "trial").maybeSingle();
       if (existing) return json({ error: "ALREADY_USED" }, 409, origin);
@@ -258,8 +279,8 @@ async function handler(req: Request): Promise<Response> {
         code, tier: "trial", days: 30, owner: devId,
         used: true, used_at: now, used_device: devId, used_device_name: "trial",
       }).select("*").maybeSingle();
-      clearCode("TRIAL");
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      noteTrial(ip);
       return json({ ok: true, code, token: await signJwt({ code: rec.code, deviceId: devId }), tempPassword: "trial" }, 200, origin);
     }
 
@@ -288,9 +309,12 @@ async function handler(req: Request): Promise<Response> {
         used_device: devId, used_device_name: devName, devices,
       }).eq("code", code);
       if (e2) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const out = { ...rec, used: true, used_at: rec.used_at || new Date().toISOString(), devices };
+      const record = toRecord(out);
+      record.days = remainingDays(out); // leftover time on re-activation, never a fresh reset
       return json({
         ok: true,
-        record: toRecord({ ...rec, used: true, used_at: rec.used_at || new Date().toISOString(), devices }),
+        record,
         token: await signJwt({ code: rec.code, deviceId: devId }),
       }, 200, origin);
     }
@@ -302,12 +326,15 @@ async function handler(req: Request): Promise<Response> {
       const code = normCode(body?.code);
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) { failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
+      if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
       if (!rec.pass_hash) return json({ error: "NO_PASSWORD" }, 400, origin);
       const ok = await bcrypt.compare(String(body?.password || ""), rec.pass_hash);
       if (!ok) { failIp(ip); return json({ error: "WRONG_PASSWORD" }, 401, origin); }
       clearIp(ip);
       const devId = String(body?.deviceId || "").slice(0, 80);
-      return json({ ok: true, record: toRecord(rec), token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
+      const record = toRecord(rec);
+      record.days = remainingDays(rec); // login must not reset the countdown
+      return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 
     /* set password — requires JWT auth (same user) */
@@ -319,6 +346,7 @@ async function handler(req: Request): Promise<Response> {
       if (pw.length < 8 || pw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) return json({ error: "NOT_ACTIVATED" }, 404, origin);
+      if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
       const pass_hash = await bcrypt.hash(pw, 12);
       const { error } = await sb.from("codes").update({ pass_hash }).eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
@@ -331,6 +359,7 @@ async function handler(req: Request): Promise<Response> {
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
       const { data: rec } = await sb.from("codes").select("*").eq("code", p.code).maybeSingle();
       if (!rec || !rec.pass_hash) return json({ error: "NO_PASSWORD" }, 400, origin);
+      if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
       const okCur = await bcrypt.compare(String(body?.current || ""), rec.pass_hash);
       if (!okCur) return json({ error: "WRONG_PASSWORD" }, 401, origin);
       const nw = String(body?.next || "");
@@ -347,6 +376,7 @@ async function handler(req: Request): Promise<Response> {
       const p = authJwt(req);
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
       const flags = await codeFlags(p);
+      if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: g } = await sb.from("gyms").select("*").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
@@ -360,6 +390,7 @@ async function handler(req: Request): Promise<Response> {
       const p = authJwt(req);
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
       const flags = await codeFlags(p);
+      if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: cur } = await sb.from("gyms").select("data").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
