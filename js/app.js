@@ -680,7 +680,7 @@ const FILTER_EMOJI = { active: "✅", expired: "⛔", trial: "🎁", frozen: "�
 function memberAvatar(m, st) {
   const borderClass = st === "expired" ? "avatar-alert" : st === "trial" ? "avatar-frost" : "avatar-volt";
   if (m.photo) {
-    return `<img class="avatar ${borderClass}" src="${m.photo}" alt="${escapeHtml(m.name)}"/>`;
+    return `<img class="avatar ${borderClass}" src="${escapeHtml(m.photo)}" alt="${escapeHtml(m.name)}"/>`;
   }
   const textClass = st === "trial" ? "text-frost" : st === "expired" ? "text-alert" : "text-volt";
   return `<div class="avatar ${borderClass} ${textClass}">${initials(m.name)}</div>`;
@@ -714,7 +714,7 @@ function memberCard(m, index = 0) {
           ${statusBadge}
           ${m.tag ? `<span class="badge badge-muted">${escapeHtml(m.tag)}</span>` : ""}
         </div>
-        <p class="text-xs text-muted mt-1 font-mono" dir="ltr">${m.phone || "—"}</p>
+        <p class="text-xs text-muted mt-1 font-mono" dir="ltr">${escapeHtml(m.phone) || "—"}</p>
       </div>
       <span class="material-symbols-outlined text-muted ltr:block rtl:hidden">chevron_right</span>
       <span class="material-symbols-outlined text-muted hidden rtl:block">chevron_left</span>
@@ -851,10 +851,13 @@ function openMemberModal(id = null) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const days = Number(fd.get("days")) || 30;
+    const cleanName = sanitizeName(fd.get("name"));
+    if (!cleanName) { showToast("Invalid name / اسم غير صالح", "err"); return; }
+    const strip = (v) => String(v || "").replace(/[\u0000-\u001F\u007F<>]/g, "").trim().slice(0, 20);
     const data = {
-      name: fd.get("name").trim(),
-      phone: fd.get("phone").trim(),
-      tag: (fd.get("tag") || "").trim(),
+      name: cleanName,
+      phone: strip(fd.get("phone")),
+      tag: strip(fd.get("tag")),
       plan: fd.get("plan"),
       paidAmount: Number(fd.get("paidAmount")) || 0,
     };

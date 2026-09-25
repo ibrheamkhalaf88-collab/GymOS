@@ -41,6 +41,10 @@ function formatDate(ts) {
   });
 }
 
+// HTML-escape user-controlled values before rendering (admin table renders
+// user_metadata.full_name/email supplied by self-signed-up users → stored XSS guard)
+const esc = (s) => String(s ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+
 function toast(msg, type = 'ok') {
   const root = document.getElementById('toastRoot') || (() => {
     const r = document.createElement('div');
@@ -194,10 +198,10 @@ function renderTable(users) {
     }
     return `
       <tr class="hover:bg-[#171717]/50 transition-colors">
-        <td class="px-6 py-4 font-mono text-sm" style="color: #CCFF00;">${u.email || '—'}</td>
+        <td class="px-6 py-4 font-mono text-sm" style="color: #CCFF00;">${esc(u.email) || '—'}</td>
         <td class="px-6 py-4">
-          <span class="font-medium">${u.full_name || '—'}</span>
-          <span class="text-[10px] text-muted ml-2">ID: ${u.id.slice(-8)}</span>
+          <span class="font-medium">${esc(u.full_name) || '—'}</span>
+          <span class="text-[10px] text-muted ml-2">ID: ${esc(u.id.slice(-8))}</span>
         </td>
         <td class="px-6 py-4">
           <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-headline tracking-widest uppercase border ${statusBg}"
@@ -211,19 +215,19 @@ function renderTable(users) {
         <td class="px-6 py-4 text-right">
           <div class="flex justify-end gap-2">
             ${isSuspended ? `
-              <button data-action="activate" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+              <button data-action="activate" data-id="${esc(u.id)}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
                 ACTIVATE / تفعيل
               </button>
             ` : isPending ? `
-              <button data-action="activate" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+              <button data-action="activate" data-id="${esc(u.id)}" class="px-3 py-1.5 rounded-lg border border-[#CCFF00]/30 text-[#CCFF00] hover:bg-[#CCFF00]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
                 ACTIVATE / تفعيل
               </button>
             ` : `
-              <button data-action="suspend" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+              <button data-action="suspend" data-id="${esc(u.id)}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
                 SUSPEND / تعليق
               </button>
             `}
-            <button data-action="delete" data-id="${u.id}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
+            <button data-action="delete" data-id="${esc(u.id)}" class="px-3 py-1.5 rounded-lg border border-[#ff3366]/30 text-[#ff3366] hover:bg-[#ff3366]/10 transition-all text-[10px] font-headline tracking-widest uppercase">
               DELETE / حذف
             </button>
           </div>

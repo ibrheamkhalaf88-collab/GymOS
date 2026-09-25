@@ -73,6 +73,14 @@ function subMeta(tierRaw: any, daysRaw: any) {
 const signJwt = (payload: Record<string, unknown>, admin = false): string =>
   jwt.sign(payload, JWT_SECRET, { expiresIn: admin ? "12h" : "30d" });
 
+// constant-time string compare (length leaks only) — for admin credential check
+const safeEqual = (a: string, b: string): boolean => {
+  let diff = a.length ^ b.length;
+  const max = Math.max(a.length, b.length);
+  for (let i = 0; i < max; i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+};
+
 function verifyJwt(token: string): Record<string, unknown> | null {
   try {
     const clean = token.replace(/^Bearer\s+/i, "");
@@ -167,8 +175,17 @@ const failCode = (code: string) => {
 };
 const clearCode = (code: string) => actAttempts.delete(code);
 
-const clientIp = (req: Request) =>
-  req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+// Client IP for rate limiting. Prefer x-real-ip (trusted proxy); otherwise take
+// the LAST x-forwarded-for hop — the gateway/CDN appends the real client IP after
+// whatever the client sent, so reading the first entry lets an attacker rotate a
+// spoofed value and bypass the login lockout.
+const clientIp = (req: Request) => {
+  const real = req.headers.get("x-real-ip")?.trim();
+  if (real) return real;
+  const xff = req.headers.get("x-forwarded-for");
+  const hops = xff ? xff.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  return hops[hops.length - 1] || "unknown";
+};
 
 // ---------- CORS ----------
 function corsHeaders(origin?: string | null) {
@@ -359,7 +376,7 @@ async function handler(req: Request): Promise<Response> {
       const ip = clientIp(req);
       if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
       const email = String(body?.email || "").toLowerCase().trim();
-      if (email !== ADMIN_EMAIL || String(body?.password || "") !== ADMIN_PASSWORD) {
+      if (!safeEqual(email, ADMIN_EMAIL) || !safeEqual(String(body?.password || ""), ADMIN_PASSWORD)) {
         failIp(ip);
         return json({ error: "WRONG_CREDENTIALS" }, 401, origin);
       }

@@ -9,7 +9,7 @@ const DEST = path.join(ROOT, "www");
 
 const FILES = [
   "index.html", "onboarding.html", "login.html", "signup.html", "reset-password.html",
-  "activate.html", "app.html", "ibrheam.html",
+  "activate.html", "app.html", "ibrheam.html", "privacy-policy.html",
   "manifest.webmanifest", "sw.js",
 ];
 const DIRS = ["js", "css", "vendor", "assets", "auth"];

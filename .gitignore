@@ -18,6 +18,8 @@ android/build/
 android/local.properties
 android/.idea/
 android/capacitor-cordova-android-plugins/
+android/keystore.properties
+android/*.jks
 ios/
 
 # Environment files

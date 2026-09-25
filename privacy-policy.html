@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index, follow" />
+  <title>Privacy Policy · Digital Pulse</title>
+  <meta name="description" content="Digital Pulse privacy policy / سياسة خصوصية تطبيق ديجلتال بولس" />
+  <style>
+    :root { --volt: #CCFF00; --ink: #0a0a0a; --panel: #141414; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: var(--ink); color: #e6e6e6; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Cairo", sans-serif; line-height: 1.7; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+    header { text-align: center; margin-bottom: 48px; }
+    .logo { color: var(--volt); font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    h1 { font-size: 1.8rem; margin: 12px 0 6px; }
+    .meta { color: #999; font-size: .85rem; }
+    h2 { color: var(--volt); font-size: 1.15rem; margin: 36px 0 10px; border-left: 3px solid var(--volt); padding-left: 12px; }
+    p, li { color: #ccc; }
+    ul { padding-left: 22px; }
+    li { margin: 6px 0; }
+    a { color: var(--volt); }
+    section { background: var(--panel); border: 1px solid #222; border-radius: 16px; padding: 20px 22px; margin-bottom: 16px; }
+    .rtl { direction: rtl; font-family: "Cairo", "Segoe UI", system-ui, sans-serif; }
+    .rtl h2 { border-left: none; border-right: 3px solid var(--volt); padding-right: 12px; text-align: right; }
+    footer { text-align: center; margin-top: 56px; color: #666; font-size: .8rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">⚡ Digital Pulse</div>
+      <h1>Privacy Policy / سياسة الخصوصية</h1>
+      <p class="meta">Effective date / تاريخ السريان: 25 September 2026 · Version 1.2.0</p>
+    </header>
+
+    <!-- EN -->
+    <section>
+      <h2>1. What we collect</h2>
+      <p>Digital Pulse is a local-first gym management app. Your gym data (members, devices, trainers, finance ledger, check-ins) is created and stored on your own devices by default. Cloud storage is opt-in per gym license and only activated when you enable "cloud sync". No data is collected or sold.</p>
+      <ul>
+        <li><strong>Local data:</strong> everything you enter in the app (names, phones, plans, payments, device maintenance records).</li>
+        <li><strong>Cloud data:</strong> only the encrypted synchronised copy of the same gym data on Supabase-hosted Postgres, governed by your gym code. Your gym data is never mixed with other gyms' data.</li>
+        <li><strong>Account data:</strong> email + subscription metadata (package, start/end date) when you register or are created by your gym administrator.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. How data is stored &amp; protected</h2>
+      <ul>
+        <li>All API traffic is HTTPS-only; app-to-server requests are authenticated with short-lived signed tokens.</li>
+        <li>Passwords are never stored in plain text — they are hashed server-side (bcrypt).</li>
+        <li>Server-side merging resolves sync conflicts item-by-item, so concurrent edits do not overwrite each other.</li>
+        <li>Your admin can disable cloud sync at any time, which stops uploads completely.</li>
+        <li>You can export and delete your data in-app (backup export / reset account).</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. What we never do</h2>
+      <ul>
+        <li>No advertising, tracking pixels, third-party analytics or ad SDKs.</li>
+        <li>No selling, renting or sharing of your data with third parties.</li>
+        <li>No access to your gym data by us — a gym code is required, and cloud rows are insulated per code.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>4. Data retention &amp; deletion</h2>
+      <p>Local data stays on your device until you delete it. Cloud data can be removed by your gym admin or by contacting the address below; we process deletion within 30 days.</p>
+    </section>
+
+    <section>
+      <h2>5. Contact</h2>
+      <p>For any privacy question, deletion request or security report: <a href="mailto:ibrheamshady@gmail.com">ibrheamshady@gmail.com</a></p>
+    </section>
+
+    <!-- AR -->
+    <div class="rtl">
+      <section>
+        <h2>١. البيانات التي نجمعها</h2>
+        <p>ديجلتال بولس تطبيق إدارة صالات رياضية يعمل بالبيانات المحلية أولاً. بيانات النادي (الأعضاء، الأجهزة، المدربين، السجل المالي، الحضور) تُنشأ وتُحفظ على أجهزتك أنت افتراضياً. التخزين السحابي اختياري لكل ترخيص، ويتم تفعيله فقط عند تشغيل "المزامنة السحابية". لا تُجمع البيانات ولا تُباع.</p>
+        <ul>
+          <li><strong>بيانات محلية:</strong> كل ما تدخله في التطبيق (أسماء، هواتف، باقات، مدفوعات، سجلات صيانة).</li>
+          <li><strong>بيانات سحابية:</strong> نسخة مزامنة مشفّرة من نفس بيانات ناديك على قاعدة بيانات سحابية، مرتبطة بكود ناديك فقط ولا تُخلط مع نوادٍ أخرى.</li>
+          <li><strong>بيانات الحساب:</strong> البريد الإلكتروني وبيانات الاشتراك (الباقة وتواريخ البداية والنهاية).</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>٢. التخزين والحماية</h2>
+        <ul>
+          <li>كل الاتصالات عبر HTTPS فقط، والطلبات موثّقة بتوكنات موقّعة قصيرة العمر.</li>
+          <li>كلمات السر غير مخزّنة نصاً — تُشفّر على الخادم (bcrypt).</li>
+          <li>المزامنة تحل تعارضات التعديلات على مستوى العنصر كي لا تلغي التعديلات المتزامنة بعضها.</li>
+          <li>يمكن لمسؤول النادي إيقاف المزامنة السحابية في أي وقت.</li>
+          <li>يمكنك تصدير بياناتك وحذفها من التطبيق مباشرة.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>٣. ما لا نفعله أبداً</h2>
+        <ul>
+          <li>لا إعلانات ولا أدوات تتبع ولا تحليلات طرف ثالث.</li>
+          <li>لا نبيع بياناتك ولا نشاركها مع أي جهة.</li>
+          <li>لا نطّلع على بيانات ناديك — يتطلب الوصول كود النادي والبيانات معزولة لكل كود.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>٤. الاحتفاظ بالبيانات وحذفها</h2>
+        <p>البيانات المحلية تبقى على جهازك حتى تحذفها. البيانات السحابية يُمكن حذفها عبر مسؤول النادي أو بالتواصل معنا، ونستكمل الحذف خلال 30 يوماً.</p>
+      </section>
+
+      <section>
+        <h2>٥. التواصل</h2>
+        <p>لأي استفسار أو حذف بيانات أو بلاغ أمني: <a href="mailto:ibrheamshady@gmail.com">ibrheamshady@gmail.com</a></p>
+      </section>
+    </div>
+
+    <footer>© 2026 Digital Pulse · All rights reserved</footer>
+  </div>
+</body>
+</html>

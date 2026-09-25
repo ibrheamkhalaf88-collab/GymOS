@@ -465,6 +465,13 @@ export const store = {
     const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
     const lastMonthStart = new Date(monthStart); lastMonthStart.setMonth(monthStart.getMonth() - 1);
 
+    // Live status derived from expiresAt/frozen — NOT the stored field (which is
+    // only ever set at insert and goes stale the moment a membership expires).
+    const effStatus = (m) =>
+      Date.now() > m.expiresAt ? "expired"
+      : m.status === "frozen" ? "frozen"
+      : (m.status === "trial" && Date.now() <= m.expiresAt ? "trial" : "active");
+
     const revenueBetween = (from, to) =>
       ledger.filter((l) => l.type === "revenue" && l.date >= from && l.date < to)
             .reduce((s, l) => s + Number(l.amount || 0), 0);
@@ -474,9 +481,9 @@ export const store = {
     const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : (thisMonthRev > 0 ? 100 : 0);
 
      return {
-       activeMembers: members.filter((m) => m.status === "active").length,
-       endedToday: members.filter((m) => m.status === "expired" && m.expiresAt >= startOfToday.getTime()).length,
-       totalExpired: members.filter((m) => m.status === "expired").length,
+       activeMembers: members.filter((m) => effStatus(m) === "active").length,
+       endedToday: members.filter((m) => effStatus(m) === "expired" && m.expiresAt >= startOfToday.getTime()).length,
+       totalExpired: members.filter((m) => effStatus(m) === "expired").length,
        maintAlerts: devices.filter((d) => d.maintenanceStatus !== "completed").length,
        revenueThisMonth: thisMonthRev,
       revenueGrowthPct: Math.round(growth * 10) / 10,
