@@ -158,6 +158,42 @@ function waReminderLink(m) {
   const txt = `مرحباً ${m.name} 👋 اشتراكك في ${gymName()} ${days === 0 ? "انتهى اليوم" : `ينتهي خلال ${days} أيام`}. يسعدنا تجديد اشتراكك 💪`;
   return `https://wa.me/${waDigits(m.phone)}?text=${encodeURIComponent(txt)}`;
 }
+// Win-back message for members whose membership just lapsed.
+function waWinbackLink(m) {
+  const txt = `مرحباً ${m.name} 👋 وحشتنا في ${gymName()}! اشتراكك انتهى. جدد الآن وارجع لتمرينك 💪`;
+  return `https://wa.me/${waDigits(m.phone)}?text=${encodeURIComponent(txt)}`;
+}
+
+// Auto-notify the bell about memberships expiring/expired within 3 days.
+// One notification per member per expiry date (deduped by id), so opening the
+// app surface the follow-up list without spamming.
+function syncExpiryNotifications() {
+  const list = store.all("notifications");
+  const now = Date.now();
+  let added = 0;
+  store.all("members").forEach((m) => {
+    if (added >= 10 || !m.expiresAt) return;
+    const left = m.expiresAt - now;
+    const within3d = left > 0 && left <= 3 * DAY;
+    const expired3d = left <= 0 && left >= -3 * DAY;
+    if (!within3d && !expired3d) return;
+    const nid = `exp_${m.id}_${new Date(m.expiresAt).toISOString().slice(0, 10)}`;
+    if (list.some((n) => n.id === nid)) return;
+    const days = Math.max(0, Math.ceil(left / DAY));
+    const expired = left <= 0;
+    if (store.insert("notifications", {
+      id: nid, severity: expired ? "alert" : "info", time: now,
+      titleEn: expired ? `${m.name} expired` : `${m.name} expiring in ${days}d`,
+      titleAr: expired ? `اشتراك ${m.name} انتهى 🔴` : `اشتراك ${m.name} ينتهي خلال ${days} ${days === 1 ? "يوم" : "أيام"} ⏰`,
+      subEn: "Send a WhatsApp reminder from the dashboard",
+      subAr: "ابعتله تذكير واتساب من الرئيسية",
+    })) added++;
+  });
+  if (added || store.all("notifications").length) {
+    const dot = document.getElementById("notifDot");
+    if (dot && store.all("notifications").length) dot.classList.remove("hidden");
+  }
+}
 
 function effStatus(m) {
   if (Date.now() > m.expiresAt) return "expired";
@@ -297,7 +333,6 @@ $("#mNotifBtn").addEventListener("click", () => {
 });
 
 if (store.all("notifications").length) $("#notifDot").classList.remove("hidden");
-applyGymName();
 
 $("#mProfileBtn").addEventListener("click", () => show("profile"));
 $("#logoutBtnSide").addEventListener("click", deactivateLicense);
@@ -360,12 +395,18 @@ function viewDashboard() {
 
   const absTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  // Members whose expiry lands within the next 7 days — the owner's daily
-  // follow-up list. Each row jumps straight into a WhatsApp reminder.
-  const expiring = store.all("members")
+  // Members whose expiry lands within the next 7 days + those who lapsed in
+  // the last 7 — the owner's daily follow-up list. Each row jumps straight
+  // into a WhatsApp message. The full count feeds the stat card.
+  const expiringAll = store.all("members")
     .filter((m) => { const left = m.expiresAt - Date.now(); return left > 0 && left <= 7 * DAY; })
-    .sort((a, b) => a.expiresAt - b.expiresAt)
+    .sort((a, b) => a.expiresAt - b.expiresAt);
+  const expiring = expiringAll.slice(0, 6);
+  const winback = store.all("members")
+    .filter((m) => { const left = m.expiresAt - Date.now(); return left <= 0 && left >= -7 * DAY; })
+    .sort((a, b) => b.expiresAt - a.expiresAt)
     .slice(0, 6);
+  syncExpiryNotifications();
 
   screen.innerHTML = `
   <!-- Metrics Grid -->
@@ -391,6 +432,19 @@ function viewDashboard() {
       <div class="flex items-end justify-between">
         <p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">${s.endedToday}</p>
         <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">event_busy</span>
+      </div>
+    </div>
+    <!-- Expiring Soon counter -->
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors" id="expiringSoonCard" onclick="document.getElementById('expiringSoon').scrollIntoView({behavior:'smooth'})">
+      <div class="flex items-start justify-between">
+        <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+          <span>⌛ Expiring ≤ 7D</span><span dir="rtl" class="font-arabic">أوشك على الانتهاء</span>
+        </p>
+        <span class="material-symbols-outlined text-frost opacity-60">hourglass_top</span>
+      </div>
+      <div class="flex items-end justify-between">
+        <p class="font-display font-bold text-5xl tabular-nums text-frost mt-2">${expiringAll.length}</p>
+        <span class="material-symbols-outlined text-frost opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">notifications_active</span>
       </div>
     </div>
     <!-- Total Profit -->
@@ -425,10 +479,10 @@ function viewDashboard() {
     </div>
   </div>
 
-  <!-- Expiring within 7 days (with WhatsApp reminders) -->
-  <div class="mt-4">
+  <!-- Renewals & follow-ups: expiring within 7 days + lapsed within 7 days -->
+  <div class="mt-4" id="expiringSoon">
     <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-2 flex gap-1 items-center">
-      <span>⏰ Expiring Soon</span><span>/</span><span>ينتهي خلال ٧ أيام</span>
+      <span>📞 Renewals</span><span>/</span><span>المتابعة والتجديد</span>
     </h2>
     ${expiring.length ? `
       <div class="flex flex-col gap-2">
@@ -441,13 +495,32 @@ function viewDashboard() {
               <p class="text-xs text-muted font-mono" dir="ltr">${escapeHtml(m.phone || "—")}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span class="badge ${days <= 2 ? "badge-alert" : "badge-frost"}">${days === 0 ? "ينتهي اليوم" : `${days} ${days > 2 ? "يوم" : "أيام"}`}</span>
+              <span class="badge ${days <= 2 ? "badge-alert" : "badge-frost"}">${days === 0 ? "ينتهي اليوم" : `${days} ${days <= 2 ? "يوم" : "أيام"}`}</span>
               ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="تذكير واتساب">💬 واتساب</a>` : ""}
             </div>
           </div>`;
         }).join("")}
-      </div>` : `
-      <p class="rounded-lg bg-surface border border-outline-variant p-3 text-muted text-xs font-headline">No memberships expiring within 7 days / لا توجد اشتراكات تنتهي خلال ٧ أيام ✅</p>`}
+      </div>` : ""}
+    ${winback.length ? `
+      <h3 class="font-display font-bold text-xs uppercase text-alert mt-3 mb-1 flex gap-1 items-center"><span>⛔ Lapsed this week</span><span>/</span><span>انتهى مؤخراً — رجّعهم</span></h3>
+      <div class="flex flex-col gap-2">
+        ${winback.map((m) => {
+          const daysAgo = Math.max(1, Math.floor((Date.now() - m.expiresAt) / DAY));
+          return `
+          <div class="rounded-lg bg-alert/10 border border-alert/30 p-3 flex items-center justify-between gap-3 fade-up">
+            <div class="min-w-0">
+              <p class="font-headline font-bold truncate">${escapeHtml(m.name)}</p>
+              <p class="text-xs text-muted font-mono" dir="ltr">${escapeHtml(m.phone || "—")}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="badge badge-alert">${daysAgo === 1 ? "انتهى أمس" : `منتهي منذ ${daysAgo} أيام`}</span>
+              ${waDigits(m.phone) ? `<a href="${waWinbackLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="رسالة استرجاع واتساب">💬 رجّعه</a>` : ""}
+            </div>
+          </div>`;
+        }).join("")}
+      </div>` : ""}
+    ${!expiring.length && !winback.length ? `
+      <p class="rounded-lg bg-surface border border-outline-variant p-3 text-muted text-xs font-headline">All memberships healthy — nothing expiring soon / كل الاشتراكات بخير ✅</p>` : ""}
   </div>
 
   <!-- Growth Chart Section -->
@@ -2290,6 +2363,13 @@ function codesDbMode() {
 const loadingOverlay = document.getElementById("loadingOverlay");
 if (loadingOverlay) loadingOverlay.remove();
 show("dashboard");
+
+// Branding + expiry bell notifications AFTER boot. syncExpiryNotifications()
+// writes to the store; the store's emit triggers rerender() above, which runs
+// viewDashboard — and any const defined later in this module (e.g. tierLabel)
+// is still in the TDZ at that point. Running here keeps all consts live.
+applyGymName();
+syncExpiryNotifications();
 
 // Subscription gate. An expired licence keeps the data readable and
 // exportable and shows a "enter your code" screen; no licence at all
