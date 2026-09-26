@@ -60,9 +60,13 @@ async function demoSignIn(email, password) {
 }
 
 /* -------- Check if user already has an active session -------- */
+// 30 days, matching the licence/subscription horizon — the previous 24h window
+// made paying users re-login daily for no reason. The app itself re-verifies
+// access via access.js, so a stale-but-valid session is harmless.
+const SESSION_AUTOLOGIN_MS = 30 * 24 * 60 * 60 * 1000;
 function checkExistingSession() {
   const currentUser = JSON.parse(localStorage.getItem('dp_current_user'));
-  if (currentUser && currentUser.loginAt && (Date.now() - currentUser.loginAt < 24 * 60 * 60 * 1000)) {
+  if (currentUser && currentUser.loginAt && (Date.now() - currentUser.loginAt < SESSION_AUTOLOGIN_MS)) {
     if (checkSubscription(currentUser).ok) { window.location.href = 'app.html'; return true; }
   }
   return false;
@@ -106,7 +110,7 @@ function storeUserSession(user) {
 
 function mapSupabaseAuthError(err) {
   const code = (err?.code || err?.message || '').toLowerCase();
-  if (code.includes('invalid login credentials') || code.includes('invalid_login_credentials') || code.includes('wrong password')) {
+  if (code.includes('invalid_credentials') || code.includes('invalid login credentials') || code.includes('invalid_login_credentials') || code.includes('wrong password')) {
     return 'Invalid email or password / كلمة السر أو البريد غير صحيح';
   }
   if (code.includes('email not confirmed') || code.includes('email_not_confirmed')) {
