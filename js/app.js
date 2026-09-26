@@ -136,6 +136,29 @@ import { supabase } from "./supabase-client.js";
 
 // ---------- Helpers ----------
 const DAY = 86400000;
+
+// Gym branding: the owner sets their gym name once in Profile; it replaces the
+// defaults everywhere (sidebar, mobile card, WhatsApp texts, printed reports).
+function gymName() {
+  return (localStorage.getItem("dp_gym_name") || "").trim() || "DIGITAL PULSE";
+}
+function applyGymName() {
+  document.querySelectorAll("[data-gym-name]").forEach((el) => { el.textContent = gymName(); });
+}
+
+// WhatsApp helpers — wa.me needs international digits only; a leading 00 is
+// folded away, other formats pass through untouched.
+function waDigits(phone) {
+  let d = String(phone || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  return d;
+}
+function waReminderLink(m) {
+  const days = Math.max(0, Math.ceil((m.expiresAt - Date.now()) / DAY));
+  const txt = `مرحباً ${m.name} 👋 اشتراكك في ${gymName()} ${days === 0 ? "انتهى اليوم" : `ينتهي خلال ${days} أيام`}. يسعدنا تجديد اشتراكك 💪`;
+  return `https://wa.me/${waDigits(m.phone)}?text=${encodeURIComponent(txt)}`;
+}
+
 function effStatus(m) {
   if (Date.now() > m.expiresAt) return "expired";
   return m.status === "frozen" ? "frozen" : (m.status === "trial" && Date.now() <= m.expiresAt ? "trial" : "active");
@@ -274,6 +297,7 @@ $("#mNotifBtn").addEventListener("click", () => {
 });
 
 if (store.all("notifications").length) $("#notifDot").classList.remove("hidden");
+applyGymName();
 
 $("#mProfileBtn").addEventListener("click", () => show("profile"));
 $("#logoutBtnSide").addEventListener("click", deactivateLicense);
@@ -336,6 +360,13 @@ function viewDashboard() {
 
   const absTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
+  // Members whose expiry lands within the next 7 days — the owner's daily
+  // follow-up list. Each row jumps straight into a WhatsApp reminder.
+  const expiring = store.all("members")
+    .filter((m) => { const left = m.expiresAt - Date.now(); return left > 0 && left <= 7 * DAY; })
+    .sort((a, b) => a.expiresAt - b.expiresAt)
+    .slice(0, 6);
+
   screen.innerHTML = `
   <!-- Metrics Grid -->
   <div class="grid grid-cols-2 gap-4">
@@ -365,7 +396,7 @@ function viewDashboard() {
     <!-- Total Profit -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>&nbsp;</span><span>اجمالي الارباح&nbsp;</span>
+        <span>💰 Total Profit</span><span dir="rtl" class="font-arabic">اجمالي الارباح</span>
       </p>
       <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1" dir="ltr">${fmt.money(Math.max(0, s.totalRevenue - s.totalExpenses))}</p>
     </div>
@@ -392,6 +423,31 @@ function viewDashboard() {
       </div>
       <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
     </div>
+  </div>
+
+  <!-- Expiring within 7 days (with WhatsApp reminders) -->
+  <div class="mt-4">
+    <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-2 flex gap-1 items-center">
+      <span>⏰ Expiring Soon</span><span>/</span><span>ينتهي خلال ٧ أيام</span>
+    </h2>
+    ${expiring.length ? `
+      <div class="flex flex-col gap-2">
+        ${expiring.map((m) => {
+          const days = Math.max(0, Math.ceil((m.expiresAt - Date.now()) / DAY));
+          return `
+          <div class="rounded-lg bg-surface border border-outline-variant p-3 flex items-center justify-between gap-3 fade-up">
+            <div class="min-w-0">
+              <p class="font-headline font-bold truncate">${escapeHtml(m.name)}</p>
+              <p class="text-xs text-muted font-mono" dir="ltr">${escapeHtml(m.phone || "—")}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="badge ${days <= 2 ? "badge-alert" : "badge-frost"}">${days === 0 ? "ينتهي اليوم" : `${days} ${days > 2 ? "يوم" : "أيام"}`}</span>
+              ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="تذكير واتساب">💬 واتساب</a>` : ""}
+            </div>
+          </div>`;
+        }).join("")}
+      </div>` : `
+      <p class="rounded-lg bg-surface border border-outline-variant p-3 text-muted text-xs font-headline">No memberships expiring within 7 days / لا توجد اشتراكات تنتهي خلال ٧ أيام ✅</p>`}
   </div>
 
   <!-- Growth Chart Section -->
@@ -937,6 +993,10 @@ function openMemberDetail(id) {
       <button data-del class="btn-alert flex-1">${t.delete}</button>
       <button data-edit class="btn-secondary flex-1">${t.edit}</button>
       <button data-renew class="btn-primary flex-1">${t.renew}</button>
+    </div>
+    <div class="flex gap-3 mt-3">
+      ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="btn-secondary flex-1 text-center">💬 تذكير واتساب</a>` : ""}
+      <button data-card class="btn-secondary flex-1">🖨️ طباعة كارت / Print card</button>
     </div>`);
 
   mod.el.querySelector("[data-edit]").onclick = () => { mod.close(); openMemberModal(id); };
@@ -951,6 +1011,115 @@ function openMemberDetail(id) {
     if (ok) { store.remove("members", id); showToast("Member deleted — finance kept / انحذف العضو وحُفظت أمواله بالسجل"); }
   };
   mod.el.querySelector("[data-renew]").onclick = () => { mod.close(); openRenewModal(id); };
+  mod.el.querySelector("[data-card]").onclick = () => printMemberCard(m);
+}
+
+// ---------- Printing (member card + monthly report) ----------
+// Both build a standalone, print-first page in a popup — no print CSS needed,
+// and the OS "Save as PDF" covers PDF export. The member card QR is loaded
+// from the (free) qrserver image API and hidden silently when offline.
+function openPrintWindow(title, bodyHtml, width) {
+  const w = window.open("", "_blank", `width=${width || 480},height=720`);
+  if (!w) { showToast("Popup blocked / اسمح بالنوافذ المنبثقة", "err"); return; }
+  w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>${title}</title>
+  <style>
+    body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:#fff;color:#111;margin:0;padding:24px;}
+    h1{font-size:18px;margin:0 0 2px;text-align:center}
+    .sub{text-align:center;color:#555;font-size:12px;margin-bottom:16px}
+    .card{border:2px solid #000;border-radius:16px;padding:20px;width:320px;margin:0 auto;text-align:center}
+    .card .name{font-size:22px;font-weight:800;margin:10px 0 2px}
+    .muted{color:#555;font-size:12px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{border-bottom:1px solid #ddd;padding:6px 4px;text-align:start}
+    .tot{font-weight:800;font-size:14px}
+    @media print{body{padding:0}}
+  </style></head><body>${bodyHtml}<script>window.onload=function(){setTimeout(window.print,300)};</script></body></html>`);
+  w.document.close();
+}
+
+function printMemberCard(m) {
+  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent("DP-MEMBER:" + m.id)}`;
+  openPrintWindow("Member Card / كارت عضو", `<div class="card">
+    <div class="muted" style="letter-spacing:2px;font-weight:700">${escapeHtml(gymName())}</div>
+    <div class="name">${escapeHtml(m.name)}</div>
+    <div class="muted" dir="ltr">#${escapeHtml(String(m.id))}</div>
+    <img src="${qr}" width="160" height="160" alt="QR" onerror="this.style.display='none'" style="margin:12px auto;display:block"/>
+    <div class="muted">${escapeHtml(String(i18n.t.plans[m.plan] || m.plan))} · ${fmt.date(m.expiresAt)}</div>
+  </div>`);
+}
+
+function printMonthlyReport() {
+  const AR_MONTHS = ["كانون الثاني","شباط","آذار","نيسان","أيار","حزيران","تموز","آب","أيلول","تشرين الأول","تشرين الثاني","كانون الأول"];
+  const base = reportMonth(reportOffset);
+  const mStart = base.getTime(); const nxt = new Date(base); nxt.setMonth(base.getMonth() + 1); const mEnd = nxt.getTime();
+  const rows = store.all("ledger").filter((l) => l.date >= mStart && l.date < mEnd).sort((a, b) => a.date - b.date);
+  const rev = rows.filter((l) => l.type === "revenue").reduce((s, l) => s + Number(l.amount || 0), 0);
+  const exp = rows.filter((l) => l.type === "expense").reduce((s, l) => s + Number(l.amount || 0), 0);
+  const money = (n) => `$${Number(n).toFixed(2)}`;
+  openPrintWindow(`تقرير ${gymName()}`, `
+    <h1>${escapeHtml(gymName())} — تقرير ${AR_MONTHS[base.getMonth()]} ${base.getFullYear()}</h1>
+    <div class="sub">إيرادات: ${money(rev)} · مصروفات: ${money(exp)} · صافي: ${money(rev - exp)}</div>
+    <table><thead><tr><th>التاريخ</th><th>البيان</th><th>النوع</th><th>المبلغ</th></tr></thead><tbody>
+      ${rows.map((l) => `<tr><td>${fmt.date(l.date)}</td><td>${escapeHtml(l.note || l.title || "—")}</td><td>${l.type === "revenue" ? "إيراد" : "مصروف"}</td><td dir="ltr">${money(l.amount)}</td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:#888">لا حركات هذا الشهر</td></tr>`}
+      <tr class="tot"><td colspan="3">الصافي</td><td dir="ltr">${money(rev - exp)}</td></tr>
+    </tbody></table>`, 640);
+}
+
+// ---------- Gym name (branding) ----------
+function openGymNameModal() {
+  const t = i18n.t;
+  const cur = localStorage.getItem("dp_gym_name") || "";
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🏷️ Gym Name / اسم النادي</h3>
+    <p class="font-arabic text-muted text-sm mb-4" dir="rtl">بيظهر في القائمة الجانبية، رسائل الواتساب، والتقارير المطبوعة</p>
+    <form id="gymNameForm" class="flex flex-col gap-3">
+      <input name="gname" class="dp-field" value="${escapeHtml(cur)}" placeholder="اسم النادي…" maxlength="40" />
+      <div class="flex gap-3 pt-1">
+        <button type="button" data-close class="btn-secondary flex-1">${t.cancel}</button>
+        <button type="submit" class="btn-primary flex-1">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#gymNameForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = String(new FormData(e.target).get("gname") || "").replace(/[<>]/g, "").trim().slice(0, 40);
+    if (v) localStorage.setItem("dp_gym_name", v); else localStorage.removeItem("dp_gym_name");
+    applyGymName();
+    mod.close();
+    showToast("Saved / تم الحفظ");
+    viewProfile();
+  });
+}
+
+// ---------- CSV export members + ledger ----------
+function downloadCSV(filename, headers, rows) {
+  const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  // BOM first so Excel reads the Arabic text as UTF-8 instead of mojibake.
+  const csv = "﻿" + [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function exportCSVs() {
+  const today = new Date().toISOString().slice(0, 10);
+  const plans = i18n.t.plans;
+  const members = store.all("members");
+  downloadCSV(`members-${today}.csv`,
+    ["id", "name", "phone", "plan", "joinDate", "expiresAt", "status"],
+    members.map((m) => [m.id, m.name, m.phone || "", String(plans[m.plan] || m.plan),
+      m.joinDate ? new Date(m.joinDate).toISOString().slice(0, 10) : "",
+      m.expiresAt ? new Date(m.expiresAt).toISOString().slice(0, 10) : "", effStatus(m)]));
+  const ledger = store.all("ledger");
+  // A second instant download can be swallowed by the browser — stagger it.
+  setTimeout(() => downloadCSV(`ledger-${today}.csv`,
+    ["id", "date", "type", "amount", "note"],
+    ledger.map((l) => [l.id, l.date ? new Date(l.date).toISOString().slice(0, 10) : "",
+      l.type, Number(l.amount) || 0, l.note || l.title || ""])), 350);
+  showToast("CSV exported / تم تصدير جداول الأعضاء والمالية");
 }
 
 // ---------- Plan prices editor ----------
@@ -1674,7 +1843,8 @@ function viewReports() {
 
   $("#repPrev").onclick = () => { reportOffset--; viewReports(); };
   $("#repNext").onclick = () => { reportOffset++; viewReports(); };
-  $("#repExport").onclick = exportData;
+  // "Export PDF" — the print window doubles as Save-as-PDF on every OS.
+  $("#repExport").onclick = printMonthlyReport;
 }
 
 /* ============================================================
@@ -1696,10 +1866,10 @@ function viewProfile() {
           <span class="material-symbols-outlined text-primary">edit</span>
         </div>
       </div>
-      <h2 class="text-white font-headline text-2xl font-bold tracking-tighter uppercase">COMMANDER</h2>
+      <h2 class="text-white font-headline text-2xl font-bold tracking-tighter uppercase">${escapeHtml(gymName())}</h2>
       <div class="flex flex-col items-center mt-1">
-        <span class="text-muted font-body text-sm">Shift Alpha</span>
-        <span class="font-arabic text-muted text-xs mt-0.5">القائد - المناوبة ألفا</span>
+        <span class="text-muted font-body text-sm">System Admin</span>
+        <span class="font-arabic text-muted text-xs mt-0.5">مدير النظام</span>
       </div>
       <div class="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm border ${isOnline ? "bg-primary/10 border-primary/30" : "bg-alert/10 border-alert/30"}">
         <span class="w-2 h-2 rounded-full ${isOnline ? "bg-primary animate-pulse" : "bg-alert"}"></span>
@@ -1750,6 +1920,14 @@ function viewProfile() {
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Export</button>
           </div>
           <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secCsv">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Export CSV / <span class="font-arabic normal-case">تصدير جداول Excel</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">Members + ledger spreadsheets (UTF‑8) / ملفات الأعضاء والمالية</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">CSV</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secReset">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Reset Data</p>
@@ -1771,6 +1949,14 @@ function viewProfile() {
           <span class="material-symbols-outlined text-muted">tune</span>
         </div>
         <div class="space-y-6">
+          <div class="flex items-center justify-between group cursor-pointer" id="gymNameRow">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Gym Name / <span class="font-arabic normal-case">اسم النادي</span></p>
+              <p class="text-muted text-xs mt-1 font-headline" id="gymNameVal">${escapeHtml(gymName())}</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Edit</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="planPricesRow">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Plan Prices / <span class="font-arabic normal-case">أسعار الباقات</span></p>
@@ -1942,6 +2128,8 @@ function viewProfile() {
   document.querySelectorAll(".lang-btn").forEach((b) =>
     b.addEventListener("click", () => { i18n.setLang(b.dataset.lang); paintLang(); }));
 
+  $("#gymNameRow").onclick = openGymNameModal;
+  $("#gymNameRow").onclick = openGymNameModal;
   $("#planPricesRow").onclick = () => openPlanPrices();
   $("#copyKey").onclick = async () => {
     try { await navigator.clipboard.writeText(`DP-${lic.code}`); showToast("Copied / تم النسخ"); }
@@ -1954,6 +2142,7 @@ function viewProfile() {
   $("#secCloudSync").onclick = cloudSyncNow;
   renderSyncBadge();
   $("#secExport").onclick = exportData;
+  $("#secCsv").onclick = exportCSVs;
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
     const ok = await confirmDialog({ titleEn: "Reset EVERYTHING to factory?", titleAr: "إعادة تعيين كل شيء بالكامل للمصنع؟", confirmText: "Reset", danger: true });

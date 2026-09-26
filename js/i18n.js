@@ -68,7 +68,7 @@ const strings = {
 class I18n {
   constructor() {
     const saved = localStorage.getItem(LANG_KEY);
-    this.lang = saved || "en";
+    this.lang = saved || "ar";
   }
   get t() { return strings[this.lang] || strings.en; }
 
@@ -95,7 +95,9 @@ export function applyDir(lang) {
 }
 
 export function currentLang() {
-  return localStorage.getItem(LANG_KEY) || "en";
+  // Arabic is the primary market for this app — default to it; the profile
+  // language toggle flips to English for anyone who prefers it.
+  return localStorage.getItem(LANG_KEY) || "ar";
 }
 
 export const i18n = new I18n();
