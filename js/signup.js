@@ -196,6 +196,15 @@ form.addEventListener('submit', async (e) => {
   localStorage.setItem('dp_current_user', JSON.stringify({ ...result.user, loginAt: Date.now() }));
   localStorage.setItem('dp_user_email', result.user.email);
 
+  // Mint/adopt the server code for this account right away — without it the
+  // account's data never syncs and a second device would show an empty gym.
+  try {
+    if (supabase) {
+      const { linkCloudIdentity } = await import('./cloud-link.js');
+      await linkCloudIdentity(supabase);
+    }
+  } catch {}
+
   // Auto-login after signup
   setMsg('✓ Account created — 30 days free / أنشأت حسابك — لديك 30 يوم مجاني ثم يفعّل الأدمن', '#CCFF00');
   setLoading(false);

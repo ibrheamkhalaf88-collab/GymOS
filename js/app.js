@@ -91,6 +91,12 @@ import { supabase } from "./supabase-client.js";
     const { data: { session } } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
     if (session && session.user) {
       localStorage.setItem('dp_user_email', session.user.email || '');
+      // Google-OAuth and other session-only paths reach the app without passing
+      // login.js — if there's no licence yet, adopt/mint this account's code so
+      // sync works on this device too.
+      if (!license.get()) {
+        try { const { linkCloudIdentity } = await import("./cloud-link.js"); await linkCloudIdentity(supabase); } catch {}
+      }
     } else {
       // Check demo mode session
       const demoUser = localStorage.getItem('dp_current_user');

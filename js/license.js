@@ -6,6 +6,8 @@
 
 const LICENSE_KEY = "dp_license";
 
+export function getDeviceId() { return deviceId(); }
+
 function deviceId() {
   let id = localStorage.getItem("dp_device_id");
   if (!id) {

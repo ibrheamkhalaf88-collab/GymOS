@@ -81,6 +81,34 @@ async function api(path, { method = "GET", body, auth = false, admin = false } =
   return data;
 }
 
+/* ---------------- Email ↔ code cloud link ----------------
+   Email/password (and Google) accounts authenticate with Supabase, but every
+   gym's cloud data is keyed by an activation code. These calls let such a
+   session discover (or mint) the server code bound to its user id — without
+   this, signing in on a second device showed an empty gym forever. */
+async function bearerApi(path, accessToken, body) {
+  const headers = { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
+  if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
+  let res;
+  try {
+    res = await fetch(`${API()}${path}`, { method: "POST", headers, body: JSON.stringify(body || {}) });
+  } catch {
+    throw Object.assign(new Error("NETWORK"), { code: "NETWORK" });
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || "REQUEST_FAILED"), { code: data.error, status: res.status });
+  return data;
+}
+
+/** Find the server code already linked to this Supabase session's user id. */
+export function findLinkedCode(accessToken, deviceId, deviceName) {
+  return bearerApi("/api/auth/mine", accessToken, { deviceId, deviceName });
+}
+/** Mint the trial code for a freshly created account (server enforces 1/user). */
+export function mintLinkedTrial(accessToken, deviceId) {
+  return bearerApi("/api/trial", accessToken, { deviceId });
+}
+
 /* ---------------- Shared helpers ---------------- */
 export function normalizeCode(raw) {
   const clean = String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");

@@ -285,6 +285,19 @@ function authAdmin(req: Request): boolean {
   const p = authJwt(req);
   return !!p && p.admin === true;
 }
+/* Email/password sessions (Supabase Auth) carry no activation code, and all
+   cloud gym data is keyed by code — so those users must be able to discover
+   (or mint) a server code bound to their auth user id. This verifies the
+   Supabase access token sent by the client; returns null on any failure. */
+async function supaUser(req: Request) {
+  const h = (req.headers.get("authorization") || "").replace(/^bearer\s+/i, "").trim();
+  if (!h || h.length > 4096) return null;
+  try {
+    const { data, error } = await sb.auth.getUser(h);
+    if (error || !data?.user?.id) return null;
+    return data.user;
+  } catch { return null; }
+}
 
 // ---------- coupons ----------
 function toCoupon(r: any) {
@@ -333,14 +346,18 @@ async function handler(req: Request): Promise<Response> {
       if (tooManyTrials(ip)) return json({ error: "RATE_LIMITED", secs: 86400 }, 429, origin);
       const devId = String(body?.deviceId || "").slice(0, 80);
       if (!devId) return json({ error: "BAD_REQUEST" }, 400, origin);
+      // A signed-in email user gets a code bound to their auth user id instead
+      // of the device — that's the identity every other device can look up later.
+      const u = await supaUser(req);
+      const ownerKey = u ? `user:${u.id}` : devId;
       const { data: existing } = await sb.from("codes")
-        .select("id").eq("owner", devId).eq("tier", "trial").maybeSingle();
+        .select("id").eq("owner", ownerKey).eq("tier", "trial").maybeSingle();
       if (existing) return json({ error: "ALREADY_USED" }, 409, origin);
       const code = normCode(randomCode());
       const now = new Date().toISOString();
       const { data: rec, error } = await sb.from("codes").insert({
-        code, tier: "trial", days: 30, owner: devId,
-        used: true, used_at: now, used_device: devId, used_device_name: "trial",
+        code, tier: "trial", days: 30, owner: ownerKey,
+        used: true, used_at: now, used_device: devId, used_device_name: u ? "trial (email)" : "trial",
       }).select("*").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       noteTrial(ip);
@@ -407,6 +424,38 @@ async function handler(req: Request): Promise<Response> {
       const devId = String(body?.deviceId || "").slice(0, 80);
       const record = toRecord(rec);
       record.days = remainingDays(rec); // login must not reset the countdown
+      return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
+    }
+
+    /* email-identity code discovery —
+       An email/password (or Google) session asks "which code is mine?" so a
+       second device can adopt the same licence and finally sync the same gym.
+       Previously such users had no code at all → no sync → empty second device. */
+    if (req.method === "POST" && path === "/api/auth/mine") {
+      const ip = clientIp(req);
+      if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      const u = await supaUser(req);
+      if (!u) { failIp(ip); return json({ error: "UNAUTHORIZED" }, 401, origin); }
+      const { data: recs, error } = await sb.from("codes").select("*")
+        .eq("owner", `user:${u.id}`).order("used_at", { ascending: false }).limit(1);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const rec = recs && recs[0];
+      if (!rec) return json({ error: "NO_CODE" }, 404, origin);
+      if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
+      clearIp(ip);
+      // Register this device under the code, same rules as activation.
+      const devId = String(body?.deviceId || "").slice(0, 80);
+      const devName = String(body?.deviceName || "").slice(0, 40);
+      const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
+      const existing = devices.find((d) => d.deviceId === devId);
+      const limit = Number(rec.device_limit) || 3;
+      if (!existing) {
+        if (devices.length >= limit) return json({ error: "DEVICE_LIMIT", limit }, 429, origin);
+        devices.push({ deviceId: devId, name: devName, at: Date.now() });
+        await sb.from("codes").update({ devices }).eq("code", rec.code);
+      }
+      const record = toRecord(rec);
+      record.days = remainingDays(rec); // the clock is shared — a new device never resets it
       return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 

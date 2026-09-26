@@ -215,6 +215,9 @@ form.addEventListener('submit', async (e) => {
       const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
       const subCheck = checkSubscription(result.user);
       if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
+      // Adopt the server code bound to this account so this device syncs the
+      // same gym data as every other device (was: email logins never synced).
+      try { const { linkCloudIdentity } = await import('./cloud-link.js'); await linkCloudIdentity(supabase); } catch {}
       storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); window.location.href = 'app.html'; return;
     } catch (err) {
       if (credError) {
