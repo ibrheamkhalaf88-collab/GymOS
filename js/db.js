@@ -63,11 +63,19 @@ async function api(path, { method = "GET", body, auth = false, admin = false } =
   if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
   if (auth) headers.Authorization = `Bearer ${getJwt()}`;
   if (admin) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_admin_token") || ""}`;
-  const res = await fetch(`${API()}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${API()}${path}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    // Transport failure (offline, DNS, blocked). Give it a code so callers
+    // stop mislabeling it as e.g. NOT_FOUND ("code not found" was shown to
+    // users who were simply offline).
+    throw Object.assign(new Error("NETWORK"), { code: "NETWORK" });
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error || "REQUEST_FAILED"), { code: data.error, status: res.status });
   return data;

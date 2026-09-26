@@ -222,6 +222,7 @@ form.addEventListener("submit", async (e) => {
           NO_PASSWORD: "No password set for this code / لا توجد كلمة سر لهذا الكود",
           WRONG_PASSWORD: "Wrong code or password / الكود أو كلمة السر خاطئة",
           RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة، انتظر`,
+          NETWORK: "No connection — check your internet / لا يوجد اتصال — افحص الشبكة",
         };
         console.warn("[login failed]", res.error);
         setError(errors[res.error] || `Login failed (${res.error}) / فشل الدخول`);
@@ -266,6 +267,7 @@ form.addEventListener("submit", async (e) => {
         NOT_FOUND: "Code not found — check it or request a new one / الكود غير موجود",
         REVOKED: "This code has been revoked / تم إيقاف هذا الكود",
         DEVICE_LIMIT: "Device limit reached for this code / تم الوصول لحد الأجهزة المسموح بها لهذا الكود",
+        NETWORK: "No connection — check your internet / لا يوجد اتصال — افحص الشبكة",
       };
       fail(errors[result.error] || "Activation failed / فشل التفعيل");
       markDigits("error");

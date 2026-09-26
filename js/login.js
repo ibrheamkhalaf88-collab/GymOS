@@ -159,7 +159,8 @@ form.addEventListener('submit', async (e) => {
         NOT_ACTIVATED: 'This code was never activated / الكود لم يُفعّل بعد',
         NO_PASSWORD: 'No password set for this code / لا توجد كلمة سر لهذا الكود',
         WRONG_PASSWORD: 'Wrong code or password / الكود أو كلمة السر خاطئة',
-        RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة، انتظر`,
+        RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة`,
+        NETWORK: 'No connection — check your internet / لا يوجد اتصال — افحص الشبكة',
       };
       setMsg(errors[res.error] || `Login failed (${res.error}) / فشل الدخول`);
     } catch {
