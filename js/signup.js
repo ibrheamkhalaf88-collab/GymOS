@@ -197,9 +197,33 @@ form.addEventListener('submit', async (e) => {
 });
 
 /* -------- Google OAuth (signup = sign-in or create new) -------- */
+// Same dead-button problem as login.js: give the Google button its own
+// spinner + watchdog instead of touching the main submit button's state.
+const GOOGLE_IDLE_HTML = googleBtn ? googleBtn.innerHTML : "";
+let googleWatchdog = null;
+function setGoogleLoading(on) {
+  if (!googleBtn) return;
+  googleBtn.disabled = on;
+  googleBtn.innerHTML = on
+    ? `<div class="flex items-center gap-2">
+        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg> Opening Google… / جاري فتح جوجل…</div>`
+    : GOOGLE_IDLE_HTML;
+}
+
 googleBtn.addEventListener('click', async () => {
   if (loading) return;
-  if (!supabase) { setMsg('No connection / لا اتصال'); return; }
+  loading = true;
+  setGoogleLoading(true);
+  clearTimeout(googleWatchdog);
+  googleWatchdog = setTimeout(() => {
+    setGoogleLoading(false);
+    loading = false;
+    setMsg('Taking too long — tap again or check your connection / لسه هنا؟ جرّب مرة ثانية أو افحص الشبكة');
+  }, 10000);
+  if (!supabase) { clearTimeout(googleWatchdog); setMsg('No connection / لا اتصال'); setGoogleLoading(false); loading = false; return; }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -208,7 +232,10 @@ googleBtn.addEventListener('click', async () => {
     },
   });
   if (error) {
+    clearTimeout(googleWatchdog);
     console.error('Google OAuth error:', error);
     setMsg('Could not start Google signup — try again');
+    setGoogleLoading(false);
+    loading = false;
   }
 });

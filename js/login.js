@@ -235,23 +235,53 @@ forgotLink.addEventListener('click', async (e) => {
 });
 
 /* -------- Google OAuth -------- */
+// The Google button used to give zero feedback: setLoading() only repaints
+// the main SIGN IN button, so for several seconds of OAuth setup the user
+// saw a dead button, tapped again, and concluded the page hung. Give the
+// Google button its own spinner and a self-clearing "still here?" note.
+const GOOGLE_IDLE_HTML = googleBtn ? googleBtn.innerHTML : "";
+let googleWatchdog = null;
+function setGoogleLoading(on) {
+  if (!googleBtn) return;
+  googleBtn.disabled = on;
+  googleBtn.classList.toggle("loading", on);
+  googleBtn.innerHTML = on
+    ? `<div class="flex items-center gap-2">
+        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg> Opening Google… / جاري فتح جوجل…</div>`
+    : GOOGLE_IDLE_HTML;
+}
+
 googleBtn.addEventListener('click', async () => {
   if (loading) return;
-  setLoading(true);
+  loading = true;
+  setGoogleLoading(true);
   setMsg('');
+  clearTimeout(googleWatchdog);
+  googleWatchdog = setTimeout(() => {
+    // Reaching this means the OAuth redirect never happened.
+    setGoogleLoading(false);
+    loading = false;
+    setMsg('Taking too long — tap again or check your connection / لسه هنا؟ جرّب مرة ثانية أو افحص الشبكة');
+  }, 10000);
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
-  if (!supabase) { setMsg('No connection / لا اتصال'); setLoading(false); return; }
+  if (!supabase) { clearTimeout(googleWatchdog); setMsg('No connection / لا اتصال'); setGoogleLoading(false); loading = false; return; }
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html` },
   });
   if (error) {
+    clearTimeout(googleWatchdog);
     console.error('Google OAuth error:', error);
     setMsg('Could not start Google login — try again');
-    setLoading(false);
+    setGoogleLoading(false);
+    loading = false;
     return;
   }
+  // success path navigates away; the page (and timers) die with it.
 });
 
 /* -------- Auto-redirect if session exists -------- */
