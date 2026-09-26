@@ -155,6 +155,29 @@ function _notifyDemo() {
   _authListeners.forEach((cb) => cb(email));
 }
 
+/* The server only returns a cursor-paginated page when `limit` is present;
+   without it every code comes back in one unbounded response. Walk the pages
+   instead, but stop at a ceiling so a server that keeps handing back a cursor
+   cannot spin this forever. */
+const CODE_PAGE = 100;
+const CODE_MAX = 2000;
+async function listAllCodes() {
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < CODE_MAX / CODE_PAGE; page++) {
+    const qs = new URLSearchParams({ limit: String(CODE_PAGE) });
+    if (cursor) qs.set("cursor", cursor);
+    const res = await api(`/api/codes?${qs}`, { admin: true });
+    // A legacy array response means the server ignored the query; take it as-is.
+    if (Array.isArray(res)) return res;
+    const batch = Array.isArray(res && res.data) ? res.data : [];
+    out.push(...batch);
+    cursor = res && res.nextCursor;
+    if (!res || !res.hasMore || !cursor || batch.length === 0) break;
+  }
+  return out;
+}
+
 export const codesDb = {
   mode: () => (onlineMode() ? "online" : "demo"),
 
@@ -220,7 +243,10 @@ export const codesDb = {
   },
 
   async list() {
-    if (onlineMode()) return api("/api/codes", { admin: true }).then(res => Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : [])).catch(() => []);
+    // api() throws on a non-2xx, and paging adds more round trips than the
+    // single call this replaced — keep the original contract that a failed
+    // listing degrades to an empty array rather than rejecting into the UI.
+    if (onlineMode()) return listAllCodes().catch(() => []);
     demoSeed();
     return demoAll().sort((a, b) => b.createdAt - a.createdAt);
   },
@@ -399,8 +425,7 @@ let _codesSyncTimer = null;
 async function syncCodesCache() {
   if (!onlineMode() || !navigator.onLine) return;
   try {
-    const res = await api("/api/codes", { admin: true });
-    const list = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : []);
+    const list = await listAllCodes();
     if (list.length) localStorage.setItem("dp_codes_cache", JSON.stringify({ at: Date.now(), list }));
   } catch {}
 }
