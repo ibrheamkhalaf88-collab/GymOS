@@ -65,11 +65,14 @@ export function computeAccess(input = {}, now = Date.now()) {
       isTrial,
       isLifetime: false,
     };
-    // No usable expiry in the session → we cannot prove it lapsed, so let
-    // them in. Being wrong here costs one month; being wrong the other way
-    // locks out a paying gym.
+    // No usable expiry in the session → we cannot prove they're still covered,
+    // so do NOT grant write access. Fail to read-only instead of failing open:
+    // this branch used to give FULL forever, which is how phones kept entering
+    // the app without any account. Read-only keeps their data visible/exportable
+    // while they re-login (metadata refreshes) or activate a code. The server
+    // remains the real authority on expiry.
     if (!Number.isFinite(subEnd) || subEnd <= 0) {
-      return { ...base, state: FULL, reason: "no_expiry_metadata", daysLeft: Infinity };
+      return { ...base, state: READONLY, reason: "no_expiry_metadata", daysLeft: 0 };
     }
     if (subEnd > now) return { ...base, state: FULL, reason: isTrial ? "trial_active" : "active", daysLeft: daysBetween(subEnd, now) };
     return { ...base, state: READONLY, reason: isTrial ? "trial_expired" : "subscription_expired", daysLeft: 0 };

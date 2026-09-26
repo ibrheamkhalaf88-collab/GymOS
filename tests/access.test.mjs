@@ -71,11 +71,15 @@ test("a lapsed paid subscription is read-only", () => {
   assert.equal(a.reason, "subscription_expired");
 });
 
-test("FAILS OPEN: missing expiry metadata must not lock out a paying gym", () => {
+test("FAILS TO READ-ONLY: missing expiry metadata must NOT grant full access", () => {
+  // This used to fail OPEN (FULL forever) — the exact leak that let devices
+  // enter the app without any account. Data stays readable/exportable, but
+  // writes are blocked until the user re-logs-in or activates a code.
   for (const subEnd of [undefined, null, 0, NaN, "junk"]) {
     const a = computeAccess({ user: user({ subEnd }) }, NOW);
-    assert.equal(a.state, FULL, `subEnd=${String(subEnd)} should not lock the user out`);
+    assert.equal(a.state, READONLY, `subEnd=${String(subEnd)} should not grant write access`);
     assert.equal(a.reason, "no_expiry_metadata");
+    assert.equal(a.daysLeft, 0);
   }
 });
 

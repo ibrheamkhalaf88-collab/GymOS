@@ -207,7 +207,11 @@ form.addEventListener('submit', async (e) => {
       }      const { data: { user: supUser } } = await supabase.auth.getUser();
       if (!supUser) { credError = true; throw new Error('No user'); }
       const sub = supUser.user_metadata?.subscription || 'trial';
-      const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
+      // Never invent a fresh 30 days when metadata lacks subEnd — that let any
+      // email account without subscription data renew its trial on every login.
+      // No expiry on record = not currently covered; the gate explains how to
+      // activate, and a later login with valid metadata restores full access.
+      const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : 0;
       const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
       const subCheck = checkSubscription(result.user);
       if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
