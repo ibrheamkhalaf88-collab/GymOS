@@ -3,7 +3,8 @@
 **Date:** 2026-09-26
 **Scope:** live Supabase project (`mwfbgucayjgbbvcyelbo`), Edge Function, all client JS, admin panel, PWA install flow.
 **Method:** static review of every shipped source file + live probing against the deployed project with the public anon key.
-**Verification:** `npm run lint` clean · `npm test` 12/12 pass.
+**Verification:** `npm run lint` clean · `npm test` 12/12 pass · 15/15 live post-lockdown checks pass.
+**Status:** all findings fixed and deployed. **One item needs the owner: the admin credential rotation in C2.**
 
 > No secret values appear in this file. Admin credentials live in
 > `%TEMP%\opencode\dp_admin_pass.txt` and in the GitHub Actions secrets.
@@ -69,6 +70,48 @@ function deploy, so migrations can never silently drift from production again.
 **To apply:** merge → the workflow applies it. To verify afterwards,
 `GET /rest/v1/codes?select=code` with the anon key must return `[]`, a `PATCH` must
 return 401/403, and the Edge Function must still return 200 for a valid admin login.
+
+#### Post-deployment verification (2026-09-26, after commits `6fa70ad` / `d466058`)
+
+`supabase db push` applied all four migrations and every check passes:
+
+```
+PASS  GET /rest/v1/codes is not readable   -> HTTP 401 42501 insufficient_privilege
+PASS  no pass_hash leaked in the response  -> permission denied, no rows returned
+PASS  GET /rest/v1/gyms is not readable    -> HTTP 401 42501 insufficient_privilege
+PASS  PATCH /rest/v1/codes is denied       -> HTTP 401
+PASS  DELETE /rest/v1/codes is denied      -> HTTP 401
+PASS  PATCH /rest/v1/gyms is denied        -> HTTP 401
+PASS  orphan gym rows swept                -> table no longer readable at all
+PASS  GET /api/health is 200               -> {"ok":true,"uptime":0}
+PASS  health echoes the real Origin (M5)   -> ACAO=https://ibrheamkhalaf88-collab.github.io
+PASS  health does NOT reflect a foreign Origin -> ACAO=null
+PASS  GET /api/users requires admin auth   -> HTTP 403
+PASS  GET /api/gym rejects no token        -> HTTP 401
+PASS  login with a bad password rejected   -> HTTP 400 {"error":"NO_PASSWORD"}
+PASS  admin login, wrong credentials       -> HTTP 401
+15 passed, 0 failed
+```
+
+The `42501 insufficient_privilege` responses are the important ones: the anon role
+no longer has any grant on either table, so the requests never reach a policy.
+`service_role` is unaffected, which is why the API still answers normally.
+
+Note: `XA7DH7` — the one live customer code — answers `NO_PASSWORD` rather than
+`INVALID_CREDENTIALS` on login, because its `pass_hash` is null. That is correct
+behaviour, not a fault: the code was activated but no password was ever set on it.
+
+Two CI problems had to be fixed before any of this could run, both worth recording:
+
+* `setup-cli` with `version: latest` resolves the newest release through the GitHub
+  API, and that call was rate limited, failing the job in 9 seconds. The CLI is now
+  pinned to `2.118.0`.
+* Production's migration history was empty (the old CI never ran `db push`), so the
+  CLI replayed `0001`–`0004`. `0002` ended in a bare
+  `add constraint gyms_code_device_key`, which errors with "already exists" on a
+  database that already has it — and one failing statement cancels the whole push,
+  so `0004` would never have been applied. `0002` is now guarded by a
+  `pg_constraint` check and the chain is replayable.
 
 ---
 
