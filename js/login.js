@@ -10,7 +10,27 @@ const btn  = $('#loginBtn');
 const form = $('#loginForm');
 const googleBtn = $('#googleBtn');
 const forgotLink = $('#forgotLink');
+const resendBtn = $('#resendConfirmBtn');
 let loading = false;
+
+/* Resend the signup confirmation email when login reports an unconfirmed
+   inbox. Throttled 30s so it can't be used as a mail spammer. */
+if (resendBtn) {
+  resendBtn.addEventListener('click', async () => {
+    const email = $('#email').value.trim();
+    if (!email.includes('@')) { setMsg('Enter your email first / أدخل بريدك أولاً'); return; }
+    resendBtn.disabled = true;
+    setMsg('');
+    try {
+      const { supabase: sb } = await import('./supabase-client.js');
+      const { error } = sb ? await sb.auth.resend({ type: 'signup', email }) : { error: new Error('offline') };
+      setMsg(error
+        ? 'Could not resend — try again in a minute / تعذر الإرسال — جرّب بعد دقيقة'
+        : '✉️ تم إرسال إيميل التأكيد — افتح بريدك وتحقق من السبام / Confirmation email sent', error ? '#ff3366' : '#CCFF00');
+    } catch { setMsg('No connection / لا اتصال'); }
+    setTimeout(() => { resendBtn.disabled = false; }, 30000);
+  });
+}
 
 /* -------- helpers -------- */
 function setMsg(text, color = '#ff3366') {
@@ -171,6 +191,7 @@ form.addEventListener('submit', async (e) => {
   }
 
   setLoading(true); setMsg('');
+  if (resendBtn) resendBtn.classList.add('hidden');
   // Try Supabase first (lazy-loaded)
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
@@ -183,8 +204,7 @@ form.addEventListener('submit', async (e) => {
         // do NOT silently fall back to a demo account.
         credError = true;
         throw error;
-      }
-      const { data: { user: supUser } } = await supabase.auth.getUser();
+      }      const { data: { user: supUser } } = await supabase.auth.getUser();
       if (!supUser) { credError = true; throw new Error('No user'); }
       const sub = supUser.user_metadata?.subscription || 'trial';
       const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
@@ -196,6 +216,12 @@ form.addEventListener('submit', async (e) => {
       if (credError) {
         console.warn('[login] Supabase rejected credentials:', err?.message || err);
         setMsg(mapSupabaseAuthError(err));
+        // Unconfirmed email = the #1 "my account is stuck" case. Offer a way out.
+        const rc = (err?.code || err?.message || '').toLowerCase();
+        if (resendBtn) {
+          const isUnconfirmed = rc.includes('email not confirmed') || rc.includes('email_not_confirmed');
+          resendBtn.classList.toggle('hidden', !isUnconfirmed);
+        }
         setLoading(false);
         return;
       }

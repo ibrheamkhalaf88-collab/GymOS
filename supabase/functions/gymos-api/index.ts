@@ -767,6 +767,27 @@ async function handler(req: Request): Promise<Response> {
       return json(mapped, 200, origin);
     }
 
+    /* admin: force-confirm a user's email. Unsticks accounts created while
+       "Confirm email" was on and the confirmation email never arrived
+       (default Supabase SMTP is easy to lose), leaving users who "have an
+       account" but can never sign in. */
+    if (req.method === "POST" && path === "/api/users/confirm-email") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const email = String(body?.email || "").trim().toLowerCase();
+      if (!email) return json({ error: "MISSING_FIELDS" }, 400, origin);
+      let target: any = null;
+      for (let page = 1; page <= 25 && !target; page++) {
+        const { data } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+        const batch = data?.users || [];
+        target = batch.find((u: any) => String(u.email || "").toLowerCase() === email) || null;
+        if (batch.length < 200) break;
+      }
+      if (!target) return json({ error: "NOT_FOUND" }, 404, origin);
+      const { error } = await sb.auth.admin.updateUserById(target.id, { email_confirm: true });
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true, email }, 200, origin);
+    }
+
     /* admin: create user */
     if (req.method === "POST" && path === "/api/users") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);

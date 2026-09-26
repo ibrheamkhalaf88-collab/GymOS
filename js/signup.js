@@ -143,6 +143,15 @@ form.addEventListener('submit', async (e) => {
       if (error) { realError = error; throw error; }
 
       if (data.user) {
+        /* Email confirmation is ON for this project: when the user has to
+           confirm first, signUp returns NO session and the address will not
+           sign in until the link is clicked. Auto-entering the app here is
+           what made users feel "the account exists but login is stuck". */
+        if (!data.session) {
+          setMsg('✅ الحساب اتعمل بس خطوة واحدة باقية: افتح بريدك الإلكتروني (وتحقق من السبام) واضغط رابط التأكيد — بعدها ارجع هنا وسجّل دخول / Check your inbox to confirm, then sign in', '#CCFF00');
+          setLoading(false);
+          return;
+        }
         result = {
           ok: true,
           user: {
