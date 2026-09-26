@@ -1,6 +1,6 @@
-// ============================================================
-// Codes database client — MongoDB REST API backend
-// Online mode : GymOS API (see server/) — JWT per gym + admin token
+﻿// ============================================================
+// Codes database client â€” MongoDB REST API backend
+// Online mode : GymOS API (see server/) â€” JWT per gym + admin token
 // Demo mode   : localStorage fallback (no API configured)
 //
 // Same public API as before, so screens don't change:
@@ -15,10 +15,53 @@ import { sanitizeCode, sanitizeText, validatePassword } from "./validate.js";
 const API = () => String(appConfig.apiUrl || "").replace(/\/+$/, "");
 export const onlineMode = () => !!API();
 
+/* ---------------- Client JWT storage ----------------
+   Persisted in localStorage, not sessionStorage. The gym's members, phones and
+   ledger already live in localStorage in plaintext, so keeping the token there
+   does not change the threat model â€” but sessionStorage did: closing the tab
+   dropped the token while dp_cloud stayed "1", so every later sync quietly
+   failed with 401 and the customer's local edits were never backed up again. */
+const JWT_KEY = "dp_jwt";
+const jwtExpiryKey = () => `${JWT_KEY}_exp`;
+
+export function getJwt() {
+  try {
+    const t = localStorage.getItem(JWT_KEY) || sessionStorage.getItem(JWT_KEY) || "";
+    if (!t) return "";
+    const exp = Number(localStorage.getItem(jwtExpiryKey()) || 0);
+    // Client-side pre-check only; the server remains the authority.
+    if (exp && Date.now() >= exp) { clearJwt(); return ""; }
+    return t;
+  } catch { return ""; }
+}
+
+export function setJwt(token) {
+  try {
+    localStorage.setItem(JWT_KEY, token || "");
+    sessionStorage.setItem(JWT_KEY, token || "");
+    if (token) {
+      // jsonwebtoken exp is in seconds; mirror it locally so an expired token is
+      // never sent (and the UI can prompt for a fresh login instead).
+      const exp = Number(String(token).split(".")[1] ? (JSON.parse(atob(String(token).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).exp || 0) : 0) * 1000;
+      if (exp) localStorage.setItem(jwtExpiryKey(), String(exp));
+    } else {
+      localStorage.removeItem(jwtExpiryKey());
+    }
+  } catch { /* private mode */ }
+}
+
+export function clearJwt() {
+  try {
+    localStorage.removeItem(JWT_KEY);
+    localStorage.removeItem(jwtExpiryKey());
+    sessionStorage.removeItem(JWT_KEY);
+  } catch { /* ignore */ }
+}
+
 async function api(path, { method = "GET", body, auth = false, admin = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
-  if (auth) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_jwt") || ""}`;
+  if (auth) headers.Authorization = `Bearer ${getJwt()}`;
   if (admin) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_admin_token") || ""}`;
   const res = await fetch(`${API()}${path}`, {
     method,
@@ -136,9 +179,9 @@ export const codesDb = {
     }
     const { appConfig } = await import("./config.js");
     if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
-      throw new Error("Email not found / البريد الإلكتروني غير موجود");
+      throw new Error("Email not found / ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ط؛ظٹط± ظ…ظˆط¬ظˆط¯");
     }
-    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة المرور خاطئة");
+    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط®ط§ط·ط¦ط©");
     sessionStorage.setItem("dp_demo_admin", "1");
     _notifyDemo();
   },
@@ -161,7 +204,7 @@ export const codesDb = {
     const code = normalizeCode(custom) || (() => { do { var c = randomCode(); } while (demoAll().some((x) => x.code === c)); return c; })();
     const item = { id: code, code, createdAt: Date.now(), used: false, revoked: false, ...rec };
     const list = demoAll();
-    if (list.some((x) => x.code === code)) throw new Error("Code already exists / الكود موجود مسبقاً");
+    if (list.some((x) => x.code === code)) throw new Error("Code already exists / ط§ظ„ظƒظˆط¯ ظ…ظˆط¬ظˆط¯ ظ…ط³ط¨ظ‚ط§ظ‹");
     list.unshift(item); demoSave(list);
     return item;
   },
@@ -229,7 +272,7 @@ export const codesDb = {
     if (item) { item.device_limit = lim; demoSave(list); }
   },
 
-  // Admin: reset a client's website password → returns temp password
+  // Admin: reset a client's website password â†’ returns temp password
   async resetClientPassword(code) {
     const id = normalizeCode(code);
     if (!id) throw new Error("INVALID_FORMAT");
@@ -255,9 +298,9 @@ export const codesDb = {
           method: "POST",
           body: { code: id, deviceId: deviceInfo.deviceId, deviceName: deviceInfo.deviceName },
         });
-        sessionStorage.setItem("dp_jwt", r.token);
+        setJwt(r.token);
         sessionStorage.setItem("dp_code", r.record.code);
-        return { ok: true, record: r.record };
+        return { ok: true, record: r.record, alreadyUsed: !!r.alreadyUsed };
       } catch (err) {
         return { ok: false, error: err.code || "NOT_FOUND" };
       }
@@ -272,7 +315,7 @@ export const codesDb = {
       usedDevice: deviceInfo.deviceId, usedDeviceName: deviceInfo.deviceName,
     });
     demoSave(demoAll());
-    return { ok: true, record };
+    return { ok: true, record, alreadyUsed: false };
   },
 
   async verifyClientLogin(code, password) {
@@ -285,7 +328,7 @@ export const codesDb = {
           method: "POST",
           body: { code: id, password, deviceId: localStorage.getItem("dp_device_id") || "" },
         });
-        sessionStorage.setItem("dp_jwt", r.token);
+        setJwt(r.token);
         sessionStorage.setItem("dp_code", r.record.code);
         return { ok: true, record: r.record };
       } catch (err) {
@@ -302,12 +345,12 @@ export const codesDb = {
 
   async setClientPassword(code, password) {
     const id = sanitizeCode(code);
-    if (!id || !validatePassword(password)) throw new Error("Weak password / كلمة سر ضعيفة");
+    if (!id || !validatePassword(password)) throw new Error("Weak password / ظƒظ„ظ…ط© ط³ط± ط¶ط¹ظٹظپط©");
     const L = JSON.parse(localStorage.getItem("dp_license") || "{}");
     localStorage.setItem("dp_cloud", (onlineMode() && L.data_enabled) ? "1" : "0");
     if (onlineMode()) {
       const r = await api("/api/auth/set-password", { method: "POST", body: { code: id, password } });
-      sessionStorage.setItem("dp_jwt", r.token);
+      setJwt(r.token);
       sessionStorage.setItem("dp_code", id);
       return true;
     }
@@ -368,7 +411,7 @@ function startCodesSync() {
   window.addEventListener("online", syncCodesCache);
 }
 if (typeof window !== "undefined") {
-  // ابدأ التزامن عند التحميل إذا كان الأدمن مسجلاً
+  // ط§ط¨ط¯ط£ ط§ظ„طھط²ط§ظ…ظ† ط¹ظ†ط¯ ط§ظ„طھط­ظ…ظٹظ„ ط¥ط°ط§ ظƒط§ظ† ط§ظ„ط£ط¯ظ…ظ† ظ…ط³ط¬ظ„ط§ظ‹
   if (sessionStorage.getItem("dp_admin_token") || sessionStorage.getItem("dp_demo_admin")) startCodesSync();
   window.addEventListener("storage", (e) => { if (e.key === "dp_admin_token" || e.key === "dp_demo_admin") startCodesSync(); });
 }

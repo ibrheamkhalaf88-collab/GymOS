@@ -15,6 +15,13 @@
   <script src="vendor/tailwind.js" defer></script>
   <script src="js/tailwind-config.js" defer></script>
   <link rel="stylesheet" href="css/theme.css" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
 </head>
 <body class="bg-background text-text-main antialiased overflow-x-hidden min-h-screen flex flex-col md:flex-row pb-[85px] md:pb-0">
   <div id="loadingOverlay" class="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center gap-4">
@@ -103,12 +110,6 @@
   </script>
   <script src="vendor/supabase-js.js"></script>
   <script type="module" src="js/app.js"></script>
-  <script>
-    // PWA offline support
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () =>
-        navigator.serviceWorker.register("sw.js").catch(() => {}));
-    }
-  </script>
+  <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

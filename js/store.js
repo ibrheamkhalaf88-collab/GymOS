@@ -353,6 +353,15 @@ export function savePlanPrices(prices) {
   localStorage.setItem(PLAN_PRICES_KEY, JSON.stringify(prices));
 }
 
+// Sort members newest-join-first (deterministic). The stored array order can
+// be scrambled after a cloud merge or an import, so the roster+exports always
+// present clients in a stable, meaningful order.
+export function sortMembers(list = []) {
+  return list
+    .slice()
+    .sort((a, b) => (b.joinDate || b.createdAt || 0) - (a.joinDate || a.createdAt || 0));
+}
+
 export const store = {
   all(col) {
     if (!COLLECTIONS.includes(col)) throw new Error(`Unknown collection: ${col}`);

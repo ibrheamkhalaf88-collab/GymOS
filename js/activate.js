@@ -3,7 +3,7 @@
 // codes database (Firestore) or demo store, then save locally.
 // ============================================================
 
-import { codesDb } from "./db.js";
+import { codesDb, setJwt } from "./db.js";
 import { license, deviceName } from "./license.js";
 import { showToast, openModal } from "./ui.js";
 import { appConfig } from "./config.js";
@@ -100,9 +100,17 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
       const res = await fetch(`${appConfig.apiUrl}/api/trial`, { method: "POST", headers: { "Content-Type": "application/json", apikey: appConfig.supabaseAnonKey || "" }, body: JSON.stringify({ deviceId: localStorage.getItem("dp_device_id") || "" }) });
       if (res.ok) {
         const data = await res.json();
-        license.save({ code: data.code, tier: "trial", days: 30 });
+        const rec = data.record || { code: data.code, tier: "trial", days: 30, data_enabled: true };
+        // Keep the server-issued token. Dropping it (the old behaviour) left the
+        // trial with dp_cloud=0, so nothing was ever backed up and a second
+        // device had no way in.
+        if (data.token) setJwt(data.token);
+        sessionStorage.setItem("dp_code", rec.code);
+        license.save(rec);
         localStorage.setItem(TRIAL_FLAG, "1");
         localStorage.setItem("dp_license_mode", "online");
+        localStorage.setItem("dp_cloud", rec.data_enabled === false ? "0" : "1");
+        await restoreCloudData(rec.code);
         markDigits("success");
         showToast("🎁 30-day trial from server / تجربة من السيرفر");
         setTimeout(() => location.replace("app.html"), 900);
@@ -240,8 +248,16 @@ form.addEventListener("submit", async (e) => {
     license.save(result.record);
     localStorage.setItem("dp_license_mode", codesDb.mode());
     markDigits("success");
-    showToast(isOnline ? "License activated! / تم التفعيل بنجاح" : "Activated in DEMO mode / تم التفعيل بالوضع التجريبي");
-    await askSetPassword(result.record);
+    if (result.alreadyUsed) {
+      // This code was already activated on another device, which is exactly how
+      // multi-device is meant to work — so the server let us in. It also means a
+      // password already exists, and the old flow replaced it here without ever
+      // asking for the current one, locking the first device out. Keep it.
+      showToast("🔐 Added to this device — password unchanged / تمت الإضافة بدون تغيير كلمة السر");
+    } else {
+      showToast(isOnline ? "License activated! / تم التفعيل بنجاح" : "Activated in DEMO mode / تم التفعيل بالوضع التجريبي");
+      await askSetPassword(result.record);
+    }
     await restoreCloudData(result.record.code);
     setTimeout(() => location.replace("app.html"), 600);
   } catch (err) {

@@ -1,4 +1,4 @@
-name: Deploy Supabase Functions
+name: Deploy Supabase
 
 on:
   push:
@@ -9,7 +9,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Migrations were never applied by CI before 2026-09-26 — the old workflow only
+  # linked the project, set secrets and deployed the function. That is how the
+  # production database ended up without RLS (full anonymous read/write on
+  # public.codes and public.gyms) while the repo's SQL said it should have it.
+  migrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Apply database migrations
+        run: supabase db push --yes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
   deploy-supabase:
+    needs: migrate
     runs-on: ubuntu-latest
     permissions:
       contents: read

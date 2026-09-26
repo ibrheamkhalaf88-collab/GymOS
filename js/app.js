@@ -4,6 +4,7 @@
 // ============================================================
 
 import { store, PLANS, planPrices, savePlanPrices } from "./store.js";
+import { clearJwt } from "./db.js";
 import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
@@ -76,17 +77,17 @@ function showUpdateOverlay(apkUrl) {
 // Auth check via Supabase � site is now free, login required only for sync
 import { supabase } from "./supabase-client.js";
 
-// Start multi-device sync only when Supabase session + sync are enabled
-// Wrapped in try/catch so a missing internet connection never blocks the app
+// Start multi-device sync when the license allows it.
+// A Supabase session is NOT required: most gyms activate with a code and never
+// sign in with an email, and this check used to sit inside the
+// `if (session && session.user)` branch — so their periodic sync never started
+// and a second device only ever saw the one-shot snapshot taken at activation.
+// Wrapped in try/catch so a missing internet connection never blocks the app.
 (async function initAuth() {
   try {
     const { data: { session } } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
     if (session && session.user) {
       localStorage.setItem('dp_user_email', session.user.email || '');
-      // data_enabled/sync_enabled live on the license record (codes table),
-      // not on the auth user's app_metadata — read them from dp_license.
-      const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
-      if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
     } else {
       // Check demo mode session
       const demoUser = localStorage.getItem('dp_current_user');
@@ -103,6 +104,10 @@ import { supabase } from "./supabase-client.js";
         } catch {}
       }
     }
+    // data_enabled/sync_enabled live on the license record (codes table),
+    // not on the auth user's app_metadata — read them from dp_license.
+    const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
+    if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
   } catch (e) {
     const demoUser = localStorage.getItem('dp_current_user');
     if (demoUser) {
@@ -117,6 +122,11 @@ import { supabase } from "./supabase-client.js";
         }
       } catch {}
     }
+    // Sync is local-first, so still try to start it even if auth lookup failed.
+    try {
+      const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
+      if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
+    } catch {}
     console.warn('[initAuth] skipped (no connection or auth error):', e?.message || e);
   }
 })();
@@ -281,6 +291,10 @@ async function deactivateLicense() {
   // Drop the device license so a *different* account signing in afterwards can
   // never inherit this code/cloud scope (cross-account leak guard).
   license.clear();
+  // The client JWT now lives in localStorage (it must survive a tab close so
+  // cloud backup keeps working), so sessionStorage.clear() below no longer
+  // removes it. Without this the signed-out device keeps a valid token.
+  try { clearJwt(); } catch {}
   Object.keys(localStorage).forEach(k => {
     if (k.startsWith('sb-') && (k.includes('auth-token') || k.includes('code-verifier'))) localStorage.removeItem(k);
   });
@@ -579,7 +593,7 @@ function viewRoster() {
 
     // ── MEMBERS view ──
     const q = rosterQuery.trim().toLowerCase();
-    let members = store.all("members");
+    let members = store.sortMembers(store.all("members"));
     if (rosterFilter) members = members.filter((m) => effStatus(m) === rosterFilter);
     if (q) members = members.filter((m) => m.name.toLowerCase().includes(q) || String(m.phone).includes(q));
 

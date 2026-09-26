@@ -6,6 +6,7 @@
 <title>Digital Pulse — نظام إدارة النوادي والجيمات</title>
 <meta name="description" content="Digital Pulse — نظام إدارة متكامل للنوادي الرياضية: عضويات، معدات، مالية، وتزامن على أكثر من جهاز."/>
 <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.webmanifest" />
 <meta property="og:title" content="Digital Pulse — أدر ناديك بنبضة واحدة"/>
 <meta property="og:description" content="إدارة العضويات والمعدات والمالية في تطبيق واحد متزامن على كل أجهزتك."/>
 <meta property="og:type" content="website"/>
@@ -46,6 +47,13 @@
   .ltr { direction: ltr; }
   .en-line { font-family: 'Space Grotesk', 'Manrope', sans-serif; letter-spacing: .02em; }
 </style>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
 </head>
 <body class="bg-black text-white antialiased overflow-x-hidden selection:bg-[#CCFF00] selection:text-black min-h-screen grid-fade">
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-3 focus:right-3 focus:bg-[#CCFF00] focus:text-black focus:px-4 focus:py-2 focus:rounded-full font-headline font-bold uppercase tracking-widest text-sm">Skip to content · تخطَّ للمحتوى</a>
@@ -270,5 +278,6 @@
   </p>
 </footer>
 
+  <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

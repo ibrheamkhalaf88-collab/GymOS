@@ -6,6 +6,7 @@
   <title>Digital Pulse — Create Account</title>
   <meta name="description" content="Create a new Digital Pulse account" />
   <meta name="theme-color" content="#000000" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <script src="vendor/tailwind.js"></script>
   <script src="js/tailwind-config.js"></script>
   <link rel="stylesheet" href="css/theme.css" />
@@ -42,6 +43,13 @@
     .auth-alt-btn:active { transform: scale(0.98); }
     .auth-alt-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
   </style>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
 
@@ -154,5 +162,6 @@
   <script src="vendor/supabase-js.js"></script>
   <script src="js/supabase-client.js" type="module"></script>
   <script src="js/signup.js" type="module"></script>
+  <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

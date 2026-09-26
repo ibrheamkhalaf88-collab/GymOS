@@ -4,6 +4,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Digital Pulse - Activation Code</title>
+  <link rel="manifest" href="manifest.webmanifest" />
 <script src="vendor/tailwind.js"></script>
 <script src="js/tailwind-config.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -42,6 +43,13 @@
     border-color: #ff3366 !important; box-shadow: 0 0 15px rgba(255, 51, 102, 0.6);
   }
 </style>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
 <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
@@ -126,5 +134,6 @@
 </div>
 
 <script src="js/activate.js" type="module"></script>
+  <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

@@ -6,8 +6,8 @@ param(
   [string]$OrgId = "",
   [string]$ProjectName = "gymos",
   [string]$Region = "eu-central-1",
-  [string]$AdminEmail = "admin@example.com",
-  [string]$AdminPassword = "ibrheam2040",
+  [string]$AdminEmail = "",
+  [string]$AdminPassword = "",
   [string]$AllowedOrigin = "https://ibrheamkhalaf88-collab.github.io",
   [string]$DbPassword = "",
   [string]$JwtSecret = ""
@@ -42,10 +42,31 @@ $secrets = @(
   @{ name="SB_URL"; value="https://$ProjectRef.supabase.co" },
   @{ name="SB_SERVICE_ROLE"; value=$sr },
   @{ name="JWT_SECRET"; value=$JwtSecret },
-  @{ name="ADMIN_EMAIL"; value=$AdminEmail },
-  @{ name="ADMIN_PASSWORD"; value=$AdminPassword },
   @{ name="ALLOWED_ORIGIN"; value=$AllowedOrigin }
-) | ConvertTo-Json -Compress
+)
+
+# ADMIN_EMAIL / ADMIN_PASSWORD are only pushed when explicitly supplied.
+# This used to ship a hardcoded default ("ibrheam2040") in a public repo and
+# wrote it to the live project on every run, so merely re-running this script to
+# redeploy the function silently reset the admin password to a published value
+# -- after which nobody could log in. An omitted flag now means "leave it alone".
+if ($AdminEmail -or $AdminPassword) {
+  if (-not $AdminEmail -or -not $AdminPassword) {
+    throw "Supply BOTH -AdminEmail and -AdminPassword, or neither. Partial input is refused so the live credentials are never left half-updated."
+  }
+  if ($AdminPassword.Length -lt 12) {
+    throw "Refusing to set an admin password under 12 characters. Generate a long random one."
+  }
+  if ($AdminEmail -notmatch '@') {
+    throw "Refusing to set ADMIN_EMAIL='$AdminEmail' -- that is not an email address."
+  }
+  $secrets += @{ name="ADMIN_EMAIL"; value=$AdminEmail }
+  $secrets += @{ name="ADMIN_PASSWORD"; value=$AdminPassword }
+} else {
+  Write-Warning "No -AdminEmail/-AdminPassword given: leaving the existing admin credentials untouched."
+}
+
+$secrets = $secrets | ConvertTo-Json -Compress
 Invoke-RestMethod -Uri "$api/projects/$ProjectRef/secrets" -Method Post -Headers $h -Body $secrets | Out-Null
 
 # 4. deploy function (source sent as `body`)

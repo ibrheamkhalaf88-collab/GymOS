@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="index, follow" />
   <title>Privacy Policy · Digital Pulse</title>
+  <link rel="manifest" href="manifest.webmanifest" />
   <meta name="description" content="Digital Pulse privacy policy / سياسة خصوصية تطبيق ديجلتال بولس" />
   <style>
     :root { --volt: #CCFF00; --ink: #0a0a0a; --panel: #141414; }
@@ -25,6 +26,13 @@
     .rtl h2 { border-left: none; border-right: 3px solid var(--volt); padding-right: 12px; text-align: right; }
     footer { text-align: center; margin-top: 56px; color: #666; font-size: .8rem; }
   </style>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
 </head>
 <body>
   <div class="wrap">
@@ -120,5 +128,6 @@
 
     <footer>© 2026 Digital Pulse · All rights reserved</footer>
   </div>
+  <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

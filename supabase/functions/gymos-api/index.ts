@@ -33,6 +33,11 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// One cost factor for every write path. Previously set-password used 12 while
+// change-password and the admin reset used 10, so rehashing the same password
+// through a different route silently changed its strength.
+const BCRYPT_COST = 12;
+
 // ---------- helpers ----------
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -50,19 +55,42 @@ async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoke
 }
 
 const DAY_MS = 86400000;
+// Absolute expiry instant for a code: lifetime/none => null, not-yet-activated
+// => null (caller falls back to the full day count), otherwise used_at + days.
+// Sending the absolute instant lets the client store it verbatim, so repeated
+// logins can never drift the countdown the way a re-computed day count does.
+function expiryMs(rec: any): number | null {
+  const days = Number(rec?.days) || 0;
+  if (days <= 0) return null;
+  if (!rec?.used_at) return null;
+  return Date.parse(rec.used_at) + days * DAY_MS;
+}
 // Subscription length counts from first activation (used_at). Return how many
 // days are actually left so a re-login can never reset the countdown.
+// floor() is deliberate: rounding up would hand out up to one extra day on
+// every single login.
 function remainingDays(rec: any): number {
   const days = Number(rec?.days) || 0;
   if (days <= 0) return 0; // lifetime / none
-  if (!rec?.used_at) return days;
-  const end = Date.parse(rec.used_at) + days * DAY_MS;
-  return Math.max(0, Math.ceil((end - Date.now()) / DAY_MS));
+  const end = expiryMs(rec);
+  if (end == null) return days;
+  return Math.max(0, Math.floor((end - Date.now()) / DAY_MS));
 }
 const normCode = (raw: string) =>
   String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-const randomCode = () =>
-  "XXX-XXX".replace(/X/g, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]);
+// Cryptographically strong randomness. These codes are the only thing standing
+// between a stranger and a paying customer's data, so Math.random() (a
+// predictable PRNG) is not acceptable here.
+// The draw is uniform because ALPHA has exactly 32 entries and 256 % 32 === 0.
+// If the alphabet ever changes size, switch to rejection sampling to avoid bias.
+const randChars = (n: number) => {
+  const out: string[] = [];
+  const buf = new Uint8Array(n);
+  crypto.getRandomValues(buf);
+  for (let i = 0; i < n; i++) out.push(ALPHA[buf[i] % ALPHA.length]);
+  return out.join("");
+};
+const randomCode = () => randChars(6);
 
 // Build a subscription block for user_metadata from a desired tier + days.
 // subEnd is computed from NOW so "stays open N days" always holds.
@@ -105,6 +133,7 @@ function toRecord(r: any) {
   return {
     code: r.code, tier: r.tier, days: r.days, owner: r.owner, note: r.note,
     used: r.used, revoked: r.revoked,
+    expiresAt: expiryMs(r),   // absolute ms; client stores verbatim (no day drift)
     usedAt: r.used_at ? new Date(r.used_at).getTime() : null,
     usedDevice: r.used_device, usedDeviceName: r.used_device_name,
     createdAt: r.created_at ? new Date(r.created_at).getTime() : null,
@@ -159,41 +188,57 @@ function mergeGymData(existing: any, incoming: any): any {
   return out;
 }
 
-// per-IP login rate limit — with TTL cleanup
-const attempts = new Map<string, { n: number; t: number }>();
-const MAX_TRIES = 8, LOCK_MS = 15 * 60 * 1000;
-const tooMany = (ip: string) => {
-  const a = attempts.get(ip);
-  if (!a) return false;
-  if (Date.now() - a.t > LOCK_MS) { attempts.delete(ip); return false; }
-  return a.n >= MAX_TRIES;
-};
-const failIp = (ip: string) => {
-  const a = attempts.get(ip) || { n: 0, t: Date.now() };
-  a.n += 1; a.t = Date.now(); attempts.set(ip, a);
-};
-const clearIp = (ip: string) => attempts.delete(ip);
+// ---------- bounded, self-sweeping rate limiters ----------
+// A Map keyed by client IP grows without limit under a flood of unique source
+// IPs, and Deno isolates are recycled lazily. Each limiter now caps its own size
+// and drops expired entries on a timer, so memory stays flat.
+type Bucket = { n: number; t: number };
+function limiter(max: number, windowMs: number, cap = 5000) {
+  const m = new Map<string, Bucket>();
+  const sweep = () => {
+    const now = Date.now();
+    for (const [k, v] of m) if (now - v.t > windowMs) m.delete(k);
+    while (m.size > cap) {                       // flood guard: drop oldest first
+      const oldest = m.keys().next();
+      if (oldest.done) break;
+      m.delete(oldest.value);
+    }
+  };
+  const timer: any = setInterval(sweep, Math.max(30_000, windowMs));
+  timer?.unref?.();                              // never keep the isolate alive for this
+  return {
+    blocked(k: string) {
+      const b = m.get(k);
+      if (!b) return false;
+      if (Date.now() - b.t > windowMs) { m.delete(k); return false; }
+      return b.n >= max;
+    },
+    hit(k: string) {
+      const b = m.get(k) || { n: 0, t: Date.now() };
+      b.n += 1; b.t = Date.now(); m.set(k, b);
+    },
+    clear(k: string) { m.delete(k); },
+  };
+}
 
-// per-code activation rate limit (NAT-safe: keyed by code, not by shared IP)
-const actAttempts = new Map<string, { n: number; t: number }>();
-const tooManyCode = (code: string) => {
-  const a = actAttempts.get(code);
-  if (!a) return false;
-  if (Date.now() - a.t > LOCK_MS) { actAttempts.delete(code); return false; }
-  return a.n >= 20;
-};
-const failCode = (code: string) => {
-  const a = actAttempts.get(code) || { n: 0, t: Date.now() };
-  a.n += 1; a.t = Date.now(); actAttempts.set(code, a);
-};
-const clearCode = (code: string) => actAttempts.delete(code);
+const MAX_TRIES = 8, LOCK_MS = 15 * 60 * 1000;
+const loginLimiter = limiter(MAX_TRIES, LOCK_MS);
+const tooMany = (ip: string) => loginLimiter.blocked(ip);
+const failIp = (ip: string) => loginLimiter.hit(ip);
+const clearIp = (ip: string) => loginLimiter.clear(ip);
+
+// per-code activation limit (NAT-safe: keyed by code, not by a shared IP)
+const actLimiter = limiter(20, LOCK_MS);
+const tooManyCode = (code: string) => actLimiter.blocked(code);
+const failCode = (code: string) => actLimiter.hit(code);
+const clearCode = (code: string) => actLimiter.clear(code);
 
 // free-trial issuance cap — deviceId is client-controlled and clearable, so the
 // per-IP cap is the real anti-abuse boundary. Keyed by clientIp (never per "TRIAL").
-const trialIssued = new Map<string, number>();
-const MAX_TRIALS_PER_IP = 3;
-const tooManyTrials = (ip: string) => (trialIssued.get(ip) || 0) >= MAX_TRIALS_PER_IP;
-const noteTrial = (ip: string) => trialIssued.set(ip, (trialIssued.get(ip) || 0) + 1);
+const TRIAL_WINDOW_MS = 24 * 60 * 60 * 1000;
+const trialLimiter = limiter(3, TRIAL_WINDOW_MS, 2000);
+const tooManyTrials = (ip: string) => trialLimiter.blocked(ip);
+const noteTrial = (ip: string) => trialLimiter.hit(ip);
 
 // Client IP for rate limiting. Prefer x-real-ip (trusted proxy); otherwise take
 // the LAST x-forwarded-for hop — the gateway/CDN appends the real client IP after
@@ -261,7 +306,7 @@ async function handler(req: Request): Promise<Response> {
   try {
     /* health */
     if (req.method === "GET" && path === "/api/health") {
-      return json({ ok: true, uptime: 0 });
+      return json({ ok: true, uptime: 0 }, 200, origin);
     }
 
     /* free 30-day trial (server-issued) */
@@ -281,7 +326,13 @@ async function handler(req: Request): Promise<Response> {
       }).select("*").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       noteTrial(ip);
-      return json({ ok: true, code, token: await signJwt({ code: rec.code, deviceId: devId }), tempPassword: "trial" }, 200, origin);
+      // Mirror the /auth/activate response shape. Previously this returned a bare
+      // code plus a hardcoded tempPassword:"trial" that (a) the client threw away
+      // and (b) could never pass the app's own 8+ character password policy — so a
+      // trial user ended up with no cloud token and no way to sign in again.
+      const record = toRecord(rec);
+      record.days = remainingDays(rec);
+      return json({ ok: true, code: rec.code, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 
     /* client activate */
@@ -315,6 +366,10 @@ async function handler(req: Request): Promise<Response> {
       return json({
         ok: true,
         record,
+        // True when this code was already activated on an earlier device. The
+        // client uses it to avoid silently replacing a password that the first
+        // device still relies on.
+        alreadyUsed: !!rec.used,
         token: await signJwt({ code: rec.code, deviceId: devId }),
       }, 200, origin);
     }
@@ -347,7 +402,7 @@ async function handler(req: Request): Promise<Response> {
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) return json({ error: "NOT_ACTIVATED" }, 404, origin);
       if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
-      const pass_hash = await bcrypt.hash(pw, 12);
+      const pass_hash = await bcrypt.hash(pw, BCRYPT_COST);
       const { error } = await sb.from("codes").update({ pass_hash }).eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       return json({ ok: true }, 200, origin);
@@ -365,7 +420,7 @@ async function handler(req: Request): Promise<Response> {
       const nw = String(body?.next || "");
       if (nw.length < 8 || nw.length > 72) return json({ error: "WEAK_PASSWORD" }, 400, origin);
       if (nw === body?.current) return json({ ok: true }, 200, origin);
-      const pass_hash = await bcrypt.hash(nw, 10);
+      const pass_hash = await bcrypt.hash(nw, BCRYPT_COST);
       const { error } = await sb.from("codes").update({ pass_hash }).eq("code", p.code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       return json({ ok: true }, 200, origin);
@@ -495,8 +550,11 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/reset-password$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
-      const temp = Array.from({ length: 6 }, () => ALPHA[Math.floor(Math.random() * ALPHA.length)]).join("");
-      const pass_hash = await bcrypt.hash(temp, 10);
+      // 12 chars, not 6: the client's own password policy rejects anything
+      // under 8 characters, so a 6-char temp password would leave the customer
+      // unable to ever change it.
+      const temp = randChars(12);
+      const pass_hash = await bcrypt.hash(temp, BCRYPT_COST);
       const { error, count } = await sb.from("codes").update({ pass_hash }).eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!count) return json({ error: "NOT_FOUND" }, 404, origin);
@@ -533,15 +591,35 @@ async function handler(req: Request): Promise<Response> {
       const code = normCode(path.split("/")[3]);
       const { error } = await sb.from("codes").delete().eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      return json({ ok: true }, 200, origin);
+      // Drop the customer's cloud data too. Leaving the gyms row behind orphaned
+      // it forever: the JWT stops working (codeFlags treats a missing code as
+      // revoked) but the member list, phones and ledger stayed in the table.
+      const { error: gErr } = await sb.from("gyms").delete().eq("code", code);
+      if (gErr) console.error("[gym cleanup failed]", code, gErr);
+      return json({ ok: true, gymDataDeleted: !gErr }, 200, origin);
     }
 
     /* admin: list users */
     if (req.method === "GET" && path === "/api/users") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const { data, error } = await sb.auth.admin.listUsers();
-      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      const users = data?.users || [];
+      // auth.admin.listUsers() defaults to ONE page of 50. Returning data.users
+      // directly meant the admin table silently truncated at 50 customers with
+      // no error and no way to reach the rest. Walk the pages instead.
+      const perPage = Math.min(200, Math.max(1, Number(new URL(req.url).searchParams.get("perPage")) || 200));
+      const maxPages = 25;                       // hard ceiling: 5000 users
+      const all: any[] = [];
+      for (let page = 1; page <= maxPages; page++) {
+        const { data, error } = await sb.auth.admin.listUsers({ page, perPage });
+        if (error) {
+          if (all.length) break;                // keep what we have rather than 500
+          return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        }
+        const batch = data?.users || [];
+        all.push(...batch);
+        const last = batch[batch.length - 1];
+        if (batch.length < perPage || !last) break;
+      }
+      const users = all;
       const mapped = users.map((u) => {
         const meta = u.user_metadata || {};
         const ts = (v: any): number | null => {
