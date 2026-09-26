@@ -413,6 +413,7 @@ export function sortMembers(list = []) {
 }
 
 export const store = {
+  sortMembers,
   all(col) {
     if (!COLLECTIONS.includes(col)) throw new Error(`Unknown collection: ${col}`);
     const key = memColKey(col);

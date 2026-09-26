@@ -1967,7 +1967,9 @@ function viewProfile() {
     showToast("Full reset done / تمت إعادة كل شيء");
     setTimeout(() => { location.reload(); }, 300);
   };
-  $("#exportBtn").onclick = exportData;
+  // NOTE: no $("#exportBtn") here — that button only exists in the hardware
+  // view; binding it unconditionally crashed the profile view and left
+  // #logoutBtn unwired. Export is offered in-profile via #secExport above.
   $("#logoutBtn").onclick = deactivateLicense;
 }
 

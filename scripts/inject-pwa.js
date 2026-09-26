@@ -19,6 +19,9 @@ const IOS_META = [
   '  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />',
 ].join("\n");
 
+// No <link rel="icon"> anywhere before → every page 404'd /favicon.ico.
+const FAVICON = '  <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />';
+
 const MANIFEST = '  <link rel="manifest" href="manifest.webmanifest" />';
 const PWA_SCRIPT = '  <script type="module" src="js/pwa.js"></script>';
 
@@ -51,6 +54,14 @@ for (const file of fs.readdirSync(ROOT).filter((f) => f.endsWith(".html"))) {
       html = html.replace(/<\/head>/i, `${IOS_META}\n</head>`);
     } else {
       console.warn(`  ! ${file}: no </head> for the iOS meta tags`);
+    }
+  }
+
+  if (!/rel="icon"/.test(html)) {
+    if (/<\/head>/i.test(html)) {
+      html = html.replace(/<\/head>/i, `${FAVICON}\n</head>`);
+    } else {
+      console.warn(`  ! ${file}: no </head> for the favicon link`);
     }
   }
 
