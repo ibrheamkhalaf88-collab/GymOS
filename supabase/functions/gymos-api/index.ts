@@ -856,7 +856,7 @@ async function handler(req: Request): Promise<Response> {
         },
       });
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
-      return json({ id: newUser.id, email: newUser.email, ...sm }, 201, origin);
+      return json({ id: newUser?.user?.id, email: newUser?.user?.email, ...sm }, 201, origin);
     }
 
     /* admin: suspend/resume OR set subscription (tier + days) for a user */
