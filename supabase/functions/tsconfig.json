@@ -1,0 +1,15 @@
+{
+  "//": "Type-checks the Deno Edge Function under plain tsc in CI. Runtime types come from Deno; this only catches syntax errors and bad property access before deploy.",
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "types": []
+  },
+  "include": ["gymos-api/index.ts", "deno-shims.d.ts"]
+}

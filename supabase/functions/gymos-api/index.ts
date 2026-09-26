@@ -286,6 +286,24 @@ function authAdmin(req: Request): boolean {
   return !!p && p.admin === true;
 }
 
+// ---------- coupons ----------
+function toCoupon(r: any) {
+  return {
+    id: r.id,
+    code: r.code, kind: r.kind, value: r.value, description: r.description,
+    used: r.used, usedBy: r.used_by,
+    usedAt: r.used_at ? new Date(r.used_at).getTime() : null,
+    createdAt: r.created_at ? new Date(r.created_at).getTime() : null,
+  };
+}
+/** Subscription tier a coupon grants, or null for a plain percent discount. */
+function couponTier(c: any): string | null {
+  return c.kind === "days_14" ? "trial" : c.kind === "days_30" ? "monthly" : c.kind === "days_365" ? "yearly" : null;
+}
+function couponDays(c: any): number {
+  return c.kind === "days_14" ? 14 : c.kind === "days_30" ? 30 : c.kind === "days_365" ? 365 : 0;
+}
+
 // ---------- main ----------
 async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
@@ -559,6 +577,111 @@ async function handler(req: Request): Promise<Response> {
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!count) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true, tempPassword: temp }, 200, origin);
+    }
+
+    /* admin: list coupons — paginated, newest first */
+    if (req.method === "GET" && path === "/api/coupons") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const u = new URL(req.url);
+      const limit = Math.min(200, Math.max(1, Number(u.searchParams.get("limit")) || 100));
+      const cursor = u.searchParams.get("cursor");
+      // Sort on id alone, descending. The cursor filter below is on id too, so
+      // the sort and the cursor agree. Sorting on created_at here while paging
+      // by id silently re-serves rows whenever two coupons share a timestamp,
+      // and drops rows whose id is low but created_at is recent.
+      // bigserial id is monotonic, so id desc is also newest-first.
+      let q = sb.from("coupons").select("*").order("id", { ascending: false }).limit(limit + 1);
+      if (cursor) q = q.lt("id", Number(cursor) || 0);
+      const { data: list, error } = await q;
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const hasMore = (list || []).length > limit;
+      const page = hasMore ? list.slice(0, limit) : (list || []);
+      return json({
+        data: page.map(toCoupon),
+        nextCursor: hasMore ? String(page[page.length - 1].id) : null,
+        hasMore,
+      }, 200, origin);
+    }
+
+    /* admin: create a coupon */
+    if (req.method === "POST" && path === "/api/coupons") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+      if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
+      const kind = ["days_14", "days_30", "days_365", "percent"].includes(body?.kind) ? body.kind : "days_30";
+      const value = Math.max(0, Math.min(100, Math.floor(Number(body?.value) || 0)));
+      if (kind === "percent" && value < 1) return json({ error: "INVALID_VALUE" }, 400, origin);
+      const { data, error } = await sb.from("coupons")
+        .insert({ code, kind, value, description: String(body?.description || "").slice(0, 200) })
+        .select("*").maybeSingle();
+      if (error) {
+        if (error.code === "23505") return json({ error: "DUPLICATE" }, 409, origin);
+        return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      }
+      return json(toCoupon(data), 201, origin);
+    }
+
+    /* admin: look up a coupon WITHOUT consuming it.
+       The old client burned the coupon the moment it was typed into the form,
+       so abandoning the dialog wasted it. Peeking here and consuming in
+       redeem() lets the coupon survive until the subscription is really saved. */
+    if (req.method === "GET" && /^\/api\/coupons\/[^/]+$/.test(path)) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const code = String(path.split("/")[3] || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+      const { data } = await sb.from("coupons").select("*").eq("code", code).maybeSingle();
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      if (data.used) return json({ error: "ALREADY_USED" }, 409, origin);
+      return json({ coupon: toCoupon(data), tier: couponTier(data), days: couponDays(data) }, 200, origin);
+    }
+
+    /* admin: redeem a coupon.
+       Marks it used only if it is still unused — a conditional update, so two
+       admins clicking at once cannot both win the same coupon. Returns the
+       entitlement the caller should apply. */
+    if (req.method === "POST" && path === "/api/coupons/redeem") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+      if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
+      // eq("used", false) is the guard: if someone else took it first this
+      // matches zero rows and we report ALREADY_USED instead of double-spending.
+      const { data, error } = await sb.from("coupons")
+        .update({ used: true, used_at: new Date().toISOString(), used_by: String(body?.userId || "").slice(0, 64) || null })
+        .eq("code", code).eq("used", false).select("*").maybeSingle();
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) {
+        const { data: existing } = await sb.from("coupons").select("*").eq("code", code).maybeSingle();
+        if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
+        return json({ error: "ALREADY_USED" }, 409, origin);
+      }
+      return json({ coupon: toCoupon(data), tier: couponTier(data), days: couponDays(data) }, 200, origin);
+    }
+
+    /* admin: release a coupon claimed by a subscription save that then failed.
+       The redeem is a claim, not a finality: the client claims first (so two
+       admins cannot both win the same code), saves the user, and calls this to
+       hand the coupon back if the save blew up. Scoped to the claiming userId
+       so it can never yank a coupon another admin has since consumed. */
+    if (req.method === "POST" && path === "/api/coupons/release") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+      const userId = String(body?.userId || "").slice(0, 64);
+      if (!code || !userId) return json({ error: "INVALID_CODE" }, 400, origin);
+      const { data, error } = await sb.from("coupons")
+        .update({ used: false, used_at: null, used_by: null })
+        .eq("code", code).eq("used", true).eq("used_by", userId).select("code").maybeSingle();
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_CLAIMED" }, 409, origin);
+      return json({ ok: true }, 200, origin);
+    }
+
+    /* admin: delete a coupon */
+    if (req.method === "DELETE" && path.startsWith("/api/coupons/")) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const code = String(path.split("/")[3] || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
+      if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
+      const { error } = await sb.from("coupons").delete().eq("code", code);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true }, 200, origin);
     }
 
     /* admin: toggle cloud data transfer for a code */

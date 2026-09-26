@@ -167,6 +167,32 @@
     </div>
   </div>
 
+  <!-- Coupons -->
+  <div class="p-4 border-b border-[#444933]" style="background-color:#0d0d0d;">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="font-headline text-sm uppercase tracking-widest" style="color:#c4c9ac;">
+        Coupons / الكوبونات
+      </h3>
+      <button id="toggleCouponsBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
+        Show / عرض
+      </button>
+    </div>
+    <div id="couponListWrap" class="hidden overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left" style="color:#8b917a;">
+            <th class="py-2 px-2">Code / الكود</th>
+            <th class="py-2 px-2">Type / النوع</th>
+            <th class="py-2 px-2">Status / الحالة</th>
+            <th class="py-2 px-2">Used by / بواسطة</th>
+            <th class="py-2 px-2"></th>
+          </tr>
+        </thead>
+        <tbody id="couponListBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Search & filter -->
   <div class="flex flex-wrap items-center gap-4 p-4 border-b border-[#444933]" style="background-color:#0d0d0d;">
     <div class="flex items-center gap-2 flex-1 min-w-[200px]">
@@ -290,7 +316,7 @@
             <option value="days_14">Free 2 weeks / 2 أسبوع مجانًا</option>
             <option value="days_30">Free 1 month / شهر مجاني</option>
             <option value="days_365">Free 1 year / سنة مجانية</option>
-            <option value="percentage">Percentage discount / تخفيض نسبة</option>
+            <option value="percent">Percentage discount / تخفيض نسبة</option>
           </select>
         </div>
         <div>
@@ -299,7 +325,7 @@
         </div>
         <div class="flex justify-end gap-2 mt-4">
           <button type="button" id="cancelCouponBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
-          <button type="submit" class="btn-sm bg-[#CCFF00] text-black">Create Coupon / إنشاء</button>
+          <button type="submit" id="submitCouponBtn" class="btn-sm bg-[#CCFF00] text-black">Create Coupon / إنشاء</button>
         </div>
       </form>
       <p id="couponModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
@@ -363,6 +389,10 @@
     const couponValue = $('#couponValue');
     const couponModalMsg = $('#couponModalMsg');
     const cancelCouponBtn = $('#cancelCouponBtn');
+    const submitCouponBtn = $('#submitCouponBtn');
+    const toggleCouponsBtn = $('#toggleCouponsBtn');
+    const couponListWrap = $('#couponListWrap');
+    const couponListBody = $('#couponListBody');
 
     const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
     const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
@@ -580,6 +610,7 @@
       userDays.value = 30;
       submitUserBtn.textContent = 'Create User / إنشاء';
       couponSection.classList.add('hidden');
+      pendingCoupon = null;
       userModalMsg.textContent = '';
       refreshPreview();
       userModal.classList.remove('hidden');
@@ -605,8 +636,8 @@
       userModal.classList.remove('hidden');
     };
 
-    cancelUserBtn.addEventListener('click', () => userModal.classList.add('hidden'));
-    userModal.addEventListener('click', (e) => { if (e.target === userModal) userModal.classList.add('hidden'); });
+    cancelUserBtn.addEventListener('click', () => { pendingCoupon = null; userModal.classList.add('hidden'); });
+    userModal.addEventListener('click', (e) => { if (e.target === userModal) { pendingCoupon = null; userModal.classList.add('hidden'); } });
 
     // ---- Save (create or edit subscription) ----
     userForm.addEventListener('submit', async (e) => {
@@ -632,17 +663,38 @@
         days: tier === 'lifetime' || tier === 'none' ? 0 : days,
       };
 
+      // A coupon is CLAIMED before the user is written, so a concurrent admin
+      // cannot take the same code in between. If the write then fails we hand
+      // the claim back, which makes redemption exactly-once either way.
+      let claimedCoupon = null;
+      if (pendingCoupon) {
+        try {
+          await apiRedeemCoupon(pendingCoupon, editId || 'pending');
+          claimedCoupon = { code: pendingCoupon, userId: editId || 'pending' };
+        } catch (err) {
+          userModalMsg.textContent = (err.message || 'Coupon could not be redeemed') + ' / الكوبون مستخدم بالفعل';
+          loading = false;
+          submitUserBtn.disabled = false;
+          return;
+        }
+      }
+
+      let savedId = editId;
       try {
         if (editId === null) {
           if (IS_DEMO) {
-            await demoCreateUser({
+            const created = await demoCreateUser({
               name, email, password, status: 'active',
               subscription: tier === 'none' ? 'none' : (tier === 'lifetime' ? 'active' : tier),
               subStart: now, subEnd, subTier: tier, days: subscription.days,
               lastLogin: null,
             });
+            savedId = created && created.id;
+            if (claimedCoupon) claimedCoupon.userId = savedId || 'pending';
           } else {
-            await api('/api/users', { method: 'POST', body: JSON.stringify({ email, password, full_name: name, subscription }) });
+            const created = await api('/api/users', { method: 'POST', body: JSON.stringify({ email, password, full_name: name, subscription }) });
+            savedId = created && created.id;
+            if (claimedCoupon) claimedCoupon.userId = savedId || 'pending';
           }
         } else {
           if (IS_DEMO) {
@@ -657,9 +709,13 @@
           }
         }
         userModal.classList.add('hidden');
+        pendingCoupon = null;
         await loadUsers();
       } catch (err) {
         console.error(err);
+        if (claimedCoupon) {
+          try { await apiReleaseCoupon(claimedCoupon.code, claimedCoupon.userId); } catch (e) { console.warn('coupon release failed', e); }
+        }
         userModalMsg.textContent = err.message || 'Failed / فشل';
       } finally {
         loading = false;
@@ -700,49 +756,174 @@
     refreshBtn.addEventListener('click', loadUsers);
 
     // ---- Coupon system ----
+    // Coupons live on the server (migrations/0005_coupons.sql) so they survive
+    // clearing site data, appear on any device, and leave an audit trail.
+    // localStorage remains only as a fallback for demo mode and for the window
+    // between deploying the function and applying the migration.
     const COUPON_KEY = 'dp_coupons';
-    const getCoupons = () => { try { return JSON.parse(localStorage.getItem(COUPON_KEY)) || []; } catch { return []; } };
-    const saveCoupons = (c) => localStorage.setItem(COUPON_KEY, JSON.stringify(c));
-    const findCoupon = (code) => getCoupons().find(c => c.code.toUpperCase() === code.toUpperCase() && !c.used);
+    const localCoupons = () => { try { return JSON.parse(localStorage.getItem(COUPON_KEY)) || []; } catch { return []; } };
+    const saveLocalCoupons = (c) => localStorage.setItem(COUPON_KEY, JSON.stringify(c));
+    const couponTierOf = (k) => k === 'days_14' ? 'trial' : k === 'days_30' ? 'monthly' : k === 'days_365' ? 'yearly' : null;
+    const couponDaysOf = (k) => k === 'days_14' ? 14 : k === 'days_30' ? 30 : k === 'days_365' ? 365 : 0;
+    // Set once a coupon is applied to the form; consumed only when the
+    // subscription is actually saved.
+    let pendingCoupon = null;
 
-    applyCouponBtn.addEventListener('click', () => {
+    async function apiListCoupons() {
+      if (IS_DEMO) return localCoupons();
+      const r = await api('/api/coupons?limit=200');
+      return Array.isArray(r) ? r : (r.data || []);
+    }
+
+    async function apiDeleteCoupon(code) {
+      if (IS_DEMO) { saveLocalCoupons(localCoupons().filter(c => c.code.toUpperCase() !== code.toUpperCase())); return; }
+      await api('/api/coupons/' + encodeURIComponent(code), { method: 'DELETE' });
+    }
+
+    const KIND_LABEL = { days_14: '14 days / 14 يوم', days_30: '30 days / 30 يوم', days_365: '365 days / 365 يوم', percent: 'Percent / نسبة' };
+
+    async function loadCoupons() {
+      let rows = [];
+      try {
+        rows = await apiListCoupons();
+      } catch (err) {
+        couponListBody.innerHTML = '<tr><td colspan="5" style="color:#ff3366;">' + esc(err.message || 'Could not load coupons') + '</td></tr>';
+        return;
+      }
+      if (!rows.length) {
+        couponListBody.innerHTML = '<tr><td colspan="5" style="color:#8b917a;">No coupons yet / لا توجد كوبونات</td></tr>';
+        return;
+      }
+      // esc() on every server-controlled field: a coupon code or description is
+      // admin input that reaches innerHTML here.
+      couponListBody.innerHTML = rows.map((c) => `
+        <tr style="border-top:1px solid #2a2a2a;">
+          <td class="py-2 px-2" style="font-family:monospace;">${esc(c.code)}</td>
+          <td class="py-2 px-2">${esc(KIND_LABEL[c.kind] || c.kind)}</td>
+          <td class="py-2 px-2" style="color:${c.used ? '#ff3366' : '#CCFF00'};">${c.used ? 'Used / مستخدم' : 'Unused / متاح'}</td>
+          <td class="py-2 px-2" style="color:#8b917a;">${esc(c.usedBy || '—')}</td>
+          <td class="py-2 px-2 text-right">
+            <button class="btn-sm" style="background:#3a1a1a;color:#ff3366;" data-del-coupon="${esc(c.code)}">Delete / حذف</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    toggleCouponsBtn.addEventListener('click', async () => {
+      const show = couponListWrap.classList.contains('hidden');
+      couponListWrap.classList.toggle('hidden', !show);
+      toggleCouponsBtn.textContent = show ? 'Hide / إخفاء' : 'Show / عرض';
+      if (show) await loadCoupons();
+    });
+
+    couponListBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-del-coupon]');
+      if (!btn) return;
+      const code = btn.dataset.delCoupon;
+      if (!confirm('Delete coupon ' + code + '? / حذف الكوبون؟')) return;
+      btn.disabled = true;
+      try {
+        await apiDeleteCoupon(code);
+        await loadCoupons();
+      } catch (err) {
+        btn.disabled = false;
+        alert(err.message || 'Delete failed / فشل الحذف');
+      }
+    });
+
+    async function apiCreateCoupon(code, kind, value, description) {
+      if (IS_DEMO) {
+        const list = localCoupons();
+        if (list.some(c => c.code.toUpperCase() === code)) throw new Error('Coupon code already exists / رمز الكوبون موجود مسبقاً');
+        const rec = { code, kind, value, description, used: false, createdAt: Date.now() };
+        saveLocalCoupons([rec, ...list]);
+        return rec;
+      }
+      return api('/api/coupons', { method: 'POST', body: JSON.stringify({ code, kind, value, description }) });
+    }
+
+    // Peek only — the coupon is NOT burned here. It is consumed on save, so
+    // closing this dialog no longer wastes it.
+    async function apiPeekCoupon(code) {
+      if (IS_DEMO) {
+        const c = localCoupons().find(x => x.code.toUpperCase() === code);
+        if (!c) throw new Error('Invalid coupon / كوبون غير صحيح');
+        if (c.used) throw new Error('Coupon already used / الكوبون مستخدم بالفعل');
+        return { coupon: c, tier: couponTierOf(c.kind), days: couponDaysOf(c.kind) };
+      }
+      return api('/api/coupons/' + encodeURIComponent(code));
+    }
+
+    async function apiRedeemCoupon(code, userId) {
+      if (IS_DEMO) {
+        const list = localCoupons();
+        const i = list.findIndex(x => x.code.toUpperCase() === code);
+        if (i === -1) throw new Error('Invalid coupon / كوبون غير صحيح');
+        if (list[i].used) throw new Error('Coupon already used / الكوبون مستخدم بالفعل');
+        list[i].used = true;
+        list[i].usedAt = Date.now();
+        list[i].usedBy = userId || '';
+        saveLocalCoupons(list);
+        return { ok: true };
+      }
+      return api('/api/coupons/redeem', { method: 'POST', body: JSON.stringify({ code, userId: userId || '' }) });
+    }
+
+    // Undo a claim whose subscription save then failed, so the code is not
+    // wasted. Best-effort: a failure here only leaves the coupon claimed.
+    async function apiReleaseCoupon(code, userId) {
+      if (IS_DEMO) {
+        const list = localCoupons();
+        const i = list.findIndex(x => x.code.toUpperCase() === code);
+        if (i !== -1 && list[i].usedBy === userId) { list[i].used = false; list[i].usedBy = ''; list[i].usedAt = null; saveLocalCoupons(list); }
+        return;
+      }
+      await api('/api/coupons/release', { method: 'POST', body: JSON.stringify({ code, userId }) });
+    }
+
+    applyCouponBtn.addEventListener('click', async () => {
       const code = couponCode.value.trim().toUpperCase();
       if (!code) { couponResult.textContent = 'Enter coupon code / أدخل رمز الكوبون'; couponResult.style.color = '#ff3366'; return; }
-      const coupon = findCoupon(code);
-      if (!coupon) { couponResult.textContent = 'Invalid or used coupon / كوبون غير صحيح'; couponResult.style.color = '#ff3366'; return; }
-      if (coupon.type === 'days_14') { userSubType.value = 'trial'; userDays.value = 14; }
-      else if (coupon.type === 'days_30') { userSubType.value = 'monthly'; userDays.value = 30; }
-      else if (coupon.type === 'days_365') { userSubType.value = 'yearly'; userDays.value = 365; }
-      const coupons = getCoupons();
-      const i = coupons.findIndex(c => c.code.toUpperCase() === code);
-      if (i !== -1) coupons[i].used = true;
-      saveCoupons(coupons);
-      couponResult.textContent = 'Coupon applied! / تم تطبيق الكوبون';
-      couponResult.style.color = '#CCFF00';
-      couponCode.value = '';
-      refreshPreview();
+      applyCouponBtn.disabled = true;
+      couponResult.textContent = 'Checking… / جارٍ التحقق';
+      couponResult.style.color = '#c4c9ac';
+      try {
+        const r = await apiPeekCoupon(code);
+        pendingCoupon = code;
+        if (r.tier) { userSubType.value = r.tier; userDays.value = r.days; }
+        couponResult.textContent = 'Coupon applied — save to confirm / تم تطبيق الكوبون — احفظ للتأكيد';
+        couponResult.style.color = '#CCFF00';
+        couponCode.value = '';
+        refreshPreview();
+      } catch (err) {
+        pendingCoupon = null;
+        couponResult.textContent = (err.message || 'Invalid coupon') + ' / كوبون غير صحيح';
+        couponResult.style.color = '#ff3366';
+      } finally {
+        applyCouponBtn.disabled = false;
+      }
     });
 
     addCouponBtn.addEventListener('click', () => { couponModal.classList.remove('hidden'); couponForm.reset(); couponModalMsg.textContent = ''; });
     cancelCouponBtn.addEventListener('click', () => couponModal.classList.add('hidden'));
-    couponForm.addEventListener('submit', (e) => {
+    couponForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const code = couponCodeInput.value.trim().toUpperCase();
-      const type = couponType.value;
+      const kind = couponType.value;
       const value = parseInt(couponValue.value) || 50;
       if (!code) { couponModalMsg.textContent = 'Enter coupon code / أدخل رمز الكوبون'; return; }
-      const coupons = getCoupons();
-      if (coupons.some(c => c.code.toUpperCase() === code)) { couponModalMsg.textContent = 'Coupon code already exists / رمز الكوبون موجود مسبقاً'; return; }
-      coupons.push({
-        code, type, value,
-        description: type === 'days_14' ? 'Free 2 weeks' : type === 'days_30' ? 'Free 1 month' : type === 'days_365' ? 'Free 1 year' : ` ${value}% discount`,
-        used: false, createdAt: Date.now(),
-      });
-      saveCoupons(coupons);
-      couponModalMsg.textContent = '✓ Coupon created successfully / تم إنشاء الكوبون بنجاح';
-      couponModalMsg.style.color = '#CCFF00';
-      couponForm.reset();
-      setTimeout(() => { couponModal.classList.add('hidden'); couponModalMsg.textContent = ''; }, 1500);
+      const description = kind === 'days_14' ? 'Free 2 weeks' : kind === 'days_30' ? 'Free 1 month' : kind === 'days_365' ? 'Free 1 year' : `${value}% discount`;
+      submitCouponBtn.disabled = true;
+      try {
+        await apiCreateCoupon(code, kind, value, description);
+        if (!couponListWrap.classList.contains('hidden')) await loadCoupons();
+        couponModalMsg.textContent = '✓ Coupon created successfully / تم إنشاء الكوبون بنجاح';
+        couponModalMsg.style.color = '#CCFF00';
+        couponForm.reset();
+        setTimeout(() => { couponModal.classList.add('hidden'); couponModalMsg.textContent = ''; submitCouponBtn.disabled = false; }, 1500);
+      } catch (err) {
+        couponModalMsg.textContent = err.message || 'Failed / فشل';
+        submitCouponBtn.disabled = false;
+      }
     });
 
     // ---- Load ----

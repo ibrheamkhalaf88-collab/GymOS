@@ -18,6 +18,8 @@ jobs:
       - run: npm ci || npm install
       - name: Lint (ESLint)
         run: npx eslint . --max-warnings=200
+      - name: Type-check Edge Function (tsc --noEmit)
+        run: npx tsc -p supabase/functions/tsconfig.json
       - name: Unit tests (node:test)
         run: npm test
 
