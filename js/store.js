@@ -73,6 +73,36 @@ function write(col, list) {
 // no volatile checkin/notification logs) to keep cloud storage very small.
 let _cloudTimer = null;
 
+// ---- Sync status (for the live badge in Settings) ----
+// dp_pending_sync = "1" means: there are local changes that have NOT
+// reached the cloud yet. The Settings cloud-sync row renders this state
+// live; the UI listens to the "dp:syncstatus" event.
+const PENDING_KEY = "dp_pending_sync";
+let _syncState = "ok"; // ok | syncing | error
+let _lastSyncOk = 0;
+
+function setSyncState(s) {
+  if (_syncState === s) return;
+  _syncState = s;
+  try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
+}
+
+function syncStatus() {
+  const enabled = localStorage.getItem("dp_cloud") === "1";
+  const pending = enabled && localStorage.getItem(PENDING_KEY) === "1";
+  const state = !enabled ? "off"
+    : _syncing ? "syncing"
+    : _syncState === "error" ? "error"
+    : pending ? "pending" : "ok";
+  return { state, pending, lastOk: _lastSyncOk };
+}
+
+function markSaved() {
+  localStorage.removeItem(PENDING_KEY);
+  _lastSyncOk = Date.now();
+  setSyncState("ok");
+}
+
 function cloudDump() {
   const dump = {};
   COLLECTIONS.forEach((c) => {
@@ -90,16 +120,23 @@ function cloudDump() {
 
 function queueCloudSave() {
   if (localStorage.getItem("dp_cloud") !== "1") return;
+  // There are local changes not yet confirmed by the cloud → badge "unsynced".
+  localStorage.setItem(PENDING_KEY, "1");
+  try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
   clearTimeout(_cloudTimer);
   _cloudTimer = setTimeout(async () => {
     try {
       const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-      if (!lic || !lic.code || !cloudAllowed(lic)) return;
+      if (!lic || !lic.code || !cloudAllowed(lic)) { localStorage.removeItem(PENDING_KEY); return; }
       const { codesDb } = await import("./db.js");
-      if (!codesDb.saveGym) return;
+      if (!codesDb.saveGym) { localStorage.removeItem(PENDING_KEY); return; }
       const dump = cloudDump();
       await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
-    } catch (err) { console.warn("[GymOS] cloud save skipped:", err && err.message); }
+      markSaved();
+    } catch (err) {
+      setSyncState("error"); // pending flag stays set → retried by sync loop / online event
+      console.warn("[GymOS] cloud save skipped:", err && err.message);
+    }
   }, 1500);
 }
 // ---------- Multi-device sync engine ----------
@@ -162,6 +199,7 @@ async function syncNow() {
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   _syncing = true;
+  setSyncState("syncing");
   try {
     const { codesDb } = await import("./db.js");
     if (!codesDb.saveGym) return;
@@ -189,16 +227,22 @@ async function syncNow() {
     COLLECTIONS.forEach((c) => { if (c in merged) push[c] = merged[c]; });
     push._tombstones = mergedTomb;
     await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    markSaved();
   } catch (e) {
+    setSyncState("error");
     console.warn("[GymOS] sync failed:", e && e.message);
   } finally {
     _suppressCloud = false;
     _syncing = false;
+    // A local edit may have been queued mid-flight or the state flapped from
+    // "syncing" back during the await — re-notify so the badge is accurate.
+    try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
   }
 }
 
 let _onVis = null;
 let _onFocus = null;
+let _onOnline = null;
 
 function startSync() {
   if (_syncTimer) return;
@@ -209,14 +253,18 @@ function startSync() {
   _syncTimer = setInterval(syncNow, 20000);
   _onVis = () => { if (document.visibilityState === "visible") syncNow(); };
   _onFocus = () => syncNow();
+  // Network came back → push any pending changes immediately.
+  _onOnline = () => syncNow();
   document.addEventListener("visibilitychange", _onVis);
   window.addEventListener("focus", _onFocus);
+  window.addEventListener("online", _onOnline);
 }
 
 function stopSync() {
   if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
   if (_onVis) { document.removeEventListener("visibilitychange", _onVis); _onVis = null; }
   if (_onFocus) { window.removeEventListener("focus", _onFocus); _onFocus = null; }
+  if (_onOnline) { window.removeEventListener("online", _onOnline); _onOnline = null; }
 }
 
 function emit(col, list) {
@@ -469,6 +517,7 @@ export const store = {
   startSync,
   stopSync,
   syncNow,
+  syncStatus,
 
   // ---------- Derived stats ----------
   stats() {

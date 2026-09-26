@@ -1737,7 +1737,7 @@ function viewProfile() {
           <div class="flex items-center justify-between group cursor-pointer" id="secCloudSync">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">☁️ Cloud Sync / <span class="font-arabic normal-case">مزامنة سحابية</span></p>
-              <p class="text-muted text-xs mt-1 font-headline">Backup &amp; sync now / رفع نسخة الآن</p>
+              <p id="syncStatusText" class="text-muted text-xs mt-1 font-headline">Backup &amp; sync now / رفع نسخة الآن</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Sync</button>
           </div>
@@ -1952,6 +1952,7 @@ function viewProfile() {
   $("#secChangePw").onclick = openChangePassword;
   $("#secRestore").onclick = () => $("#importFile").click();
   $("#secCloudSync").onclick = cloudSyncNow;
+  renderSyncBadge();
   $("#secExport").onclick = exportData;
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
@@ -2021,12 +2022,45 @@ async function codesDbChange(code, cur, next) {
   return codesDb.changeClientPassword(code, cur, next);
 }
 
+// ---------- Live sync-status badge (Settings → Cloud Sync row) ----------
+// store.js flips state (ok/syncing/error) and raises "dp:syncstatus"; the
+// pending flag itself (dp_pending_sync) survives reloads, so unsynced data
+// is visible even after closing the app.
+function renderSyncBadge() {
+  const el = document.getElementById("syncStatusText");
+  if (!el || !store.syncStatus) return;
+  const st = store.syncStatus();
+  let txt, cls;
+  if (st.state === "off") {
+    txt = "☁️ Cloud sync off for this code / السحابة معطّلة لهذا الكود"; cls = "text-muted";
+  } else if (st.state === "syncing") {
+    txt = "🔄 Syncing… / جارٍ المزامنة…"; cls = "text-primary";
+  } else if (!navigator.onLine) {
+    txt = "📡 Offline — will sync when back / بلا اتصال — ستُزامَن عند عودة الشبكة"; cls = "text-alert";
+  } else if (st.state === "error") {
+    txt = "🔴 Last sync failed — auto-retrying / فشلت آخر مزامنة — تُعاد تلقائياً"; cls = "text-alert";
+  } else if (st.pending) {
+    txt = "⚠️ Unsynced changes — uploading shortly / بيانات لم تُزامَن بعد — سترفع تلقائياً"; cls = "text-alert";
+  } else {
+    txt = "✅ All data synced / كل البيانات مُزامَنة"; cls = "text-primary";
+  }
+  el.textContent = txt;
+  el.className = `text-xs mt-1 font-headline ${cls}`;
+}
+window.addEventListener("dp:syncstatus", renderSyncBadge);
+window.addEventListener("online", renderSyncBadge);
+window.addEventListener("offline", renderSyncBadge);
+
 async function cloudSyncNow() {
   const L = license.get();
   if (!L || !L.data_enabled) { showToast("Cloud sync disabled for this code / السحابة معطّلة لهذا الكود", "err"); return; }
   showToast("Syncing… / جارٍ المزامنة…");
-  try { await store.syncNow(); showToast("☁️ Synced / تمت المزامنة"); }
-  catch { showToast("Sync failed / فشلت المزامنة", "err"); }
+  renderSyncBadge();
+  // syncNow swallows network errors internally — report from the resulting
+  // status instead of assuming success.
+  try { await store.syncNow(); } catch { /* state handled below */ }
+  if (store.syncStatus().state === "ok") showToast("☁️ Synced / تمت المزامنة");
+  else showToast("Sync failed / فشلت المزامنة", "err");
 }
 
 function exportData() {
