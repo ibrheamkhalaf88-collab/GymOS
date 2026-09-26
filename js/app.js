@@ -10,6 +10,7 @@ import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
 import { sanitizeName, sanitizeAmount, sanitizePhone, validatePassword } from "./validate.js";
 import { appConfig } from "./config.js";
+import { install as installAccess } from "./access.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
@@ -74,7 +75,9 @@ function showUpdateOverlay(apkUrl) {
 }
 
 // ---------- Guards ----------
-// Auth check via Supabase � site is now free, login required only for sync
+// Supabase session, used for the cloud-sync entitlement. App access itself is
+// gated separately by installAccess() in access.js: an expired trial or a
+// missing licence drops to read-only instead of blocking the gym outright.
 import { supabase } from "./supabase-client.js";
 
 // Start multi-device sync when the license allows it.
@@ -95,12 +98,12 @@ import { supabase } from "./supabase-client.js";
         try {
           const user = JSON.parse(demoUser);
           localStorage.setItem('dp_user_email', user.email || '');
-          if (user.subscription === 'trial' && Date.now() > user.subEnd) {
-            localStorage.removeItem('dp_current_user');
-            localStorage.removeItem('dp_user_email');
-            window.location.href = 'login.html';
-            return;
-          }
+          // An expired trial is NOT logged out and NOT bounced to login.html.
+          // That made the read-only state unreachable: login showed the gate
+          // offering "enter activation code", the only way back was the app,
+          // and the app immediately redirected here again. installAccess()
+          // now renders the read-only view + gate from dp_current_user, so the
+          // session is deliberately left intact.
         } catch {}
       }
     }
@@ -882,11 +885,12 @@ function openMemberModal(id = null) {
     if (m) {
       const patch = { ...data };
       delete patch.paidAmount;
-      store.update("members", id, patch);
+      const res = store.update("members", id, patch);
+      if (!res) return; // access gate opened — don't claim it saved
     } else {
       const startVal = fd.get("startDate");
       const joinTs = startVal ? new Date(`${startVal}T00:00:00`).getTime() : Date.now();
-      store.insert("members", {
+      const res = store.insert("members", {
         ...data,
         photo: "",
         status: data.plan === "trial" ? "trial" : "active",
@@ -894,6 +898,7 @@ function openMemberModal(id = null) {
         expiresAt: joinTs + days * DAY,
         checkins: 0,
       });
+      if (!res) return; // access gate opened — don't claim it saved
     }
     mod.close();
     showToast(m ? "Saved / تم الحفظ" : "Member added / تمت إضافة العضو");
@@ -1123,14 +1128,15 @@ function markRepaired(d) {
       category: "maintenance",
       date: Date.now(),
     });
-    ledgerId = tx.id;
+    // null = the access gate refused the write (read-only / locked)
+    ledgerId = tx ? tx.id : null;
   }
-  store.update("devices", d.id, {
+  const saved = store.update("devices", d.id, {
     maintenanceStatus: "completed",
     repairedAt: Date.now(),
     ...(ledgerId ? { ledgerId } : {}),
   });
-  showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
+  if (saved) showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
 }
 
 /* ============================================================
@@ -2041,7 +2047,7 @@ function importData(e) {
   const reader = new FileReader();
   reader.onload = (ev) => {
     try {
-      store.importAll(JSON.parse(ev.target.result));
+      if (!store.importAll(JSON.parse(ev.target.result))) return; // gate refused
       showToast("Imported successfully / تم الاستيراد بنجاح");
     } catch {
       showToast("Invalid backup file / ملف غير صالح", "err");
@@ -2059,4 +2065,10 @@ function codesDbMode() {
 const loadingOverlay = document.getElementById("loadingOverlay");
 if (loadingOverlay) loadingOverlay.remove();
 show("dashboard");
+
+// Subscription gate. An expired licence keeps the data readable and
+// exportable and shows a "enter your code" screen; no licence at all
+// locks the app behind activation. Both keep the user's data on the
+// device — the gate only stops writes, so nobody can lose their gym.
+installAccess();
 

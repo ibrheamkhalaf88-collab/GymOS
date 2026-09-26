@@ -4,6 +4,8 @@
 // All client business data stays on the device by design.
 // ============================================================
 
+import { requireWrite } from "./access.js";
+
 const PREFIX = "dp_";
 const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
 const TOMB_KEY = "dp_tombstones";
@@ -397,6 +399,7 @@ export const store = {
   },
 
   insert(col, data) {
+    if (!requireWrite(`add ${col}`)) return null;
     const item = { id: uid(col[0]), createdAt: Date.now(), updatedAt: Date.now(), ...data };
     const list = this.all(col);
     list.unshift(item);
@@ -416,6 +419,7 @@ export const store = {
   },
 
   update(col, id, patch) {
+    if (!requireWrite(`edit ${col}`)) return null;
     const list = this.all(col);
     const i = list.findIndex((x) => x.id === id);
     if (i === -1) throw new Error("Item not found");
@@ -425,6 +429,7 @@ export const store = {
   },
 
   remove(col, id) {
+    if (!requireWrite(`delete ${col}`)) return false;
     const list = this.all(col);
     const filtered = list.filter((x) => x.id !== id);
     const t = readTomb();
@@ -432,6 +437,7 @@ export const store = {
     t[col][id] = Date.now();
     writeTomb(t);
     write(col, filtered);
+    return true;
   },
 
   get(col, id) {
@@ -453,6 +459,7 @@ export const store = {
   },
 
   importAll(dump) {
+    if (!requireWrite("import a backup")) return false;
     if (!dump || !dump.data) throw new Error("Invalid backup file");
     Object.entries(dump.data).forEach(([col, list]) => {
       if (COLLECTIONS.includes(col)) write(col, Array.isArray(list) ? list : []);

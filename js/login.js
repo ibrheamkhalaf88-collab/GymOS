@@ -2,6 +2,7 @@
 // login.js — Sign-in logic (email/password + Google OAuth)
 // ============================================================
 import { APP_BASE } from './config.js';
+import { computeAccess, READONLY, showGate } from './access.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
@@ -67,14 +68,36 @@ function checkExistingSession() {
   return false;
 }
 
+/* Single source of truth for "may this account use the app".
+   Delegates to access.js so the login page, the app and the store
+   can never disagree about whether a trial has lapsed. */
 function checkSubscription(user) {
   if (!user) return { ok: false, reason: 'no_user' };
   if (user.email === 'admin@gym.local' || user.email === 'ibrheamshady@gmail.com') return { ok: true, reason: 'admin' };
-  const now = Date.now();
-  if (!user.subscription || user.subscription === 'none') return { ok: false, reason: 'no_subscription', message: 'Your subscription has expired.' };
-  if (user.subscription === 'trial') { if (now > user.subEnd) return { ok: false, reason: 'trial_expired', message: 'Free trial ended — waiting for admin activation / انتهى التجريبي — ينتظر تفعيل الأدمن' }; return { ok: true, reason: 'trial_active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
-  if (user.subscription === 'active') { if (now > user.subEnd) return { ok: false, reason: 'expired', message: 'Subscription expired.' }; return { ok: true, reason: 'active', daysLeft: Math.ceil((user.subEnd - now) / 86400000) }; }
-  return { ok: false, reason: 'unknown' };
+  if (user.subscription === 'none' || !user.subscription) {
+    return { ok: false, reason: 'no_subscription', message: 'Your subscription has expired.' };
+  }
+  const a = computeAccess({ user });
+  if (a.state === 'full') return { ok: true, reason: a.reason, daysLeft: a.daysLeft };
+  return {
+    ok: false,
+    reason: a.reason,
+    access: a,
+    message: a.reason === 'trial_expired'
+      ? 'Free trial ended / انتهت الفترة المجانية'
+      : 'Subscription expired / انتهى الاشتراك',
+  };
+}
+
+/* A lapsed trial used to leave the user staring at a red line on the
+   form with nowhere to go. Open the gate instead: it explains what is
+   still available and gives them the activation-code button. */
+function deny(result) {
+  if (result.access && result.access.state === READONLY) {
+    showGate(result.access);
+    return;
+  }
+  setMsg(result.message || 'Access denied');
 }
 
 function storeUserSession(user) {
@@ -124,7 +147,7 @@ form.addEventListener('submit', async (e) => {
       const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : Date.now() + 30 * 86400000;
       const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
       const subCheck = checkSubscription(result.user);
-      if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
+      if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
       storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); window.location.href = 'app.html'; return;
     } catch (err) {
       if (credError) {
@@ -141,7 +164,7 @@ form.addEventListener('submit', async (e) => {
   const result = await demoSignIn(email, password);
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
   const subCheck = checkSubscription(result.user);
-  if (!subCheck.ok) { setMsg(subCheck.message || 'Access denied'); setLoading(false); return; }
+  if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
   storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
   window.location.href = 'app.html';
 });

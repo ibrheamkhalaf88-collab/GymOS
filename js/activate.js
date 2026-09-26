@@ -13,6 +13,18 @@ if (license.isActive()) { location.replace("app.html"); }
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
+// The access gate deep-links here as activate.html#trial when a user has no
+// licence at all. Scroll to the trial button and make it obvious which one it is.
+if (location.hash === "#trial") {
+  requestAnimationFrame(() => {
+    const b = document.getElementById("trialBtn");
+    if (!b) return;
+    b.scrollIntoView({ block: "center", behavior: "smooth" });
+    b.classList.add("ring-2", "ring-[#CCFF00]", "shadow-[0_0_24px_rgba(204,255,0,.45)]");
+    setTimeout(() => b.classList.remove("ring-2", "ring-[#CCFF00]", "shadow-[0_0_24px_rgba(204,255,0,.45)]"), 6000);
+  });
+}
+
 // ---- Header info ----
 const isOnline = codesDb.mode() === "online";
 
@@ -113,6 +125,11 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
         await restoreCloudData(rec.code);
         markDigits("success");
         showToast("🎁 30-day trial from server / تجربة من السيرفر");
+        // Ask for a password up front. Without it the trial code keeps a null
+        // pass_hash, so clearing site data or switching device locked the user
+        // out permanently — there was no way back in. Now they can sign in from
+        // any browser with their code + password.
+        await askSetPassword(rec);
         setTimeout(() => location.replace("app.html"), 900);
         return;
       }
@@ -133,6 +150,8 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
 
 async function askSetPassword(record) {
   return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; resolve(v); } };
     const mod = openModal(`
       <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔐 Set your website password</h3>
       <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تعيين كلمة سر حسابك على الموقع — تدخل بها لاحقاً من أي متصفح مع كودك</p>
@@ -141,7 +160,14 @@ async function askSetPassword(record) {
         <input name="p2" type="password" required minlength="8" placeholder="Repeat / تأكيد" class="dp-field" dir="ltr"/>
         <p id="pwMsg" class="text-xs min-h-[1rem]" style="color:#ff3366"></p>
         <button type="submit" class="w-full py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">💾 Save & Continue / حفظ ومتابعة</button>
-      </form>`);
+        <button type="button" data-skip class="w-full py-2 text-xs text-muted underline">Skip for now / تخطّي الآن</button>
+      </form>`, {
+      // Without this, tapping the backdrop to dismiss the dialog left the
+      // promise unresolved and the post-trial redirect never fired — the user
+      // was stranded on activate.html with a working trial already stored.
+      onClose: () => finish(false),
+    });
+    mod.el.querySelector("[data-skip]").onclick = () => { finish(false); mod.close(); };
     $("#pwForm", mod.el).addEventListener("submit", async (e) => {
       e.preventDefault();
       const fd = new FormData(e.target);
@@ -154,7 +180,7 @@ async function askSetPassword(record) {
         showToast("Password saved 🔐 / تم حفظ كلمة السر");
       } catch { showToast("Cloud save failed — local only", "err"); }
       mod.close();
-      resolve(true);
+      finish(true);
     });
   });
 }
