@@ -22,7 +22,10 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned deliberately. "latest" makes setup-cli resolve the newest
+          # release through the GitHub API, which fails the entire job on a rate
+          # limit -- exactly what happened on 2026-09-26. Bump this by hand.
+          version: 2.118.0
 
       - name: Link Supabase project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
@@ -44,7 +47,10 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned deliberately. "latest" makes setup-cli resolve the newest
+          # release through the GitHub API, which fails the entire job on a rate
+          # limit -- exactly what happened on 2026-09-26. Bump this by hand.
+          version: 2.118.0
 
       - name: Link Supabase project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
