@@ -131,6 +131,44 @@ form.addEventListener('submit', async (e) => {
   if (!email || !password) { setMsg('All fields are required / جميع الحقول مطلوبة'); return; }
   const { validatePassword } = await import('./validate.js');
   if (!validatePassword(password)) { setMsg('Weak password / كلمة سر ضعيفة (8+ chars, 1 letter + 1 digit)'); setLoading(false); return; }
+
+  /* ---- Licence code + password ----
+     Trial/activation accounts are identified by their code and live behind
+     /api/auth/login — they have no email. Accepting the code here too means a
+     trial user who "created an account" can actually sign back in from the
+     login page instead of hearing "not found". */
+  if (!email.includes('@')) {
+    const code = email.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 6) { setMsg('Enter an email or a 6-character code / أدخل بريدك أو كود التفعيل (6 خانات)'); return; }
+    setLoading(true); setMsg('');
+    try {
+      const { codesDb } = await import('./db.js');
+      const res = await codesDb.verifyClientLogin(code, password);
+      if (res.ok) {
+        const { license } = await import('./license.js');
+        license.save(res.record);
+        localStorage.setItem('dp_license_mode', codesDb.mode());
+        const L = license.get();
+        localStorage.setItem('dp_cloud', (codesDb.mode() === 'online' && L && L.data_enabled !== false) ? '1' : '0');
+        setMsg('👋 Welcome back! / أهلاً بعودتك', '#CCFF00');
+        setTimeout(() => { window.location.href = 'app.html'; }, 600);
+        return;
+      }
+      const errors = {
+        NOT_FOUND: 'Code not found / الكود غير موجود',
+        NOT_ACTIVATED: 'This code was never activated / الكود لم يُفعّل بعد',
+        NO_PASSWORD: 'No password set for this code / لا توجد كلمة سر لهذا الكود',
+        WRONG_PASSWORD: 'Wrong code or password / الكود أو كلمة السر خاطئة',
+        RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة، انتظر`,
+      };
+      setMsg(errors[res.error] || `Login failed (${res.error}) / فشل الدخول`);
+    } catch {
+      setMsg('No connection / لا اتصال');
+    }
+    setLoading(false);
+    return;
+  }
+
   setLoading(true); setMsg('');
   // Try Supabase first (lazy-loaded)
   let supabase = null;

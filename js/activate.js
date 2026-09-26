@@ -124,7 +124,7 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
         localStorage.setItem("dp_cloud", rec.data_enabled === false ? "0" : "1");
         await restoreCloudData(rec.code);
         markDigits("success");
-        showToast("🎁 30-day trial from server / تجربة من السيرفر");
+        showToast(`🎁 تجربة 30 يوم — كودك للدخول: ${rec.code} / 30-day trial, your code: ${rec.code}`);
         // Ask for a password up front. Without it the trial code keeps a null
         // pass_hash, so clearing site data or switching device locked the user
         // out permanently — there was no way back in. Now they can sign in from
@@ -144,7 +144,7 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
   // ختم جهازي إضافي لمنع المسح البسيط
   try { localStorage.setItem("dp_trial_device", localStorage.getItem("dp_device_id") || ""); } catch {}
   markDigits("success");
-  showToast("🎁 30-day free trial started! / بدأت تجربتك المجانية — شهر كامل");
+  showToast(`🎁 تجربة 30 يوم — كودك للدخول: ${trialCode} / 30-day trial, your code: ${trialCode}`);
   setTimeout(() => location.replace("app.html"), 900);
 });
 
@@ -154,7 +154,8 @@ async function askSetPassword(record) {
     const finish = (v) => { if (!done) { done = true; resolve(v); } };
     const mod = openModal(`
       <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔐 Set your website password</h3>
-      <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تعيين كلمة سر حسابك على الموقع — تدخل بها لاحقاً من أي متصفح مع كودك</p>
+      <p class="font-arabic text-muted text-sm mb-4" dir="rtl">تعيين كلمة سر حسابك — وبعدين تقدر تسجل دخول من <b>صفحة تسجيل الدخول</b> بكودك + كلمة السر دي، من أي متصفح أو جهاز</p>
+      <p class="text-xs text-muted mb-2" dir="ltr">Code: <b class="text-primary">${record.code}</b> — screenshot it / صوّر الكود ده</p>
       <form id="pwForm" class="flex flex-col gap-3">
         <input name="p1" type="password" required minlength="8" placeholder="Password / كلمة السر" class="dp-field" dir="ltr"/>
         <input name="p2" type="password" required minlength="8" placeholder="Repeat / تأكيد" class="dp-field" dir="ltr"/>

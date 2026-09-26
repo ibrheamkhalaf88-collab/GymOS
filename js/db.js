@@ -371,11 +371,14 @@ export const codesDb = {
 
   async setClientPassword(code, password) {
     const id = sanitizeCode(code);
-    if (!id || !validatePassword(password)) throw new Error("Weak password / ظƒظ„ظ…ط© ط³ط± ط¶ط¹ظٹظپط©");
+    if (!id || !validatePassword(password)) throw new Error("Weak password / كلمة السر ضعيفة");
     const L = JSON.parse(localStorage.getItem("dp_license") || "{}");
     localStorage.setItem("dp_cloud", (onlineMode() && L.data_enabled) ? "1" : "0");
     if (onlineMode()) {
-      const r = await api("/api/auth/set-password", { method: "POST", body: { code: id, password } });
+      // auth:true is essential — the server reads the code from the JWT that
+      // activate() just stored; without it the call 401s and the password was
+      // silently never saved, locking code users out of later logins.
+      const r = await api("/api/auth/set-password", { method: "POST", auth: true, body: { code: id, password } });
       setJwt(r.token);
       sessionStorage.setItem("dp_code", id);
       return true;
