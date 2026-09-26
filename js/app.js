@@ -385,7 +385,7 @@ function viewDashboard() {
         </p>
       </div>
       <div class="flex flex-col">
-        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} <span class="text-primary">· ${tierLabel(lic.tier)}</span></p>
+        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} ${lic.tier ? `<span class="text-primary">· ${tierLabel(lic.tier)}</span>` : ""}</p>
         <p class="font-display font-bold text-xs text-white mt-1 uppercase">
           <span>${licInfo.left === Infinity ? "♾️ LIFETIME" : licInfo.left + " Days Left"}</span><span class="ml-1 opacity-70">${licInfo.left === Infinity ? "دائم" : "يوم متبقي"}</span>
         </p>
