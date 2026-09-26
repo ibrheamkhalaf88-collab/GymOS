@@ -198,13 +198,21 @@ form.addEventListener('submit', async (e) => {
   if (supabase) {
     let credError = false;
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      // Hard timeout: after a sign-out, supabase-js's Web Locks can deadlock the
+      // next signInWithPassword on slow devices — the user then stares at
+      // "signing you in" forever. A racing timeout surfaces a real message instead.
+      const TIMEOUT_MS = 15000;
+      const deadline = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("Request timed out — check your internet / انتهت المهلة — افحص الشبكة"), { code: "over_request_timeout" })), TIMEOUT_MS));
+      const { error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        deadline,
+      ]);
       if (error) {
         // Real auth failure (wrong password, unconfirmed email, …) — surface it,
         // do NOT silently fall back to a demo account.
         credError = true;
         throw error;
-      }      const { data: { user: supUser } } = await supabase.auth.getUser();
+      }      const { data: { user: supUser } } = await Promise.race([supabase.auth.getUser(), deadline]);
       if (!supUser) { credError = true; throw new Error('No user'); }
       const sub = supUser.user_metadata?.subscription || 'trial';
       // Never invent a fresh 30 days when metadata lacks subEnd — that let any
@@ -220,6 +228,13 @@ form.addEventListener('submit', async (e) => {
       try { const { linkCloudIdentity } = await import('./cloud-link.js'); await linkCloudIdentity(supabase); } catch {}
       storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); window.location.href = 'app.html'; return;
     } catch (err) {
+      if (err?.code === "over_request_timeout") {
+        // Sign-in hung (Web Locks after sign-out, or dead network). Never leave
+        // the spinner running.
+        setMsg(err.message);
+        setLoading(false);
+        return;
+      }
       if (credError) {
         console.warn('[login] Supabase rejected credentials:', err?.message || err);
         setMsg(mapSupabaseAuthError(err));

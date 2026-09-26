@@ -91,7 +91,13 @@ async function bearerApi(path, accessToken, body) {
   if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
   let res;
   try {
-    res = await fetch(`${API()}${path}`, { method: "POST", headers, body: JSON.stringify(body || {}) });
+    // Hard ceiling: the cloud-link step must never hang a sign-in — if the
+    // functions host is unreachable the login still completes offline-first.
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      res = await fetch(`${API()}${path}`, { method: "POST", headers, body: JSON.stringify(body || {}), signal: ctrl.signal });
+    } finally { clearTimeout(t); }
   } catch {
     throw Object.assign(new Error("NETWORK"), { code: "NETWORK" });
   }
