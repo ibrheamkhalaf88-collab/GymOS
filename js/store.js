@@ -45,7 +45,13 @@ function cloudAllowed(lic) {
   try {
     const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
     if (!u) return true;
-    return String(u.email || "").toLowerCase() === o || String(u.email || "").toLowerCase() === "ibrheamshady@gmail.com";
+    const email = String(u.email || "").toLowerCase();
+    // Email-linked codes store owner as "user:<uuid>" (set by /api/trial under
+    // a Supabase session) — they must match the session's user id, not email.
+    // Without this, every email-linked account was silently never syncing.
+    return email === o
+      || (!!u.id && o === `user:${String(u.id).toLowerCase()}`)
+      || email === "ibrheamshady@gmail.com";
   } catch { return true; }
 }
 
@@ -109,9 +115,9 @@ function cloudDump() {
     if (c === "checkins" || c === "notifications") return; // logs stay local-only
     const list = read(c);
     if (c === "members") {
-      dump[c] = list.map(({ photo: _photo, ...m }) => m); // drop heavy base64 photos
+      dump[c] = list.filter((x) => !x._demo).map(({ photo: _photo, ...m }) => m); // drop demo rows + heavy base64 photos
     } else {
-      dump[c] = list;
+      dump[c] = list.filter((x) => !x._demo);
     }
   });
   dump._tombstones = readTomb();
@@ -271,106 +277,9 @@ function emit(col, list) {
   (listeners.get(col) || new Set()).forEach((cb) => cb(list));
 }
 
-function seed(col) {
-  const data = seedData(col);
-  write(col, data);
-  return data;
-}
-
-function seedData(col) {
-  switch (col) {
-    case "members": {
-      const now = Date.now();
-      const day = 86400000;
-      return [
-        { id: "m1", name: "Alex Mercer", phone: "+970599111222", plan: "pro", status: "active",
-          joinDate: now - day * 120, expiresAt: now + day * 45, checkins: 42, paidAmount: 150,
-          photo: "assets/img/member-1.jpg", tag: "PT Active" },
-        { id: "m2", name: "Sarah Connor", phone: "+970599333444", plan: "regular", status: "expired",
-          joinDate: now - day * 200, expiresAt: now - day * 2, checkins: 28, paidAmount: 80,
-          photo: "assets/img/member-2.jpg", tag: "" },
-        { id: "m3", name: "John Doe", phone: "+970599555666", plan: "half", status: "trial",
-          joinDate: now - day * 3, expiresAt: now + day * 4, checkins: 4, paidAmount: 0,
-          photo: "", tag: "GUEST" },
-        { id: "m4", name: "Marcus Wright", phone: "+970599777888", plan: "pro", status: "active",
-          joinDate: now - day * 60, expiresAt: now + day * 12, checkins: 19, paidAmount: 120,
-          photo: "assets/img/member-3.jpg", tag: "Cardio Focus" },
-        { id: "m5", name: "Lena Hassan", phone: "+970599999000", plan: "pro", status: "frozen",
-          joinDate: now - day * 300, expiresAt: now + day * 65, checkins: 88, paidAmount: 120,
-          photo: "", tag: "" },
-      ];
-    }
-    case "devices": {
-      const day = 86400000;
-      const now = Date.now();
-      return [
-        { id: "d1", name: "Treadmill 04", maintenanceStatus: "in-repair", cost: 350,
-          createdAt: now - day * 2, updatedAt: now - day },
-        { id: "d2", name: "Cable Tower A", maintenanceStatus: "in-repair", cost: 120,
-          createdAt: now - day * 4, updatedAt: now - day * 2 },
-        { id: "d3", name: "Spin Bike 12", maintenanceStatus: "in-repair", cost: 60,
-          createdAt: now - day, updatedAt: now - day },
-        { id: "d4", name: "Leg Press 02", maintenanceStatus: "completed", cost: 220,
-          repairedAt: now - day * 5, createdAt: now - day * 10, updatedAt: now - day * 5 },
-        { id: "d5", name: "Rowing Machine", maintenanceStatus: "completed", cost: 90,
-          repairedAt: now - day * 12, createdAt: now - day * 20, updatedAt: now - day * 12 },
-      ];
-    }
-    case "trainers": {
-      const pm = new Date(); pm.setDate(1); pm.setMonth(pm.getMonth() - 1);
-      return [
-        { id: "t1", name: "Coach Ahmad", salary: 400, phone: "+970599000111",
-          payDay: 1, lastPaidAt: pm.getTime(), startedAt: Date.now() - 86400000 * 210,
-          contractEnd: null },
-        { id: "t2", name: "Coach Lena", salary: 300, phone: "",
-          payDay: 5, lastPaidAt: null, startedAt: Date.now() - 86400000 * 90,
-          contractEnd: Date.now() + 86400000 * 60 },
-      ];
-    }
-    case "ledger": {
-      const min = 60000;
-      const day = 86400000;
-      return [
-        { id: "l1", type: "revenue", amount: 120, description: "Pro Membership Renewal", category: "subscriptions", date: Date.now() - min * 2 },
-        { id: "l2", type: "expense", amount: 85, description: "Payment Declined", category: "failed", date: Date.now() - min * 15 },
-        { id: "l3", type: "revenue", amount: 45.5, description: "POS: Supplements", category: "pos", date: Date.now() - min * 42 },
-        { id: "l4", type: "revenue", amount: 2450, description: "Subscriptions batch", category: "subscriptions", date: Date.now() - day * 6 },
-        { id: "l5", type: "expense", amount: 350, description: "Treadmill 04 repair", category: "maintenance", date: Date.now() - day * 8 },
-        { id: "l6", type: "revenue", amount: 1890, description: "Subscriptions batch", category: "subscriptions", date: Date.now() - day * 14 },
-        { id: "l7", type: "expense", amount: 600, description: "Electricity bill", category: "utilities", date: Date.now() - day * 18 },
-        { id: "l8", type: "revenue", amount: 2150, description: "New memberships", category: "subscriptions", date: Date.now() - day * 24 },
-        { id: "l9", type: "revenue", amount: 1720, description: "Subscriptions batch", category: "subscriptions", date: Date.now() - day * 38 },
-        { id: "l10", type: "expense", amount: 480, description: "Equipment parts", category: "maintenance", date: Date.now() - day * 44 },
-        { id: "l11", type: "revenue", amount: 1980, description: "Subscriptions batch", category: "subscriptions", date: Date.now() - day * 52 },
-        { id: "l12", type: "revenue", amount: 1640, description: "New memberships", category: "subscriptions", date: Date.now() - day * 68 },
-        { id: "l13", type: "expense", amount: 520, description: "Electricity bill", category: "utilities", date: Date.now() - day * 75 },
-        { id: "l14", type: "revenue", amount: 1810, description: "Subscriptions batch", category: "subscriptions", date: Date.now() - day * 83 },
-      ];
-    }
-    case "checkins": {
-      const list = [];
-      for (let i = 29; i >= 0; i--) {
-        list.push({
-          id: `c${i}`,
-          date: Date.now() - i * 86400000,
-          count: Math.round(60 + 40 * Math.sin(i / 4) + Math.random() * 30),
-        });
-      }
-      return list;
-    }
-    case "notifications":
-      return [
-        { id: "n1", severity: "alert", titleEn: "Treadmill 04 offline", titleAr: "جهاز المشي ٠٤ متوقف",
-          subEn: "Belt slippage reported", subAr: "تم الإبلاغ عن انزلاق الحزام", time: Date.now() - 7200000 },
-        { id: "n2", severity: "info", titleEn: "Capacity alert", titleAr: "تنبيه السعة",
-          subEn: "Floor utilization at 85%", subAr: "استخدام الصالة بنسبة ٨٥٪", time: Date.now() - 3600000 * 5 },
-        { id: "n3", severity: "frost", titleEn: "Weekly report ready", titleAr: "التقرير الأسبوعي جاهز",
-          subEn: "Tap to view in Reports", subAr: "اضغط للعرض في التقارير", time: Date.now() - 86400000 },
-      ];
-    default:
-      return [];
-  }
-}
+// Demo seeding removed on purpose: a fresh install must arrive EMPTY.
+// (The old fake roster confused real gym owners and could leak into their
+// cloud on the first sync.)
 
 export function uid(prefix = "id") {
   const uuid = typeof crypto !== "undefined" && crypto.randomUUID
@@ -436,9 +345,12 @@ export const store = {
     }
     // لا تعيد زرع تلقائياً بعد مسح المستخدم — ارجع فارغاً، الزرع فقط عند أول تثبيت
     if (seedFlag === "1") return [];
-    const data = seed(col);
+    // No demo seeding: a brand-new install must be EMPTY. The old fake roster
+    // (Alex Mercer, Sarah Connor…) confused real gym owners and could leak into
+    // their cloud on first sync. Legacy pre-account data still migrates above.
+    localStorage.setItem(memColKey(col), "[]");
     if (COLLECTIONS.every((c) => localStorage.getItem(memColKey(c)) !== null)) localStorage.setItem(memSeededKey(), "1");
-    return data;
+    return [];
   },
 
   subscribe(col, cb) {
