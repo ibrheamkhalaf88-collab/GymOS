@@ -696,7 +696,7 @@ function viewRoster() {
         <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
       </div>
       <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
-        ${["active", "expired", "trial", "frozen", "trainers"].map((f) => `
+        ${["active", "expired", "trainers", "trial", "frozen"].map((f) => `
           <button data-filter="${f}" class="roster-filter whitespace-nowrap px-5 py-3 rounded-full border font-label tracking-wider active:scale-95 transition-transform flex flex-col items-center gap-0.5 min-w-[92px]
             ${f === rosterFilter
               ? "border-primary bg-primary/10 text-primary shadow-neon"
