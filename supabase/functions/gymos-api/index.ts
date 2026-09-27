@@ -968,6 +968,23 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true }, 200, origin);
     }
 
+    /* contact form */
+    if (req.method === "POST" && path === "/api/contact") {
+      const { name, email, subject, message } = body || {};
+      if (!name || !email || !subject || !message) {
+        return json({ error: "BAD_REQUEST" }, 400, origin);
+      }
+      const cleanName = String(name).slice(0, 120);
+      const cleanEmail = String(email).slice(0, 255).toLowerCase();
+      const cleanSubject = String(subject).slice(0, 60);
+      const cleanMessage = String(message).slice(0, 5000);
+      const { error } = await sb.from("contact_messages").insert({
+        name: cleanName, email: cleanEmail, subject: cleanSubject, message: cleanMessage,
+      });
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true }, 200, origin);
+    }
+
     return json({ error: "NOT_FOUND" }, 404, origin);
   } catch (e) {
     console.error("[API error]", e);
