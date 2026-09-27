@@ -148,7 +148,8 @@ form.addEventListener('submit', async (e) => {
            sign in until the link is clicked. Auto-entering the app here is
            what made users feel "the account exists but login is stuck". */
         if (!data.session) {
-          setMsg('✅ الحساب اتعمل بس خطوة واحدة باقية: افتح بريدك الإلكتروني (وتحقق من السبام) واضغط رابط التأكيد — بعدها ارجع هنا وسجّل دخول / Check your inbox to confirm, then sign in', '#CCFF00');
+          // Show the big branded "check your email" screen instead of a tiny inline note.
+          showConfirmEmailScreen(email);
           setLoading(false);
           return;
         }
@@ -213,6 +214,37 @@ form.addEventListener('submit', async (e) => {
     window.location.href = 'app.html';
   }, 1500);
 });
+
+/* -------- Check-your-email screen -------- */
+const confirmBlock = $('#confirmEmailBlock');
+let resendCooldownTimer = null;
+
+export function showConfirmEmailScreen(email) {
+  form.classList.add('hidden');
+  confirmBlock.classList.remove('hidden');
+  $('#confirmEmailAddr').textContent = email;
+  const resendBtn = $('#resendBtn');
+  const resendMsg = $('#resendMsg');
+  resendBtn.addEventListener('click', async () => {
+    if (resendBtn.disabled) return;
+    if (!supabase) { resendMsg.textContent = 'No connection / لا اتصال'; return; }
+    resendBtn.disabled = true;
+    resendMsg.textContent = '';
+    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${APP_BASE}auth/callback.html` } });
+    resendMsg.textContent = error
+      ? 'حدث خطأ — حاول بعد دقيقة / Error — try again shortly'
+      : '✅ تم الإرسال مرة ثانية — افحص صندوق الوارد والسبام / Sent again — check inbox & spam';
+    // 30s cooldown
+    let left = 30;
+    const label = resendBtn.innerHTML;
+    resendBtn.innerHTML = `انتظر ${left} ثانية…`;
+    resendCooldownTimer = setInterval(() => {
+      left--;
+      if (left <= 0) { clearInterval(resendCooldownTimer); resendBtn.disabled = false; resendBtn.innerHTML = label; }
+      else { resendBtn.innerHTML = `انتظر ${left} ثانية…`; }
+    }, 1000);
+  });
+}
 
 /* -------- Google OAuth (signup = sign-in or create new) -------- */
 // Same dead-button problem as login.js: give the Google button its own

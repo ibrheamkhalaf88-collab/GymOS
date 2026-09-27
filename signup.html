@@ -151,6 +151,33 @@
         <!-- Message -->
         <div class="h-6"><p id="signupMsg" class="text-sm text-center" style="color:#ff3366;"></p></div>
       </form>
+
+      <!-- CHECK-YOUR-EMAIL screen (hidden until signup needs confirmation) -->
+      <div id="confirmEmailBlock" class="hidden text-center">
+        <div class="w-20 h-20 mx-auto rounded-full border-2 flex items-center justify-center mb-6" style="border-color:#C3F400; background-color:#333627;">
+          <svg class="h-10 w-10" viewBox="0 0 24 24" fill="#C3F400"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        </div>
+        <h2 class="font-headline text-2xl font-bold uppercase tracking-tight mb-2" style="color:#C3F400;">Check Your Email</h2>
+        <h2 class="font-headline text-2xl font-bold arabic-text mb-6" dir="rtl" style="color:#C3F400;">افتح بريدك الإلكتروني الآن</h2>
+        <div class="rounded-lg border p-4 mb-4" style="border-color:#444933; background-color:#111400;">
+          <p class="text-sm leading-relaxed" style="color:#e2e4cf;">We sent a confirmation email to</p>
+          <p id="confirmEmailAddr" class="font-headline font-bold my-1" style="color:#CCFF00;"></p>
+          <p class="text-base leading-relaxed arabic-text mt-2" dir="rtl" style="color:#e2e4cf;">
+            أرسلنا رسالة من <strong style="color:#CCFF00;">Digital Pulse</strong> —
+            افتحها واضغط رابط <strong>"تأكيد / Confirm"</strong>.
+          </p>
+          <p class="text-sm leading-relaxed arabic-text mt-3" dir="rtl" style="color:#ffb347;">
+            ⚠️ لو مش لاقيها في البريد الوارد — دور في مجلد <strong>السبام / Junk</strong>
+          </p>
+        </div>
+        <p class="text-xs mb-6" style="color:#c4c9ac;">لم تصلك الرسالة؟ / Didn't get the email?</p>
+        <button id="resendBtn" type="button" class="auth-alt-btn mb-4">
+          <span>Resend confirmation email</span>
+          <span class="font-arabic normal-case">أعد إرسال إيميل التأكيد</span>
+        </button>
+        <a href="login.html" class="text-[#CCFF00] font-headline hover:underline text-sm">Back to Sign In / عودة لتسجيل الدخول</a>
+        <div class="h-6 mt-2"><p id="resendMsg" class="text-sm" style="color:#C3F400;"></p></div>
+      </div>
     </div>
   </main>
 
