@@ -224,6 +224,23 @@ function effectiveLicense() {
 }
 const nf = new Intl.NumberFormat("en-US");
 
+/* Who is this device right now? Email session first (Supabase or demo),
+   then the activation code's owner identity, else a blunt "no account". */
+function currentIdentity() {
+  const email = (localStorage.getItem("dp_user_email") || "").trim();
+  if (email) return email;
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    if (u && u.email) return String(u.email);
+  } catch {}
+  const lic = license.get();
+  if (lic && lic.code) {
+    const owner = lic.owner ? ` — ${lic.owner}` : "";
+    return `${lic.code}${owner}${lic.tier === "trial" ? " (trial)" : ""}`;
+  }
+  return "— no account / لا يوجد حساب";
+}
+
 function destroyCharts() { charts.forEach((c) => c.destroy()); charts = []; }
 function trackChart(c) { charts.push(c); return c; }
 let chartLoading = null;
@@ -1967,6 +1984,14 @@ function viewProfile() {
           <span class="material-symbols-outlined text-muted">security</span>
         </div>
         <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="min-w-0">
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Signed in as / <span class="font-arabic normal-case">مسجّل الدخول بـ</span></p>
+              <p id="secSignedInAs" class="text-primary text-xs mt-1 font-headline truncate" dir="ltr">${escapeHtml(currentIdentity())}</p>
+            </div>
+            <span class="material-symbols-outlined text-primary shrink-0">account_circle</span>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secChangePw">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Website Password / <span class="font-arabic normal-case">كلمة سر الموقع</span></p>
