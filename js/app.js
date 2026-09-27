@@ -924,7 +924,7 @@ function openMemberModal(id = null) {
           <label>Tag / وسم</label>
         </div>
       </div>
-      <div class="grid ${m ? "grid-cols-2" : "grid-cols-[1fr_auto]"} gap-4 items-end">
+      <div class="grid ${m ? "grid-cols-1" : "grid-cols-[1fr_6.5rem]"} gap-4 items-end">
         <div class="field-wrapper">
           <select name="plan" class="dp-field">${planOptions}${legacyOpt}</select>
           <label>${t.plan}</label>
@@ -933,7 +933,7 @@ function openMemberModal(id = null) {
           </button>
         </div>
         ${m ? "" : `<div class="field-wrapper">
-          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field w-24" placeholder=" " />
+          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field" placeholder=" " />
           <label>Days / الأيام</label>
         </div>`}
       </div>
@@ -1819,9 +1819,8 @@ function viewReports() {
   const dist = planOrder.filter((p) => planCounts[p]).slice(0, 3)
     .map((p, i) => ({ p, pct: Math.round((planCounts[p] / totalPlans) * 100), cls: ["bg-primary", "bg-accent", "bg-muted"][i], txtCls: ["text-primary", "text-accent", "text-muted"][i] }));
 
-  const MONTHS_EN = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
-  const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
   const arDigits = (n) => String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
+  const monthNum = String(base.getMonth() + 1).padStart(2, "0");
 
   screen.innerHTML = `
   <!-- Page Header -->
@@ -1835,8 +1834,8 @@ function viewReports() {
     <div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
     <button id="repPrev" class="p-2 text-muted hover:text-primary transition-colors relative z-10"><span class="material-symbols-outlined">chevron_left</span></button>
     <div class="text-center relative z-10">
-      <div class="font-headline font-bold text-primary tracking-widest neon-text">${MONTHS_EN[base.getMonth()]} ${base.getFullYear()}</div>
-      <div class="font-arabic text-xs text-muted mt-0.5">${MONTHS_AR[base.getMonth()]} ${arDigits(base.getFullYear())}</div>
+      <div class="font-headline font-bold text-primary tracking-widest neon-text" dir="ltr">${monthNum} — ${base.getFullYear()}</div>
+      <div class="font-arabic text-xs text-muted mt-0.5">شهر ${arDigits(Number(monthNum))} / ${arDigits(base.getFullYear())}</div>
     </div>
     <button id="repNext" class="p-2 text-muted hover:text-primary transition-colors relative z-10 ${reportOffset >= 0 ? "invisible" : ""}"><span class="material-symbols-outlined">chevron_right</span></button>
   </div>

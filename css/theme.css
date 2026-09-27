@@ -232,11 +232,15 @@ body::before {
 .field-wrapper label button { pointer-events: auto; }
 .field-wrapper .field-action {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.55rem;
+  inset-inline-end: 0.55rem; /* RTL-aware: sits at the select's end side */
   z-index: 1;
   pointer-events: auto;
 }
+/* Room for the gear icon so the select text never runs under it */
+.field-wrapper select.dp-field { padding-inline-end: 2.75rem; }
+/* RTL pages: labels live on the reading side (right), like every other app */
+[dir="rtl"] .field-wrapper label { left: auto; right: 1rem; }
 .field-wrapper input:focus + label,
 .field-wrapper input:not(:placeholder-shown) + label,
 .field-wrapper select:focus + label,
@@ -244,6 +248,11 @@ body::before {
   transform: translateY(-1.5rem) scale(0.85);
   color: var(--volt);
   font-size: 0.75rem;
+  /* The floated label sits ON the field border — give it the modal's bg so
+     it reads as a clean chip, not a strikethrough over the border. */
+  background: var(--surface);
+  padding: 0 0.35rem;
+  border-radius: 0.375rem;
 }
 
 /* Tab indicator animation */
