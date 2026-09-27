@@ -258,7 +258,7 @@ function corsHeaders(origin?: string | null) {
   const allow = o && (ALLOWED_ORIGINS.includes(o) || APP_ORIGINS.has(o));
   return {
     "Access-Control-Allow-Origin": allow ? o : "null",
-    "Access-Control-Allow-Headers": "authorization, content-type",
+    "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "Access-Control-Max-Age": "3600",
     "X-Content-Type-Options": "nosniff",
