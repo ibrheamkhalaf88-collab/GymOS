@@ -494,11 +494,24 @@ export const store = {
   },
 
   resetAll() {
-    // يمسح بيانات الحساب الحالي فقط — لا يمس أحداً آخر على نفس الجهاز
-    COLLECTIONS.forEach((c) => localStorage.removeItem(memColKey(c)));
-    localStorage.removeItem(memTombKey());
+    // يمسح بيانات الحساب الحالي فقط — لا يمس أحداً آخر على نفس الجهاز.
+    // Every removed item is tombstoned so the wipe propagates to the CLOUD
+    // copy (the sync engine unions local+cloud; without tombstones the next
+    // pull would resurrect everything the user just deleted).
+    const now = Date.now();
+    const tomb = readTomb();
+    COLLECTIONS.forEach((c) => {
+      (read(c) || []).forEach((item) => {
+        if (item && item.id) { tomb[c] = tomb[c] || {}; tomb[c][item.id] = now; }
+      });
+      localStorage.removeItem(memColKey(c));
+    });
+    writeTomb(tomb);
     // لا تعد زرع بيانات وهمية بعد المسح — اتركها فارغة للعميل النهائي
     localStorage.setItem(memSeededKey(), "1");
+    // Push the emptied state to the cloud immediately (sync is stopped by the
+    // caller, so this is the only chance before the page reloads).
+    queueCloudSave();
   },
 
   exportAll() {

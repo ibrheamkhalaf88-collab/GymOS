@@ -2249,16 +2249,26 @@ function viewProfile() {
   $("#secCsv").onclick = exportCSVs;
   $("#importFile").addEventListener("change", importData);
   $("#secReset").onclick = async () => {
-    const ok = await confirmDialog({ titleEn: "Reset EVERYTHING to factory?", titleAr: "إعادة تعيين كل شيء بالكامل للمصنع؟", confirmText: "Reset", danger: true });
+    const ok = await confirmDialog({ titleEn: "Erase all gym data inside the app? Your account stays signed in.", titleAr: "مسح كل بيانات الجيم داخل التطبيق؟ حسابك وتفعيلك بيفضلوا شغالين", confirmText: "Erase data", danger: true });
     if (!ok) return;
     try { store.stopSync && store.stopSync(); } catch {}
-    // Clear all app data - robust clearing
-    Object.keys(localStorage).forEach(k => { if (k.startsWith("dp_")) localStorage.removeItem(k); });
-    sessionStorage.clear();
+    // Data-only reset: identity, licence and gym name SURVIVE — the app never
+    // bounces the user back to activation after they clean their data.
+    // (store.resetAll tombstones every item first so the cloud copy is wiped
+    // on the next push instead of resurrecting the deleted rows.)
+    const KEEP_PREFIX = ["dp_license", "dp_current_user", "dp_user_", "dp_jwt", "dp_device_id", "dp_cloud", "dp_gym_name", "i18n"];
     store.resetAll();
-    // Force reload to login screen
-    showToast("Full reset done / تمت إعادة كل شيء");
-    setTimeout(() => { location.reload(); }, 300);
+    Object.keys(localStorage).forEach((k) => {
+      if (!k.startsWith("dp_") && !k.startsWith("i18n")) return;
+      if (k.includes("tomb") || k.endsWith("_seeded")) return; // tombstones = the cloud wipe; _seeded stops demo data from coming back
+      if (KEEP_PREFIX.some((p) => k.startsWith(p))) return;
+      localStorage.removeItem(k);
+    });
+    sessionStorage.clear();
+    // Push the wiped state before reloading (stopSync paused the loop).
+    try { await store.syncNow(); } catch {}
+    showToast("تم مسح البيانات — حسابك لسه شغال / Data erased, account kept");
+    setTimeout(() => { location.reload(); }, 800);
   };
   // NOTE: no $("#exportBtn") here — that button only exists in the hardware
   // view; binding it unconditionally crashed the profile view and left
