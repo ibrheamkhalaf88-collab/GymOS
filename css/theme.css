@@ -342,6 +342,14 @@ body::before {
 .dp-field::placeholder { color: var(--frost); }
 /* Native controls follow the dark theme (date pickers, select arrows…) */
 input, select, textarea { color-scheme: dark; }
+/* Arabic-first typography inside form fields AND native dropdown panels —
+   Android's native <select>/<option> popup ignores inherited fonts, so the
+   Arabic glyphs fell back to the system serif and looked broken there. */
+[dir="rtl"] .dp-field,
+[dir="rtl"] select.dp-field,
+[dir="rtl"] select.dp-field option {
+  font-family: "Tajawal", "Manrope", sans-serif;
+}
 .dp-field::-webkit-calendar-picker-indicator {
   filter: invert(1) brightness(1.6);
   cursor: pointer;
