@@ -2078,6 +2078,14 @@ function viewProfile() {
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Sync</button>
           </div>
           <div class="h-px bg-outline-variant w-full"></div>
+          <div class="flex items-center justify-between group cursor-pointer" id="secCheckSync">
+            <div>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">🔍 Verify Sync / <span class="font-arabic normal-case">تأكد من المزامنة</span></p>
+              <p class="text-muted text-xs mt-1 font-headline">قارن جهازك بآخر نسخة مرفوعة — عدد بعدد</p>
+            </div>
+            <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Check</button>
+          </div>
+          <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secExport">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Export Backup / <span class="font-arabic normal-case">تصدير نسخة</span></p>
@@ -2306,6 +2314,7 @@ function viewProfile() {
   $("#secChangePw").onclick = openChangePassword;
   $("#secRestore").onclick = () => $("#importFile").click();
   $("#secCloudSync").onclick = cloudSyncNow;
+  $("#secCheckSync").onclick = checkSyncNow;
   renderSyncBadge();
   $("#secExport").onclick = exportData;
   $("#secCsv").onclick = exportCSVs;
@@ -2428,6 +2437,49 @@ async function cloudSyncNow() {
   try { await store.syncNow(); } catch { /* state handled below */ }
   if (store.syncStatus().state === "ok") showToast("☁️ Synced / تمت المزامنة");
   else showToast("Sync failed / فشلت المزامنة", "err");
+}
+
+/* Pull the latest cloud snapshot and compare it field-count by field-count,
+   so the user can SEE that this device matches the last uploaded copy. */
+async function checkSyncNow() {
+  const L = license.get();
+  if (!L || !L.data_enabled) { showToast("Cloud sync disabled / السحابة معطّلة", "err"); return; }
+  if (!navigator.onLine) { showToast("No connection / لا اتصال", "err"); return; }
+  const btnTxt = "Syncing… / جارٍ الفحص…";
+  const el = document.getElementById("syncStatusText");
+  const prev = el ? el.textContent : "";
+  if (el) el.textContent = btnTxt;
+  try {
+    try { await store.syncNow(); } catch { /* status shows error */ }
+    const { codesDb } = await import("./db.js");
+    const cloud = await codesDb.loadGym(L.code);
+    const cd = cloud?.data || {};
+    const rows = ["members", "trainers", "devices", "ledger"].map((c) => {
+      const localN = (store.all(c) || []).filter((x) => !x._demo).length;
+      const cloudN = (cd[c] || []).length;
+      const ok = localN === cloudN;
+      return { c, localN, cloudN, ok };
+    });
+    const allOk = rows.every((r) => r.ok);
+    const label = { members: "👥 أعضاء", trainers: "💪 مدربين", devices: "🔧 أجهزة", ledger: "💰 حركات مالية" };
+    openModal(`
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${allOk ? "✅ الجهاز مزامَن بالكامل" : "⚠️ فيه فرق — تم السحب الآن"}</h3>
+      <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${allOk ? "جهازك مطابق لآخر نسخة مرفوعة على السحابة" : "سحبنا آخر نسخة — الأرقام الجديدة ظاهرة تحت"}</p>
+      <div class="glass-card rounded-lg divide-y divide-outline-variant/50">
+        ${rows.map((r) => `
+        <div class="p-3 flex items-center justify-between text-sm">
+          <span>${label[r.c]}</span>
+          <span class="font-mono ${r.ok ? "text-primary" : "text-alert"}" dir="ltr">${r.ok ? "✓" : "≠"} ${r.localN} / ${r.cloudN}</span>
+        </div>`).join("")}
+      </div>
+      <p class="text-xs text-muted mt-4 text-center" dir="rtl">آخر رفع للسحابة: ${cloud?.savedAt ? fmt.date(cloud.savedAt, currentLang()) + " " + new Date(cloud.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "لم يتم الرفع بعد"}</p>
+      <button data-close class="btn-secondary w-full mt-4 py-3">تم / Done</button>`).el.querySelector("[data-close]")?.addEventListener("click", (e) => e.target.closest(".modal-backdrop")?.remove());
+  } catch {
+    showToast("Check failed — offline? / فشل الفحص — افحص الشبكة", "err");
+  } finally {
+    renderSyncBadge();
+    if (el && el.textContent === btnTxt) el.textContent = prev;
+  }
 }
 
 function exportData() {
