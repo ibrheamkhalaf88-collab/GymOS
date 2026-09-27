@@ -470,6 +470,19 @@ function viewDashboard() {
         <span class="material-symbols-outlined text-frost opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">notifications_active</span>
       </div>
     </div>
+    <!-- Expired & not renewed — the ALL-TIME win-back pool (not just this week) -->
+    <div class="stat-card cursor-pointer bg-alert/10 border border-alert/40 p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-alert/15 transition-colors" id="expiredPoolCard" onclick="document.getElementById('expiringSoon').scrollIntoView({behavior:'smooth'})">
+      <div class="flex items-start justify-between">
+        <p class="font-body font-semibold text-xs text-alert uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+          <span>🔴 Expired Total</span><span dir="rtl" class="font-arabic">انتهى وما جددش</span>
+        </p>
+        <span class="material-symbols-outlined text-alert opacity-60">heart_broken</span>
+      </div>
+      <div class="flex items-end justify-between">
+        <p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">${nf.format(s.totalExpired)}</p>
+        <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">person_off</span>
+      </div>
+    </div>
     <!-- Total Profit -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
