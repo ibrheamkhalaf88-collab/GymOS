@@ -80,7 +80,7 @@ async function demoSignUp(email, password, name) {
 function mapSignupError(err) {
   const msg = (err?.message || 'unknown error').toLowerCase();
   if (msg.includes('already registered') || msg.includes('already been registered')) {
-    return 'An account already exists with this email — try signing in / حساب موجود مسبقاً بهذا البريد — سجّل الدخول';
+    return 'هذا البريد مسجّل من قبل (ربما بجوجل أو بمحاولة قديمة) — ارجع لصفحة الدخول وجرّب "نسيت كلمة السر" أو الدخول بجوجل / This email is already registered — sign in or reset your password';
   }
   if (msg.includes('over_email_send_rate_limit') || msg.includes('rate limit')) {
     return 'Too many signups — try again later / تسجيلات كثيرة — حاول لاحقاً';
