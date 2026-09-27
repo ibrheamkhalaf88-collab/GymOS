@@ -708,12 +708,7 @@ function viewRoster() {
     </div>
 
     ${rosterFilter === "trainers" ? `
-    <div class="flex justify-end">
-      <button id="newTrainerBtn" class="text-primary text-xs font-headline uppercase tracking-widest flex items-center gap-1 pressable">
-        <span class="material-symbols-outlined text-[16px]" style="font-variation-settings:'FILL' 1;">add_circle</span> NEW TRAINER / مدرب جديد
-      </button>
-    </div>` : `
-    <!-- Trainers & salary actions -->
+    <!-- Trainer actions live ONLY on the trainers tab -->
     <div class="flex flex-wrap gap-2">
       <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
         <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
@@ -721,7 +716,7 @@ function viewRoster() {
       <button id="addTrainerBtn" class="flex-1 min-w-[150px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-3 rounded-xl shadow-neon hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
         <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ➕ ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
       </button>
-    </div>`}
+    </div>` : ""}
 
     <!-- Roster List (members or trainers by filter) -->
     <div id="rosterGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>`;
@@ -1562,59 +1557,106 @@ function payTrainer(t, { silent = false } = {}) {
 }
 
 
-// Full trainer file: work dates + dedicated payment history
+// Full trainer file: work dates + dedicated payment history + advances (سلف)
 function openTrainerDetails(id) {
   const t = store.get("trainers", id);
   if (!t) return;
   const ledger = store.all("ledger");
-  const payments = ledger
-    .filter((l) => l.category === "salary" && (l.trainerId === id || (!l.trainerId && l.description.includes(t.name))))
-    .sort((a, b) => b.date - a.date);
-  const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const mine = (l) => l && (l.trainerId === id || (!l.trainerId && typeof l.description === "string" && l.description.includes(t.name)));
+  const money = ledger.filter((l) => l.type === "expense" && (l.category === "salary" || l.category === "advance") && mine(l)).sort((a, b) => b.date - a.date);
+  const salaries = money.filter((l) => l.category === "salary");
+  const advances = money.filter((l) => l.category === "advance");
+  const totalPaid = money.reduce((s, p) => s + Number(p.amount || 0), 0);
 
-  openModal(`
+  // This month: how much he already took (salary + advances)
+  const mStart = new Date(); mStart.setDate(1); mStart.setHours(0, 0, 0, 0);
+  const thisMonth = money.filter((l) => l.date >= mStart.getTime());
+  const tookThisMonth = thisMonth.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const st = trainerStatus(t);
+  const paidThisMonth = thisMonth.some((l) => l.category === "salary") || (t.lastPaidAt && t.lastPaidAt >= mStart.getTime());
+  const lastAdvance = advances[0] || null;
+  const lastSalary = salaries[0] || null;
+
+  const mod = openModal(`
     <div class="flex items-center justify-between mb-1">
       <h3 class="font-headline font-bold uppercase tracking-tight text-lg">👤 ${escapeHtml(t.name)}</h3>
       <span class="text-primary font-headline font-bold" dir="ltr">${fmt.money(t.salary)}/mo</span>
     </div>
-    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">الملف الكامل وسجل الدفعات</p>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">الملف المالي الكامل — رواتب وسلف</p>
 
-    <div class="grid grid-cols-2 gap-3 text-sm mb-6">
+    <!-- This month status -->
+    <div class="rounded-xl p-4 mb-4 ${paidThisMonth ? "bg-primary/10 border border-primary/30" : "bg-alert/10 border border-alert/40"}">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="font-headline font-bold text-sm ${paidThisMonth ? "text-primary" : "text-alert"}">${paidThisMonth ? "✅ اتدفع له هذا الشهر" : "⏰ لسا ما اتدفع له هذا الشهر"}</p>
+          <p class="text-xs text-muted mt-1">أخد هذا الشهر: <b class="text-on-surface" dir="ltr">${fmt.money(tookThisMonth)}</b> ${st.until ? ` • الدفعة الجاية: ${fmt.date(st.until, currentLang())}` : ""}</p>
+        </div>
+        ${!paidThisMonth ? `<button id="payNowBtn" class="bg-primary text-black text-xs font-bold px-3 py-2 rounded-lg active:scale-95">ادفع الآن 💵</button>` : ""}
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 text-sm mb-5">
+      <div class="bg-surface-container rounded-xl p-3">
+        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Last salary / آخر دفعة</p>
+        <p class="font-headline">${lastSalary ? `${fmt.date(lastSalary.date, currentLang())} (${fmt.money(lastSalary.amount)})` : "لم يُدفع بعد"}</p>
+      </div>
+      <div class="bg-surface-container rounded-xl p-3">
+        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Last advance / آخر سلفة</p>
+        <p class="font-headline">${lastAdvance ? `${fmt.date(lastAdvance.date, currentLang())} (${fmt.money(lastAdvance.amount)})` : "لا يوجد"}</p>
+      </div>
       <div class="bg-surface-container rounded-xl p-3">
         <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Started / بدأ العمل</p>
         <p class="font-headline">${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</p>
       </div>
       <div class="bg-surface-container rounded-xl p-3">
-        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Last renewed / آخر تجديد</p>
-        <p class="font-headline">${t.lastPaidAt ? fmt.date(t.lastPaidAt, currentLang()) : "لم يُجدد بعد"}</p>
-      </div>
-      ${t.contractEnd ? `
-      <div class="bg-surface-container rounded-xl p-3 col-span-2">
-        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Contract end / انتهاء العقد</p>
-        <p class="font-headline ${(Date.now() > t.contractEnd) ? "text-alert" : ""}">${fmt.date(t.contractEnd, currentLang())}${(Date.now() > t.contractEnd) ? " — منتهي" : ""}</p>
-      </div>` : ""}
-      <div class="bg-surface-container rounded-xl p-3">
-        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Total paid / إجمالي المدفوع</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted mb-1">Total paid / إجمالي المصروف</p>
         <p class="font-headline text-alert" dir="ltr">${fmt.money(totalPaid)}</p>
       </div>
     </div>
 
-    <h4 class="font-headline font-bold uppercase tracking-tight text-sm mb-2">🧾 Payment history / سجل الدفعات</h4>
-    <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50 max-h-[240px] overflow-y-auto">
-      ${payments.length ? payments.map((p) => `
+    <!-- Record an advance -->
+    <form id="advanceForm" class="flex gap-2 mb-6">
+      <div class="field-wrapper flex-1">
+        <input name="amount" type="number" min="1" step="0.5" required class="dp-field" placeholder=" " />
+        <label>Advance amount / مبلغ السلفة ($)</label>
+      </div>
+      <button type="submit" class="bg-accent text-black text-xs font-bold px-4 rounded-xl active:scale-95 shrink-0">➕ سلفة</button>
+    </form>
+
+    <h4 class="font-headline font-bold uppercase tracking-tight text-sm mb-2">🧾 History / سجل الحركات</h4>
+    <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50 max-h-[220px] overflow-y-auto">
+      ${money.length ? money.map((p) => `
         <div class="p-3 flex items-center justify-between text-sm">
           <div class="flex items-center gap-2 min-w-0">
-            <span class="material-symbols-outlined text-alert text-[18px]">south</span>
+            <span class="material-symbols-outlined ${p.category === "advance" ? "text-accent" : "text-alert"} text-[18px]">${p.category === "advance" ? "payments" : "south"}</span>
             <div class="min-w-0">
-              <p class="truncate">دفعة شهرية / Monthly salary</p>
+              <p class="truncate">${p.category === "advance" ? "سلفة / Advance" : "راتب / Salary"}</p>
               <p class="text-xs text-muted">${fmt.date(p.date, currentLang())}${p.trainerId ? "" : " (legacy)"}</p>
             </div>
           </div>
-          <p class="font-headline font-bold text-alert tabular-nums" dir="ltr">-${fmt.money(p.amount)}</p>
-        </div>`).join("") : `<p class="text-center text-muted py-5 text-sm">📭 لا توجد دفعات مسجلة بعد</p>`}
+          <p class="font-headline font-bold ${p.category === "advance" ? "text-accent" : "text-alert"} tabular-nums" dir="ltr">-${fmt.money(p.amount)}</p>
+        </div>`).join("") : `<p class="text-center text-muted py-5 text-sm">📭 لا توجد حركات مسجلة بعد</p>`}
     </div>
 
     ${t.phone ? `<p class="text-xs text-muted mt-4" dir="ltr">📞 ${escapeHtml(t.phone)}</p>` : ""}`);
+
+  mod.el.querySelector("#payNowBtn")?.addEventListener("click", () => { payTrainer(t); mod.close(); });
+  mod.el.querySelector("#advanceForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const amount = Number(new FormData(e.target).get("amount"));
+    if (!amount || amount <= 0) return;
+    store.insert("ledger", {
+      type: "expense",
+      amount,
+      description: `Advance: ${t.name} / سلفة: ${t.name}`,
+      category: "advance",
+      trainerId: t.id,
+      date: Date.now(),
+    });
+    showToast(`➕ Advance recorded — ${fmt.money(amount)} / اتسجلت السلفة`);
+    mod.close();
+    openTrainerDetails(id); // reopen with fresh numbers
+  });
 }
 
 function openTrainerForm(id = null) {
