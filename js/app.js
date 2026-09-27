@@ -1574,6 +1574,11 @@ function openTrainerDetails(id) {
   const tookThisMonth = thisMonth.reduce((s, p) => s + Number(p.amount || 0), 0);
   const st = trainerStatus(t);
   const paidThisMonth = thisMonth.some((l) => l.category === "salary") || (t.lastPaidAt && t.lastPaidAt >= mStart.getTime());
+  const salaryNum = Number(t.salary || 0);
+  // What's still owed out of THIS month's salary: salary minus everything he
+  // already took this month (salary payment + advances). Negative = he's in
+  // advance over his salary.
+  const remainingDue = salaryNum - tookThisMonth;
   const lastAdvance = advances[0] || null;
   const lastSalary = salaries[0] || null;
 
@@ -1590,6 +1595,9 @@ function openTrainerDetails(id) {
         <div>
           <p class="font-headline font-bold text-sm ${paidThisMonth ? "text-primary" : "text-alert"}">${paidThisMonth ? "✅ اتدفع له هذا الشهر" : "⏰ لسا ما اتدفع له هذا الشهر"}</p>
           <p class="text-xs text-muted mt-1">أخد هذا الشهر: <b class="text-on-surface" dir="ltr">${fmt.money(tookThisMonth)}</b> ${st.until ? ` • الدفعة الجاية: ${fmt.date(st.until, currentLang())}` : ""}</p>
+          <p class="text-xs mt-1 ${remainingDue < 0 ? "text-accent" : "text-muted"}">${remainingDue < 0
+            ? `⚠️ أخد زيادة عن راتبه بـ <b dir="ltr">${fmt.money(-remainingDue)}</b>`
+            : `ضايل له من راتب هذا الشهر: <b class="text-primary" dir="ltr">${fmt.money(remainingDue)}</b>`}</p>
         </div>
         ${!paidThisMonth ? `<button id="payNowBtn" class="bg-primary text-black text-xs font-bold px-3 py-2 rounded-lg active:scale-95">ادفع الآن 💵</button>` : ""}
       </div>
