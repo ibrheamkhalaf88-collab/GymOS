@@ -1,6 +1,6 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v6";
+const CACHE = "dp-cache-v7";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
