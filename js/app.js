@@ -697,12 +697,12 @@ function viewRoster() {
       </div>
       <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
         ${["active", "expired", "trial", "frozen", "trainers"].map((f) => `
-          <button data-filter="${f}" class="roster-filter whitespace-nowrap px-4 py-1.5 rounded-full border font-label uppercase tracking-widest text-[10px] active:scale-95 transition-transform flex flex-col items-center
+          <button data-filter="${f}" class="roster-filter whitespace-nowrap px-5 py-3 rounded-full border font-label tracking-wider active:scale-95 transition-transform flex flex-col items-center gap-0.5 min-w-[92px]
             ${f === rosterFilter
-              ? "border-primary bg-primary/10 text-primary"
+              ? "border-primary bg-primary/10 text-primary shadow-neon"
               : "border-outline-variant bg-surface-container text-muted hover:text-white"}">
-            <span>${FILTER_EMOJI[f] || ""} ${f.toUpperCase()}</span>
-            <span class="text-[8px] opacity-70">${i18n.t.statuses[f] || (f === "trainers" ? "مدربون" : f)}</span>
+            <span class="font-arabic font-bold text-[15px]">${FILTER_EMOJI[f] || ""} ${i18n.t.statuses[f] || (f === "trainers" ? "مدربون" : f)}</span>
+            <span class="text-[11px] uppercase opacity-70">${f.toUpperCase()}</span>
           </button>`).join("")}
       </div>
     </div>
