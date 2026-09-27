@@ -21,7 +21,26 @@ test("server: /api/auth/mine exists, requires a Supabase session, and never rese
   assert.match(fn, /path === "\/api\/auth\/mine"/);
   assert.match(fn, /if \(!u\) \{ failIp\(ip\); return json\(\{ error: "UNAUTHORIZED" \}, 401, origin\); \}/);
   assert.match(fn, /record\.days = remainingDays\(rec\)/);
-  assert.match(fn, /\.eq\("owner", `user:\$\{u\.id\}`\)/);
+  // Matches BOTH binding formats now: auth-bound "user:<uuid>" and an
+  // admin-assigned plain email — a code set by the dashboard must also
+  // be discoverable by the customer's second device.
+  assert.match(fn, /const owners = \[`user:\$\{u\.id\}`\];/);
+  assert.match(fn, /\.in\("owner", owners\)/);
+});
+
+test("server: expiry is enforced server-side, not just in the client", () => {
+  assert.match(fn, /expired: !!rec && expiryMs\(rec\) !== null/);
+  const gymExpired = fn.match(/if \(flags\.expired\) return json\(\{ error: "EXPIRED" \}, 403, origin\);/g);
+  assert.ok(gymExpired && gymExpired.length >= 2, "gym GET+PUT must both reject expired licences");
+});
+
+test("server: admin PATCH codes routes 404 honestly on a missing code", () => {
+  // supabase-js v2 returns count:null without count:'exact' — the old
+  // reset-password checked !count and reported NOT_FOUND every time.
+  const patches = fn.match(/\/revoke\$|\/owner\$|\/reset-password\$/g) || [];
+  assert.ok(patches.length >= 3);
+  const selects = fn.match(/\.select\("code"\)\.maybeSingle\(\)/g) || [];
+  assert.ok(selects.length >= 5, "revoke/owner/reset-password/data/limit must select back the touched row");
 });
 
 test("server: verifyJwt is not confused with Supabase tokens (getUser used instead)", () => {

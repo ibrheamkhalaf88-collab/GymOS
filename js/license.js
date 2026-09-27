@@ -59,7 +59,10 @@ export const license = {
       tier: record.tier || "standard",
       owner: String(record.owner || ""),
       activatedAt,
-      expiresAt: days > 0 ? activatedAt + days * 86400000 : 0, // 0 = lifetime
+      // Prefer the server's absolute expiry (computed from first activation)
+      // over re-deriving it from the floored remaining-day count — the old way
+      // shaved up to a full day off the visible countdown on every re-login.
+      expiresAt: record.expiresAt ? Number(record.expiresAt) : (days > 0 ? activatedAt + days * 86400000 : 0), // 0 = lifetime
       deviceId: deviceId(),
       deviceName: deviceName(),
       data_enabled: record.data_enabled !== false,

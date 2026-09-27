@@ -244,9 +244,9 @@ export const codesDb = {
     }
     const { appConfig } = await import("./config.js");
     if (email.trim().toLowerCase() !== appConfig.adminEmail.toLowerCase()) {
-      throw new Error("Email not found / ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ط؛ظٹط± ظ…ظˆط¬ظˆط¯");
+      throw new Error("Email not found / البريد الإلكتروني غير موجود");
     }
-    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط®ط§ط·ط¦ط©");
+    if (password !== appConfig.demoAdminPassword) throw new Error("Wrong password / كلمة المرور خاطئة");
     sessionStorage.setItem("dp_demo_admin", "1");
     _notifyDemo();
   },
@@ -260,7 +260,7 @@ export const codesDb = {
   async create({ tier = "monthly", days = 30, note = "", custom = "", owner = "" } = {}) {
     const rec = {
       tier, days: Math.max(0, Number(days) || 0),
-      owner: sanitizeText(owner, 40), note: sanitizeText(note, 200),
+      owner: sanitizeText(owner, 64), note: sanitizeText(note, 200),
     };
     if (onlineMode()) {
       return api("/api/codes", { method: "POST", admin: true, body: { ...rec, custom: sanitizeCode(custom) || "" } });
@@ -269,7 +269,7 @@ export const codesDb = {
     const code = normalizeCode(custom) || (() => { do { var c = randomCode(); } while (demoAll().some((x) => x.code === c)); return c; })();
     const item = { id: code, code, createdAt: Date.now(), used: false, revoked: false, ...rec };
     const list = demoAll();
-    if (list.some((x) => x.code === code)) throw new Error("Code already exists / ط§ظ„ظƒظˆط¯ ظ…ظˆط¬ظˆط¯ ظ…ط³ط¨ظ‚ط§ظ‹");
+    if (list.some((x) => x.code === code)) throw new Error("Code already exists / الكود موجود مسبقاً");
     list.unshift(item); demoSave(list);
     return item;
   },
@@ -278,7 +278,7 @@ export const codesDb = {
     const id = normalizeCode(code);
     if (!id) return null;
     if (onlineMode()) {
-      try { return await api(`/api/codes/${id}`); } catch { return null; }
+      try { return await api(`/api/codes/${id}`, { admin: true }); } catch { return null; }
     }
     demoSeed();
     return demoAll().find((c) => c.code === id) || null;
@@ -340,7 +340,7 @@ export const codesDb = {
     if (item) { item.device_limit = lim; demoSave(list); }
   },
 
-  // Admin: reset a client's website password â†’ returns temp password
+  // Admin: reset a client's website password → returns temp password
   async resetClientPassword(code) {
     const id = normalizeCode(code);
     if (!id) throw new Error("INVALID_FORMAT");
@@ -420,8 +420,12 @@ export const codesDb = {
       // auth:true is essential — the server reads the code from the JWT that
       // activate() just stored; without it the call 401s and the password was
       // silently never saved, locking code users out of later logins.
+      // set-password answers { ok: true } with NO token. The old
+      // setJwt(r.token) here stored "" and silently killed cloud sync for
+      // every code user right after they set their password (dp_cloud stayed
+      // "1" → every later PUT 401'd in the background until a full re-login).
       const r = await api("/api/auth/set-password", { method: "POST", auth: true, body: { code: id, password } });
-      setJwt(r.token);
+      void r;
       sessionStorage.setItem("dp_code", id);
       return true;
     }

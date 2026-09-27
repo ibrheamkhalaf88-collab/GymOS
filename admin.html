@@ -162,9 +162,53 @@
       <button id="refreshBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
         Refresh / تحديث
       </button>
-      <button id="addCouponBtn" class="btn-sm bg-[#CCFF00] text-black hover:bg-[#B8E600]">
-        + Add Coupon
+      <button id="addCodeBtn" class="btn-sm bg-[#CCFF00] text-black hover:bg-[#B8E600]">
+        + New Code / كود تفعيل
       </button>
+      <button id="addCouponBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
+        + Coupon / كوبون
+      </button>
+    </div>
+  </div>
+
+  <!-- Activation codes -->
+  <div class="p-4 border-b border-[#444933]" style="background-color:#0a0a0a;">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+      <h3 class="font-headline text-sm uppercase tracking-widest" style="color:#c4c9ac;">
+        Activation Codes / أكواد التفعيل
+        <span id="codeCountBadge" class="text-[10px] px-2 py-0.5 rounded" style="background:rgba(204,255,0,0.1);color:#CCFF00;"></span>
+      </h3>
+      <div class="flex gap-2 flex-wrap">
+        <input id="codeSearchInput" type="text" placeholder="بحث بكود..." class="auth-input w-36 text-xs" style="background-color:#171717;" />
+        <select id="codeStatusFilter" class="auth-input w-auto text-xs" style="background-color:#171717; cursor:pointer;">
+          <option value="all">All / الكل</option>
+          <option value="active" selected>Ready / جاهز</option>
+          <option value="used">Used / مفعّل</option>
+          <option value="revoked">Revoked / ملغي</option>
+        </select>
+        <button id="toggleCodesBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
+          Show / عرض
+        </button>
+      </div>
+    </div>
+    <div id="codeListWrap" class="hidden overflow-x-auto">
+      <table class="w-full text-sm" style="min-width:880px;">
+        <thead>
+          <tr class="text-left" style="color:#8b917a;">
+            <th class="py-2 px-2">Code / الكود</th>
+            <th class="py-2 px-2">Plan / الباقة</th>
+            <th class="py-2 px-2">Owner / المالك</th>
+            <th class="py-2 px-2">Devices / أجهزة</th>
+            <th class="py-2 px-2">Expires / الانتهاء</th>
+            <th class="py-2 px-2">Status / الحالة</th>
+            <th class="py-2 px-2"></th>
+          </tr>
+        </thead>
+        <tbody id="codeListBody"></tbody>
+      </table>
+      <div id="codeListMore" class="text-center py-2 hidden">
+        <button id="codeLoadMoreBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Load more / المزيد</button>
+      </div>
     </div>
   </div>
 
@@ -299,6 +343,81 @@
     </div>
   </div>
 
+  <!-- Activation Code Modal -->
+  <div id="codeModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
+        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+        New Activation Code / كود تفعيل جديد
+      </h3>
+      <form id="codeForm" class="space-y-4">
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Custom Code (optional — leave empty to auto-generate)</label>
+          <input id="codeCustom" type="text" maxlength="6" class="auth-input uppercase" placeholder="اختياري: 6 أحرف" />
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Plan / الباقة</label>
+          <select id="codeTier" class="auth-input" style="background-color:#171717; cursor:pointer;">
+            <option value="monthly" selected>Monthly +| شهر (60 يوم افتراضياً)</option>
+            <option value="yearly">Yearly / سنة (365 يوم)</option>
+            <option value="lifetime">Lifetime / مدى الحياة</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Days / عدد الأيام (0 أو فارغ = حسب الباقة)</label>
+          <div class="flex gap-2">
+            <input id="codeDays" type="number" min="0" value="60" class="auth-input" style="background-color:#171717;" />
+            <button type="button" class="preset-chip" onclick="window._setCodeDays(30)">30</button>
+            <button type="button" class="preset-chip" onclick="window._setCodeDays(60)">60</button>
+            <button type="button" class="preset-chip" onclick="window._setCodeDays(90)">90</button>
+            <button type="button" class="preset-chip" onclick="window._setCodeDays(365)">365</button>
+          </div>
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Max Devices / حد الأجهزة</label>
+          <input id="codeDeviceLimit" type="number" min="1" max="20" value="3" class="auth-input" style="background-color:#171717;" />
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Owner Email (optional — يربط الكود بحساب عميل)</label>
+          <input id="codeOwner" type="email" class="auth-input" placeholder="customer@example.com" />
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Note / ملاحظة (داخلية)</label>
+          <input id="codeNote" type="text" maxlength="140" class="auth-input" placeholder="مثال: دفع كاش عند الاستلام" />
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button type="button" id="cancelCodeBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
+          <button type="submit" id="submitCodeBtn" class="btn-sm bg-[#CCFF00] text-black">Create Code / إنشاء</button>
+        </div>
+      </form>
+      <p id="codeModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
+      <!-- shown only after successful creation -->
+      <div id="codeResult" class="hidden mt-4 p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
+        <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Code / الكود — أرسله للعميل</label>
+        <div class="flex items-center gap-2">
+          <span id="codeResultValue" class="font-headline text-2xl tracking-widest" style="color:#CCFF00;"></span>
+          <button type="button" id="codeCopyBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Copy / نسخ</button>
+          <a id="codeWaLink" href="#" target="_blank" rel="noopener" class="btn-sm" style="background:#0f2d1a;color:#25D366;border:1px solid rgba(37,211,102,0.4);">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Password Result Modal -->
+  <div id="pwModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 class="font-headline text-xl mb-4" style="color:#CCFF00;">New Temporary Password / كلمة سر مؤقتة جديدة</h3>
+      <p class="text-xs opacity-70 mb-2" style="color:#c4c9ac;">أرسلها للعميل — ستظهر مرة واحدة فقط:</p>
+      <div class="flex items-center gap-2 p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
+        <span id="pwResultValue" class="font-headline text-xl tracking-widest" style="color:#CCFF00;"></span>
+        <button type="button" id="pwCopyBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Copy / نسخ</button>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button type="button" id="pwCloseBtn" class="btn-sm bg-[#CCFF00] text-black">تم</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Coupon Modal -->
   <div id="couponModal" class="modal-overlay hidden">
     <div class="modal-card">
@@ -341,8 +460,10 @@
     // ============================================================
     const $ = (sel, root = document) => root.querySelector(sel);
 
-    const API_BASE = 'https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api';
     const { appConfig } = await import('./js/config.js');
+    // Source of truth is js/config.js (same as the app) — the old hardcoded
+    // URL here could silently drift away from wherever the client points.
+    const API_BASE = appConfig.apiUrl || 'https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api';
     const TIER_LABEL = {
       trial: 'Trial / تجربة', monthly: 'Monthly / شهر', yearly: 'Yearly / سنة',
       lifetime: 'Lifetime / دائم', none: 'None / بدون',
@@ -403,14 +524,14 @@
     let editId = null;
 
     // ---- Session guard ----
-    if (!TOKEN) { window.location.href = 'admin-login.html'; }
+    if (!TOKEN) { window.location.href = 'admin-login.html'; throw new Error('no admin token'); }
 
     modeBadge.textContent = IS_DEMO ? 'OFFLINE / محلي' : 'ONLINE / أونلاين';
     modeBadge.style.color = IS_DEMO ? '#ff9800' : '#CCFF00';
     modeBadge.style.borderColor = IS_DEMO ? '#ff980055' : '#CCFF0055';
     adminEmailDisplay.textContent = IS_DEMO
       ? 'admin@gym.local'
-      : (JSON.parse(localStorage.getItem('dp_current_user') || 'null') || {}).email || 'Admin';
+      : ((() => { try { return JSON.parse(localStorage.getItem('dp_current_user') || 'null'); } catch { return null; } })() || {}).email || 'Admin';
 
     adminLogoutBtn.addEventListener('click', () => {
       sessionStorage.removeItem('dp_admin_token');
@@ -488,7 +609,21 @@
         const data = await api('/api/users');
         users = (data || []).map(u => normalizeUser({ ...u, _demo: false }));
       } catch (err) {
-        if (!IS_DEMO) console.log('Admin API unreachable — offline mode:', err.message);
+        // A real (non-demo) failure must NOT fall back to demo rows — an admin
+        // acting on local demo data under an "ONLINE" badge is worse than an
+        // honest error. 401/403 means the 12h admin token died: re-login.
+        if (!IS_DEMO) {
+          console.log('Admin API error:', err.message);
+          if (/(401|403|FORBIDDEN|UNAUTHORIZED)/i.test(err.message || '')) {
+            sessionStorage.removeItem('dp_admin_token');
+            window.location.href = 'admin-login.html';
+            return;
+          }
+          users = [];
+          tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:#ff3366;">API error: ${esc(err.message)} — راجع الاتصال / أعد تسجيل الدخول</td></tr>`;
+          loading = false;
+          return;
+        }
         users = (await demoGetUsers()).map(u => normalizeUser({ ...u, _demo: true }));
       }
       allUsers = users;
@@ -631,7 +766,10 @@
       userSubType.value = tier;
       userDays.value = u.days || (tier === 'yearly' ? 365 : tier === 'trial' ? 14 : tier === 'lifetime' ? 0 : 30);
       submitUserBtn.textContent = 'Save Changes / حفظ';
-      couponSection.classList.add('hidden');
+      // Coupons apply to existing users only — claiming with the placeholder
+      // userId 'pending' on a create pollutes the coupon's audit trail.
+      couponSection.classList.remove('hidden');
+      pendingCoupon = null;
       userModalMsg.textContent = '';
       refreshPreview();
       userModal.classList.remove('hidden');
@@ -927,8 +1065,254 @@
       }
     });
 
+    // ============================================================
+    // Activation Codes — create / list / revoke / reset / delete.
+    // Server: GET|POST /api/codes, PATCH .../revoke|/reset-password,
+    // DELETE /api/codes/:code (all authAdmin). Demo mode keeps a
+    // local mirror so the panel stays usable offline.
+    // ============================================================
+    const addCodeBtn = $('#addCodeBtn');
+    const codeModal = $('#codeModal');
+    const codeForm = $('#codeForm');
+    const codeCustom = $('#codeCustom');
+    const codeTier = $('#codeTier');
+    const codeDays = $('#codeDays');
+    const codeDeviceLimit = $('#codeDeviceLimit');
+    const codeOwner = $('#codeOwner');
+    const codeNote = $('#codeNote');
+    const submitCodeBtn = $('#submitCodeBtn');
+    const cancelCodeBtn = $('#cancelCodeBtn');
+    const codeModalMsg = $('#codeModalMsg');
+    const codeResult = $('#codeResult');
+    const codeResultValue = $('#codeResultValue');
+    const codeCopyBtn = $('#codeCopyBtn');
+    const codeWaLink = $('#codeWaLink');
+    const codeSearchInput = $('#codeSearchInput');
+    const codeStatusFilter = $('#codeStatusFilter');
+    const toggleCodesBtn = $('#toggleCodesBtn');
+    const codeListWrap = $('#codeListWrap');
+    const codeListBody = $('#codeListBody');
+    const codeLoadMoreBtn = $('#codeLoadMoreBtn');
+    const codeListMore = $('#codeListMore');
+    const codeCountBadge = $('#codeCountBadge');
+    const pwModal = $('#pwModal');
+    const pwResultValue = $('#pwResultValue');
+    const pwCopyBtn = $('#pwCopyBtn');
+    const pwCloseBtn = $('#pwCloseBtn');
+
+    const CODE_KEY = 'dp_codes_local';
+    const localCodes = () => { try { return JSON.parse(localStorage.getItem(CODE_KEY)) || []; } catch { return []; } };
+    const saveLocalCodes = (c) => localStorage.setItem(CODE_KEY, JSON.stringify(c));
+    const codeTierDays = (t) => t === 'lifetime' ? 0 : t === 'yearly' ? 365 : 60;
+
+    let codeCursor = null;
+    let codeBusy = false;
+
+    async function apiListCodes({ reset = false } = {}) {
+      if (IS_DEMO) { codeCursor = null; return { data: localCodes(), hasMore: false }; }
+      const q = codeSearchInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
+      const st = codeStatusFilter.value;
+      const params = new URLSearchParams({ limit: '50' });
+      if (q) params.set('q', q);
+      if (st !== 'all') params.set('status', st);
+      if (!reset && codeCursor) params.set('cursor', codeCursor);
+      const r = await api('/api/codes?' + params.toString());
+      const data = Array.isArray(r) ? r : (r.data || []);
+      codeCursor = r.nextCursor || null;
+      return { data, hasMore: !!r.hasMore };
+    }
+
+    function codeExpiryText(c) {
+      if (c.revoked) return '—';
+      if (!c.used || !c.usedAt) return 'not started / لم يُفعّل';
+      if (!Number(c.days)) return '<span style="color:#CCFF00;">Lifetime / دائم</span>';
+      const end = Number(c.expiresAt) || (Number(c.usedAt) + Number(c.days) * 86400000);
+      const left = Math.ceil((end - Date.now()) / 86400000);
+      const d = new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      return left <= 0 ? `<span style="color:#ff3366;">${esc(d)} (انتهى)</span>`
+        : left <= 7 ? `<span style="color:#ffaa00;">${esc(d)} (${left}d)</span>` : esc(d);
+    }
+    function codeStatusBadge(c) {
+      if (c.revoked) return '<span class="badge badge-expired">Revoked ملغي</span>';
+      if (!c.used) return '<span class="badge badge-active">Ready جاهز</span>';
+      const end = Number(c.expiresAt) || (c.usedAt ? Number(c.usedAt) + Number(c.days) * 86400000 : null);
+      if (end && end <= Date.now()) return '<span class="badge badge-expired">Expired منتهي</span>';
+      return '<span class="badge badge-trial">Active مفعّل</span>';
+    }
+
+    async function loadCodes({ reset = true } = {}) {
+      if (codeBusy) return;
+      codeBusy = true;
+      if (reset) { codeCursor = null; codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#8b917a;">Loading…</td></tr>'; }
+      try {
+        const { data, hasMore } = await apiListCodes({ reset });
+        if (reset) codeListBody.innerHTML = '';
+        codeListMore.classList.toggle('hidden', !hasMore);
+        if (!codeListBody.children.length && !data.length) {
+          codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#8b917a;">No codes / لا توجد أكواد</td></tr>';
+        }
+        // esc() everywhere: note/owner/usedDeviceName/devices[].name are
+        // admin- OR customer-controlled strings that reach innerHTML here
+        // (a customer sets their own deviceName at activation).
+        codeListBody.insertAdjacentHTML('beforeend', data.map(c => `
+          <tr style="border-top:1px solid #2a2a2a;">
+            <td class="py-2 px-2"><span style="font-family:monospace;font-size:1rem;color:#CCFF00;letter-spacing:0.15em;">${esc(c.code)}</span>
+              ${c.note ? `<div class="text-[10px] opacity-60" style="color:#c4c9ac;">${esc(c.note)}</div>` : ''}</td>
+            <td class="py-2 px-2">${esc(c.tier || 'monthly')} · ${c.days ? esc(String(c.days)) + 'd' : '∞'}</td>
+            <td class="py-2 px-2 text-xs" style="color:#8b917a;">${esc(c.owner || '—')}</td>
+            <td class="py-2 px-2 text-xs" title="${esc((c.devices || []).map(d => d.name || d.deviceId).join(', '))}">${(c.devices || []).length}/${c.device_limit || 3}</td>
+            <td class="py-2 px-2 whitespace-nowrap">${codeExpiryText(c)}</td>
+            <td class="py-2 px-2">${codeStatusBadge(c)}</td>
+            <td class="py-2 px-2">
+              <div class="flex gap-1 flex-wrap justify-end">
+                ${c.revoked
+                  ? `<button class="btn-sm btn-activate" data-code-action="unrevoke" data-code="${esc(c.code)}">Restore</button>`
+                  : `<button class="btn-sm btn-deactivate" data-code-action="revoke" data-code="${esc(c.code)}">Revoke</button>`}
+                <button class="btn-sm" style="background:#262a15;color:#c4c9ac;border:1px solid #444933;" data-code-action="resetpw" data-code="${esc(c.code)}">🔑</button>
+                <button class="btn-sm" style="background:#3a1a1a;color:#ff3366;" data-code-action="delete" data-code="${esc(c.code)}">✕</button>
+              </div>
+            </td>
+          </tr>`).join(''));
+      } catch (err) {
+        codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#ff3366;">' + esc(err.message || 'Could not load codes') + '</td></tr>';
+        codeListMore.classList.add('hidden');
+      } finally {
+        codeBusy = false;
+      }
+    }
+
+    async function refreshCodeCount() {
+      try {
+        if (IS_DEMO) { codeCountBadge.textContent = localCodes().length + ' codes'; return; }
+        const r = await api('/api/codes');
+        const list = Array.isArray(r) ? r : (r.data || []);
+        codeCountBadge.textContent = list.length + ' codes';
+      } catch { codeCountBadge.textContent = ''; }
+    }
+
+    toggleCodesBtn.addEventListener('click', async () => {
+      const show = codeListWrap.classList.contains('hidden');
+      codeListWrap.classList.toggle('hidden', !show);
+      toggleCodesBtn.textContent = show ? 'Hide / إخفاء' : 'Show / عرض';
+      if (show) await loadCodes({ reset: true });
+    });
+    codeSearchInput.addEventListener('input', () => { if (!codeListWrap.classList.contains('hidden')) loadCodes({ reset: true }); });
+    codeStatusFilter.addEventListener('change', () => { if (!codeListWrap.classList.contains('hidden')) loadCodes({ reset: true }); });
+    codeLoadMoreBtn.addEventListener('click', () => loadCodes({ reset: false }));
+
+    codeListBody.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-code-action]');
+      if (!btn || codeBusy) return;
+      const action = btn.dataset.codeAction;
+      const code = btn.dataset.code;
+      codeBusy = true;
+      btn.disabled = true;
+      try {
+        if (action === 'revoke' || action === 'unrevoke') {
+          const revoke = action === 'revoke';
+          if (!confirm((revoke ? 'Revoke code ' : 'Restore code ') + code + '?\n' + (revoke ? 'كل أجهزة العميل بتقفل فوراً' : 'العميل يرجع يشتغل'))) return;
+          if (IS_DEMO) {
+            const list = localCodes();
+            const it = list.find(x => x.code === code);
+            if (it) { it.revoked = revoke; saveLocalCodes(list); }
+          } else {
+            await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: revoke }) });
+          }
+        } else if (action === 'resetpw') {
+          if (!confirm('Generate a NEW password for ' + code + '?\nكلمة السر القديمة بتبطل — العميل بيسجل دخول بالجديدة')) return;
+          let temp;
+          if (IS_DEMO) {
+            temp = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('') + '-demo';
+          } else {
+            const r = await api('/api/codes/' + encodeURIComponent(code) + '/reset-password', { method: 'PATCH', body: '{}' });
+            temp = r.tempPassword;
+          }
+          pwResultValue.textContent = temp;
+          pwModal.classList.remove('hidden');
+        } else if (action === 'delete') {
+          if (!confirm('DELETE code ' + code + ' permanently?\nبيانات السحابة الخاصة فيه بتنمسح كمان — بدون رجعة')) return;
+          if (IS_DEMO) {
+            saveLocalCodes(localCodes().filter(x => x.code !== code));
+          } else {
+            await api('/api/codes/' + encodeURIComponent(code), { method: 'DELETE' });
+          }
+        }
+        await loadCodes({ reset: true });
+        refreshCodeCount();
+      } catch (err) {
+        alert(err.message || 'Failed / فشل');
+      } finally {
+        codeBusy = false;
+        btn.disabled = false;
+      }
+    });
+
+    window._setCodeDays = (d) => { codeDays.value = d; };
+    codeTier.addEventListener('change', () => { codeDays.value = codeTierDays(codeTier.value); });
+
+    addCodeBtn.addEventListener('click', () => {
+      codeForm.reset();
+      codeDays.value = 60;
+      codeModalMsg.textContent = '';
+      codeResult.classList.add('hidden');
+      codeModal.classList.remove('hidden');
+    });
+    cancelCodeBtn.addEventListener('click', () => codeModal.classList.add('hidden'));
+    codeModal.addEventListener('click', (e) => { if (e.target === codeModal) codeModal.classList.add('hidden'); });
+
+    codeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        custom: codeCustom.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''),
+        tier: codeTier.value,
+        days: Math.max(0, parseInt(codeDays.value) || 0),
+        device_limit: Math.max(1, Math.min(20, parseInt(codeDeviceLimit.value) || 3)),
+        owner: codeOwner.value.trim().toLowerCase(),
+        note: codeNote.value.trim(),
+      };
+      submitCodeBtn.disabled = true;
+      codeModalMsg.textContent = '';
+      try {
+        let rec;
+        if (IS_DEMO) {
+          const list = localCodes();
+          let code = payload.custom;
+          if (code && list.some(x => x.code === code)) throw new Error('Code already exists / الكود موجود');
+          if (!code) {
+            const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const rnd = new Uint8Array(6); crypto.getRandomValues(rnd);
+            do { code = Array.from(rnd, b => A[b % 32]).join(''); } while (list.some(x => x.code === code));
+          }
+          rec = { code, tier: payload.tier, days: payload.days || codeTierDays(payload.tier), owner: payload.owner, note: payload.note, used: false, revoked: false, device_limit: payload.device_limit, devices: [], createdAt: Date.now() };
+          saveLocalCodes([rec, ...list]);
+        } else {
+          rec = await api('/api/codes', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        codeResultValue.textContent = rec.code;
+        const waMsg = encodeURIComponent(`Digital Pulse — كود تفعيلك: ${rec.code}\nحمّل التطبيق وفعّل الكود للاشتراك (${payload.tier}, ${payload.days || codeTierDays(payload.tier)} يوم).\nhttps://ibrheamkhalaf88-collab.github.io/GymOS/`);
+        codeWaLink.href = 'https://wa.me/?text=' + waMsg;
+        codeResult.classList.remove('hidden');
+        codeModalMsg.textContent = '';
+        if (!codeListWrap.classList.contains('hidden')) await loadCodes({ reset: true });
+        refreshCodeCount();
+      } catch (err) {
+        codeModalMsg.textContent = (err.message === 'DUPLICATE' ? 'الكود موجود — جرّب غيره' : err.message) || 'Failed / فشل';
+      } finally {
+        submitCodeBtn.disabled = false;
+      }
+    });
+
+    codeCopyBtn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(codeResultValue.textContent); codeCopyBtn.textContent = '✓'; setTimeout(() => { codeCopyBtn.textContent = 'Copy / نسخ'; }, 1200); } catch { /* clipboard blocked — the code stays visible to read */ }
+    });
+    pwCopyBtn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(pwResultValue.textContent); pwCopyBtn.textContent = '✓'; setTimeout(() => { pwCopyBtn.textContent = 'Copy / نسخ'; }, 1200); } catch { /* noop */ }
+    });
+    pwCloseBtn.addEventListener('click', () => pwModal.classList.add('hidden'));
+
     // ---- Load ----
     loadUsers();
+    refreshCodeCount();
   </script>
   <script type="module" src="js/pwa.js"></script>
 </body>

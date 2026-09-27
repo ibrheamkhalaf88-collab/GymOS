@@ -41,19 +41,6 @@ const BCRYPT_COST = 12;
 // ---------- helpers ----------
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-// For gym data, sync-on codes share one row (device_id ''); sync-off codes
-// keep an isolated per-device row keyed by the real device id.
-// A missing code row now yields revoked=true (JWT must not outlive deletion).
-async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoked: boolean }> {
-  if (!p || !p.code) return { sync: true, data: true, revoked: true };
-  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled, revoked").eq("code", p.code).maybeSingle();
-  return {
-    sync: rec ? (rec.sync_enabled !== false) : true,
-    data: rec ? (rec.data_enabled !== false) : true,
-    revoked: !rec ? true : !!rec.revoked,
-  };
-}
-
 const DAY_MS = 86400000;
 // Absolute expiry instant for a code: lifetime/none => null, not-yet-activated
 // => null (caller falls back to the full day count), otherwise used_at + days.
@@ -74,7 +61,25 @@ function remainingDays(rec: any): number {
   if (days <= 0) return 0; // lifetime / none
   const end = expiryMs(rec);
   if (end == null) return days;
-  return Math.max(0, Math.floor((end - Date.now()) / DAY_MS));
+    return Math.max(0, Math.floor((end - Date.now()) / DAY_MS));
+}
+
+// For gym data, sync-on codes share one row (device_id ''); sync-off codes
+// keep an isolated per-device row keyed by the real device id.
+// A missing code row now yields revoked=true (JWT must not outlive deletion).
+// Expired licenses are ENFORCED here ("expired" flag) — before this, expiry was
+// a client-side-only check, so a 30-day JWT kept full cloud R/W forever.
+// Placed AFTER expiryMs() — function temps would hoist anyway, but reading
+// order matters for humans.
+async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoked: boolean; expired: boolean }> {
+  if (!p || !p.code) return { sync: true, data: true, revoked: true, expired: false };
+  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled, revoked, days, used_at").eq("code", p.code).maybeSingle();
+  return {
+    sync: rec ? (rec.sync_enabled !== false) : true,
+    data: rec ? (rec.data_enabled !== false) : true,
+    revoked: !rec ? true : !!rec.revoked,
+    expired: !!rec && expiryMs(rec) !== null && (expiryMs(rec) as number) <= Date.now(),
+  };
 }
 const normCode = (raw: string) =>
   String(raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
@@ -112,7 +117,7 @@ function subMeta(tierRaw: any, daysRaw: any) {
 }
 
 const signJwt = (payload: Record<string, unknown>, admin = false): string =>
-  jwt.sign(payload, JWT_SECRET, { expiresIn: admin ? "12h" : "30d" });
+  jwt.sign(payload, JWT_SECRET, { expiresIn: admin ? "12h" : "30d", algorithm: "HS256" });
 
 // constant-time string compare (length leaks only) — for admin credential check
 const safeEqual = (a: string, b: string): boolean => {
@@ -125,7 +130,8 @@ const safeEqual = (a: string, b: string): boolean => {
 function verifyJwt(token: string): Record<string, unknown> | null {
   try {
     const clean = token.replace(/^Bearer\s+/i, "");
-    return jwt.verify(clean, JWT_SECRET) as Record<string, unknown>;
+    // Pin the algorithm — never trust whatever the token header claims.
+    return jwt.verify(clean, JWT_SECRET, { algorithms: ["HS256"] }) as Record<string, unknown>;
   } catch { return null; }
 }
 
@@ -142,6 +148,25 @@ function toRecord(r: any) {
     sync_enabled: r.sync_enabled !== false,
     device_limit: Number(r.device_limit) || 3,
     devices: Array.isArray(r.devices) ? r.devices : [],
+  };
+}
+
+// Slimed-down record for CLIENTS (activate/login/mine). toRecord() is for the
+// admin panel. Client-side trims away the admin's private note and the device
+// roster — owner stays because the client-side cloud guard needs it.
+function toClientRecord(r: any) {
+  return {
+    code: r.code, tier: r.tier, days: r.days,
+    owner: String(r.owner || ""),
+    // owner IS included: js/store.js cloudAllowed() matches it against the
+    // signed-in session to keep one account's data out of another account's
+    // cloud. The code holder learns their own email/uuid — not sensitive
+    // extra data. NOT included: note (internal), devices, used_at usage data,
+    // used_device — those are admin-only and stay in toRecord().
+    expiresAt: expiryMs(r),
+    data_enabled: r.data_enabled !== false,
+    sync_enabled: r.sync_enabled !== false,
+    device_limit: Number(r.device_limit) || 3,
   };
 }
 
@@ -372,13 +397,16 @@ async function handler(req: Request): Promise<Response> {
 
     /* client activate */
     if (req.method === "POST" && path === "/api/auth/activate") {
+      const ip = clientIp(req);
       const code = normCode(body?.code);
-      if (tooManyCode(code)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      // Two gates: per-code (existing) AND per-IP. The per-code limiter alone
+      // did nothing against enumeration — an attacker fails 20 times per code
+      // but cycles through code guesses freely from one IP.
+      if (tooManyCode(code) || tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
       const { data: rec, error } = await sb
         .from("codes").select("*").eq("code", code).maybeSingle();
-      if (error || !rec) { failCode(code); return json({ error: "NOT_FOUND" }, 404, origin); }
+      if (error || !rec) { failCode(code); failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
       if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
-      clearCode(code);
       const devId = String(body?.deviceId || "").slice(0, 80);
       const devName = String(body?.deviceName || "").slice(0, 40);
       const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
@@ -390,13 +418,17 @@ async function handler(req: Request): Promise<Response> {
       } else {
         existing.name = devName; existing.at = Date.now();
       }
+      // Success clears BOTH counters — and only here, after every rejection
+      // gate, so a DEVICE_LIMIT rejection no longer wipes the wrong-guess tally.
+      clearCode(code);
+      clearIp(ip);
       const { error: e2 } = await sb.from("codes").update({
         used: true, used_at: rec.used_at || new Date().toISOString(),
         used_device: devId, used_device_name: devName, devices,
       }).eq("code", code);
       if (e2) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       const out = { ...rec, used: true, used_at: rec.used_at || new Date().toISOString(), devices };
-      const record = toRecord(out);
+      const record = toClientRecord(out);
       record.days = remainingDays(out); // leftover time on re-activation, never a fresh reset
       return json({
         ok: true,
@@ -418,12 +450,17 @@ async function handler(req: Request): Promise<Response> {
       if (!rec || !rec.used) { failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
       if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
       if (!rec.pass_hash) return json({ error: "NO_PASSWORD" }, 400, origin);
+      // Credentials gate; expiry gate below — never let an expired licence in.
       const ok = await bcrypt.compare(String(body?.password || ""), rec.pass_hash);
       if (!ok) { failIp(ip); return json({ error: "WRONG_PASSWORD" }, 401, origin); }
       clearIp(ip);
       const devId = String(body?.deviceId || "").slice(0, 80);
-      const record = toRecord(rec);
+      const record = toClientRecord(rec);
       record.days = remainingDays(rec); // login must not reset the countdown
+      const loginEnd = expiryMs(rec);
+      if (loginEnd !== null && loginEnd <= Date.now()) {
+        return json({ ok: true, record, expired: true, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
+      }
       return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 
@@ -436,10 +473,18 @@ async function handler(req: Request): Promise<Response> {
       if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
       const u = await supaUser(req);
       if (!u) { failIp(ip); return json({ error: "UNAUTHORIZED" }, 401, origin); }
+      // Codes get linked either by the auth-binding format (user:<uuid>,
+      // written by /api/trial) or by the admin typing the customer's email.
+      const owners = [`user:${u.id}`];
+      if (u.email) owners.push(String(u.email).toLowerCase());
       const { data: recs, error } = await sb.from("codes").select("*")
-        .eq("owner", `user:${u.id}`).order("used_at", { ascending: false }).limit(1);
+        .in("owner", owners).order("created_at", { ascending: true }).limit(20);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      const rec = recs && recs[0];
+      // Recency by whichever timestamp is available — a never-activated
+      // assigned code (used_at null) must not hide behind an older used trial.
+      const recent = recs ? [...recs].sort((a, b) =>
+        (Date.parse(b.used_at || b.created_at) || 0) - (Date.parse(a.used_at || a.created_at) || 0)) : [];
+      const rec = recent[0];
       if (!rec) return json({ error: "NO_CODE" }, 404, origin);
       if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
       clearIp(ip);
@@ -454,7 +499,7 @@ async function handler(req: Request): Promise<Response> {
         devices.push({ deviceId: devId, name: devName, at: Date.now() });
         await sb.from("codes").update({ devices }).eq("code", rec.code);
       }
-      const record = toRecord(rec);
+      const record = toClientRecord(rec);
       record.days = remainingDays(rec); // the clock is shared — a new device never resets it
       return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
@@ -500,6 +545,7 @@ async function handler(req: Request): Promise<Response> {
       const flags = await codeFlags(p);
       if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
+      if (flags.expired) return json({ error: "EXPIRED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: g } = await sb.from("gyms").select("*").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
       return json(g ? { savedAt: g.saved_at ? new Date(g.saved_at).getTime() : null, data: g.data } : null, 200, origin);
@@ -514,6 +560,7 @@ async function handler(req: Request): Promise<Response> {
       const flags = await codeFlags(p);
       if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
+      if (flags.expired) return json({ error: "EXPIRED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: cur } = await sb.from("gyms").select("data").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
       const merged = mergeGymData(cur?.data || {}, body?.data || {});
@@ -582,10 +629,20 @@ async function handler(req: Request): Promise<Response> {
         do { code = normCode(randomCode()); } while ((await sb.from("codes").select("code").eq("code", code).maybeSingle()).data);
       }
       const tier = ["monthly", "yearly", "lifetime"].includes(body?.tier) ? body.tier : "monthly";
+      // days is the ONLY value the countdown engine reads (tier is a label).
+      // So derive it from the tier when the caller didn't send a positive value:
+      // otherwise {tier:"monthly", days:0} looked like a monthly code but was
+      // silently issued as lifetime, and {tier:"lifetime", days:30} contradicted
+      // its own name.
+      const daysRaw = Math.max(0, Number(body?.days) || 0);
+      const days = daysRaw > 0 ? Math.floor(daysRaw) : tier === "lifetime" ? 0 : tier === "yearly" ? 365 : 30;
       const insert = {
         code, tier,
-        days: Math.max(0, Number(body?.days) || 0),
-        owner: String(body?.owner || "").slice(0, 40),
+        days,
+        // 64: the auth-binding format "user:<uuid>" is EXACTLY 41 chars, so the
+        // old .slice(0,40) chopped one char off and made linked codes
+        // undiscoverable by /api/auth/mine (exact owner match).
+        owner: String(body?.owner || "").trim().toLowerCase().slice(0, 64),
         note: String(body?.note || "").slice(0, 200),
         data_enabled: body?.data_enabled === undefined ? true : !!body?.data_enabled,
         sync_enabled: body?.sync_enabled === undefined ? true : !!body?.sync_enabled,
@@ -600,18 +657,24 @@ async function handler(req: Request): Promise<Response> {
     }
 
     /* admin: revoke / owner / reset-password / delete */
+    // NOTE on counting: supabase-js v2 returns count: null UNLESS the query
+    // passes { count: "exact" } — so the old `if (!count)` reported NOT_FOUND
+    // on every single reset-password even when it had just succeeded. These
+    // admin PATCHes now select the touched row back and 404 honestly.
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/revoke$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
-      const { error } = await sb.from("codes").update({ revoked: !!body?.revoked }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ revoked: !!body?.revoked }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/owner$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
-      const { error } = await sb.from("codes").update({ owner: String(body?.owner || "").slice(0, 40) }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ owner: String(body?.owner || "").trim().toLowerCase().slice(0, 64) }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/reset-password$/.test(path)) {
@@ -622,9 +685,9 @@ async function handler(req: Request): Promise<Response> {
       // unable to ever change it.
       const temp = randChars(12);
       const pass_hash = await bcrypt.hash(temp, BCRYPT_COST);
-      const { error, count } = await sb.from("codes").update({ pass_hash }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ pass_hash }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      if (!count) return json({ error: "NOT_FOUND" }, 404, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true, tempPassword: temp }, 200, origin);
     }
 
@@ -737,16 +800,18 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/data$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
-      const { error } = await sb.from("codes").update({ data_enabled: !!body?.data_enabled }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ data_enabled: !!body?.data_enabled }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true }, 200, origin);
     }
     /* admin: toggle multi-device sync for a code */
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/sync$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
-      const { error } = await sb.from("codes").update({ sync_enabled: !!body?.sync_enabled }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ sync_enabled: !!body?.sync_enabled }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true }, 200, origin);
     }
     /* admin: set max activated devices for a code */
@@ -754,8 +819,9 @@ async function handler(req: Request): Promise<Response> {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = normCode(path.split("/")[3]);
       const lim = Math.max(1, Math.min(20, Math.floor(Number(body?.device_limit) || 3)));
-      const { error } = await sb.from("codes").update({ device_limit: lim }).eq("code", code);
+      const { data, error } = await sb.from("codes").update({ device_limit: lim }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "DELETE" && /^\/api\/codes\/[^\/]+$/.test(path)) {
