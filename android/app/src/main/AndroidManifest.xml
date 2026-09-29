@@ -22,6 +22,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Google OAuth return: the system browser (Custom Tab) opens
+                 com.digitalpulse.gym://auth/callback.html and this filter
+                 brings the app back with the auth code (see js/native-oauth.js). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.digitalpulse.gym" />
+            </intent-filter>
+
         </activity>
 
         <provider

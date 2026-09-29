@@ -4,6 +4,7 @@
 import { supabase } from './supabase-client.js';
 import { validatePassword } from './validate.js';
 import { APP_BASE } from './config.js';
+import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
@@ -274,6 +275,26 @@ googleBtn.addEventListener('click', async () => {
     setMsg('Taking too long — tap again or check your connection / لسه هنا؟ جرّب مرة ثانية أو افحص الشبكة');
   }, 10000);
   if (!supabase) { clearTimeout(googleWatchdog); setMsg('No connection / لا اتصال'); setGoogleLoading(false); loading = false; return; }
+
+  // Native APK: Google refuses OAuth inside embedded WebViews (403
+  // disallowed_useragent). Open the system browser instead; the deep link
+  // (com.digitalpulse.gym://) completes the session asynchronously, so swap
+  // the short watchdog for a patient one that resets this button if the
+  // user closes the browser without finishing. See js/native-oauth.js.
+  if (isNativeApp()) {
+    clearTimeout(googleWatchdog);
+    const nativeErr = await startNativeGoogleOAuth();
+    if (nativeErr) {
+      setMsg(nativeErr);
+      setGoogleLoading(false);
+      loading = false;
+      return;
+    }
+    setMsg('أكمل تسجيل الدخول في المتصفح ثم عُد للتطبيق / Finish in your browser, then come back', '#CCFF00');
+    googleWatchdog = setTimeout(() => { setGoogleLoading(false); loading = false; }, 60000);
+    return;
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -289,3 +310,6 @@ googleBtn.addEventListener('click', async () => {
     loading = false;
   }
 });
+
+// Native APK: arm the deep-link return path for Google OAuth.
+armNativeOAuthReturn();

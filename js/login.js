@@ -3,6 +3,7 @@
 // ============================================================
 import { APP_BASE } from './config.js';
 import { computeAccess, READONLY, showGate } from './access.js';
+import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
@@ -317,6 +318,27 @@ googleBtn.addEventListener('click', async () => {
   let supabase = null;
   try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
   if (!supabase) { clearTimeout(googleWatchdog); setMsg('No connection / لا اتصال'); setGoogleLoading(false); loading = false; return; }
+
+  // Native APK: Google refuses OAuth inside embedded WebViews (403
+  // disallowed_useragent), so the in-page redirect flow can never finish.
+  // Open the system browser instead; the deep link (com.digitalpulse.gym://)
+  // brings the auth code back and the session completes asynchronously, so
+  // swap the short watchdog for a patient one that just resets this button
+  // if the user closes the browser without finishing.
+  if (isNativeApp()) {
+    clearTimeout(googleWatchdog);
+    const nativeErr = await startNativeGoogleOAuth();
+    if (nativeErr) {
+      setMsg(nativeErr);
+      setGoogleLoading(false);
+      loading = false;
+      return;
+    }
+    setMsg('أكمل تسجيل الدخول في المتصفح ثم عُد للتطبيق / Finish in your browser, then come back', '#CCFF00');
+    googleWatchdog = setTimeout(() => { setGoogleLoading(false); loading = false; }, 60000);
+    return;
+  }
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html` },
@@ -334,3 +356,7 @@ googleBtn.addEventListener('click', async () => {
 
 /* -------- Auto-redirect if session exists -------- */
 if (checkExistingSession()) { /* auto-redirecting to app.html */ }
+
+// Native APK: arm the deep-link return path for Google OAuth (system
+// browser → com.digitalpulse.gym://auth/callback.html → auth/callback.html).
+armNativeOAuthReturn();
