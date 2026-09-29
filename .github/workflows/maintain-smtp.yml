@@ -1,0 +1,42 @@
+# Re-applies the custom SMTP configuration for auth emails (Gmail) via the
+# Management API. Idempotent — safe to run any time emails stop arriving.
+# NOTE: smtp_pass is never printed; jq selects only non-secret fields, and
+# GitHub masks secret values in logs.
+name: Maintain SMTP Settings
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smtp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read current SMTP config (password never printed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+            | jq '{smtp_host, smtp_port, smtp_user, smtp_sender_name, smtp_admin_email}'
+
+      - name: Apply correct SMTP settings (idempotent)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SMTP_APP_PASSWORD: ${{ secrets.SMTP_APP_PASSWORD }}
+        run: |
+          curl -s -X PATCH -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+            -d "{\"smtp_host\":\"smtp.gmail.com\",\"smtp_port\":587,\"smtp_admin_email\":\"digitalpulse.ps@gmail.com\",\"smtp_sender_name\":\"Digital Pulse\",\"smtp_user\":\"digitalpulse.ps@gmail.com\",\"smtp_pass\":\"$SMTP_APP_PASSWORD\"}" \
+            | jq '{smtp_host, smtp_port, smtp_user, smtp_sender_name, smtp_admin_email}'
+
+      - name: Confirm applied config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+            | jq '{smtp_host, smtp_port, smtp_user, smtp_sender_name, smtp_admin_email}'
