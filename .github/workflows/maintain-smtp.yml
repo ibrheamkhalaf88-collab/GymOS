@@ -46,12 +46,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          echo "=== sources ==="
+          echo "=== sources (status below) ==="
           curl -s --get -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs.all" \
-            --data-urlencode 'sql=SELECT DISTINCT source FROM logs' | head -c 1200
+            --data-urlencode 'sql=SELECT DISTINCT source FROM logs' \
+            -w "\nHTTP_CODE=%{http_code}\n" | head -c 1500
           echo ""
-          echo "=== auth logs (recent errors + send results) ==="
+          echo "=== auth_logs raw (status below) ==="
           curl -s --get -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs.all" \
-            --data-urlencode 'sql=SELECT datetime(timestamp), event_message FROM auth_logs WHERE timestamp >= now() - INTERVAL 2 HOUR ORDER BY timestamp DESC LIMIT 60' | head -c 8000
+            --data-urlencode 'sql=SELECT datetime(timestamp), event_message FROM auth_logs WHERE timestamp >= now() - INTERVAL 2 HOUR ORDER BY timestamp DESC LIMIT 60' \
+            -w "\nHTTP_CODE=%{http_code}\n" | head -c 8000
