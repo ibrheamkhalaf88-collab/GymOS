@@ -57,3 +57,33 @@ jobs:
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/analytics/endpoints/logs.all" \
             --data-urlencode 'sql=SELECT datetime(timestamp), event_message FROM auth_logs WHERE timestamp >= now() - INTERVAL 2 HOUR ORDER BY timestamp DESC LIMIT 60' \
             -w "\nHTTP_CODE=%{http_code}\n" | head -c 8000
+
+      - name: Apply branded confirmation email template (Digital Pulse)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          cat > /tmp/tpl.html <<'HTMLEOF'
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:36px 12px;"><tr><td align="center"><table width="480" cellpadding="0" cellspacing="0" style="max-width:480px;background:#000000;border:1px solid #444933;border-radius:14px;">
+          <tr><td align="center" style="padding:34px 24px 10px;"><img src="https://ibrheamkhalaf88-collab.github.io/GymOS/assets/icons/icon-192.png" width="76" height="76" alt="Digital Pulse" style="border-radius:16px;display:block;"/></td></tr>
+          <tr><td align="center" style="padding:0 24px;"><p style="color:#C3F400;font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:bold;letter-spacing:1px;margin:4px 0 2px;">DIGITAL PULSE</p><p style="color:#c4c9ac;font-family:Arial,Helvetica,sans-serif;font-size:13px;margin:0 0 6px;" dir="rtl">النبض الرقمي — أدر ناديك بنبضة واحدة</p></td></tr>
+          <tr><td align="center" style="padding:14px 30px 4px;"><h2 style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:19px;font-weight:bold;margin:6px 0;" dir="rtl">أكّد حسابك الآن</h2><p style="color:#c4c9ac;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.9;margin:6px 0;" dir="rtl">اضغط الزر بالأسفل لتأكيد بريدك الإلكتروني وتفعيل حسابك</p><p style="color:#8e9379;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.7;margin:6px 0;">Confirm your email to activate your account</p></td></tr>
+          <tr><td align="center" style="padding:14px 30px 30px;"><a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#CCFF00;color:#000000;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;padding:15px 44px;border-radius:12px;text-decoration:none;" dir="rtl">تأكيد الحساب ✓ Confirm Account</a></td></tr>
+          <tr><td style="padding:0 30px 22px;"><p style="color:#5a5e4a;font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:8px 0 6px;" dir="rtl">لو الزر ما اشتغل، انسخ الرابط ده في المتصفح:</p><p style="color:#5a5e4a;font-family:Arial,Helvetica,sans-serif;font-size:11px;word-break:break-all;margin:0;">{{ .ConfirmationURL }}</p><p style="color:#5a5e4a;font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:14px 0 0;" dir="rtl">لم تطلب هذا الحساب؟ تجاهل الرسالة بأمان. / Didn't sign up? Safe to ignore.</p></td></tr>
+          <tr><td align="center" style="padding:14px;border-top:1px solid #444933;"><p style="color:#444933;font-family:Arial,Helvetica,sans-serif;font-size:11px;margin:0;">© 2026 Digital Pulse — All rights reserved</p></td></tr>
+          </table></td></tr></table>
+          HTMLEOF
+          jq -n --arg subj 'أكّد حسابك في Digital Pulse ✓ Confirm your account' --rawfile html /tmp/tpl.html \
+            '{mailer_subjects_confirmation:$subj, mailer_templates_confirmation_content:$html}' > /tmp/patch.json
+          curl -s -X PATCH -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" -d @/tmp/patch.json \
+            | jq '{has_subj: (.mailer_subjects_confirmation != null), has_tpl: (.mailer_templates_confirmation_content != null), tpl_has_logo: ((.mailer_templates_confirmation_content // "") | contains("icon-192.png"))}'
+
+      - name: Verify template saved
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          curl -s -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+            | jq '{mailer_subjects_confirmation, tpl_len: ((.mailer_templates_confirmation_content // "") | length), tpl_has_logo: ((.mailer_templates_confirmation_content // "") | contains("icon-192.png")), tpl_has_confirm_url: ((.mailer_templates_confirmation_content // "") | contains("ConfirmationURL"))}'
