@@ -66,7 +66,10 @@
         loginAt: NOW,
       }));
       localStorage.setItem('dp_user_email', user.email || '');
-      window.location.replace(new URL('../app.html', import.meta.url).href);
+      
+      // Redirect to return URL or app.html
+      const returnUrl = new URLSearchParams(window.location.search).get('return') || '../app.html';
+      window.location.replace(new URL(returnUrl, import.meta.url).href);
     }
 
     function decodeJwt(token) {

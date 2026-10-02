@@ -4,6 +4,10 @@
 import { APP_BASE } from './config.js';
 import { computeAccess, READONLY, showGate } from './access.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
+import { codesDb } from './db.js';
+import { license } from './license.js';
+import { showToast, openModal } from './ui.js';
+import { appConfig } from './config.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
@@ -13,6 +17,51 @@ const googleBtn = $('#googleBtn');
 const forgotLink = $('#forgotLink');
 const resendBtn = $('#resendConfirmBtn');
 let loading = false;
+
+// Get return URL from query params (for redirect after login)
+const urlParams = new URLSearchParams(window.location.search);
+const returnUrl = urlParams.get('return') || 'app.html';
+const loginReason = urlParams.get('reason') || '';
+
+// Check if this is first login (no trial used yet)
+function isFirstLogin() {
+  return !localStorage.getItem('dp_welcome_shown') && !localStorage.getItem('dp_trial_used');
+}
+
+// Auto-activate 30-day trial for first-time users (no modal, automatic)
+async function autoActivateTrial(userEmail) {
+  const shown = localStorage.getItem('dp_welcome_shown');
+  if (shown) return false; // Already shown
+  
+  localStorage.setItem('dp_welcome_shown', '1');
+  
+  // Create trial via codesDb
+  try {
+    const res = await codesDb.activate('TRIAL-' + Date.now().toString(36).toUpperCase().slice(-6), {
+      deviceId: localStorage.getItem('dp_device_id') || '',
+      deviceName: navigator.userAgent.slice(0, 40)
+    });
+    if (res.ok) {
+      license.save(res.record);
+      localStorage.setItem('dp_trial_used', '1');
+      localStorage.setItem('dp_cloud', '1');
+      showToast('🎁 تم تفعيل 30 يوم مجاناً كهدية ترحيبية! / 30-day welcome trial activated!');
+    } else {
+      // Fallback: create local trial
+      const trialCode = 'TRI-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      license.save({ code: trialCode, tier: 'trial', days: 30 });
+      localStorage.setItem('dp_trial_used', '1');
+      showToast('🎁 تم تفعيل 30 يوم مجاناً كهدية ترحيبية! / 30-day welcome trial activated!');
+    }
+  } catch (e) {
+    // Fallback: create local trial
+    const trialCode = 'TRI-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    license.save({ code: trialCode, tier: 'trial', days: 30 });
+    localStorage.setItem('dp_trial_used', '1');
+    showToast('🎁 تم تفعيل 30 يوم مجاناً كهدية ترحيبية! / 30-day welcome trial activated!');
+  }
+  return true;
+}
 
 /* Resend the signup confirmation email when login reports an unconfirmed
    inbox. Throttled 30s so it can't be used as a mail spammer. */
@@ -227,7 +276,12 @@ form.addEventListener('submit', async (e) => {
       // Adopt the server code bound to this account so this device syncs the
       // same gym data as every other device (was: email logins never synced).
       try { const { linkCloudIdentity } = await import('./cloud-link.js'); await linkCloudIdentity(supabase); } catch {}
-      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); window.location.href = 'app.html'; return;
+      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); 
+      if (isFirstLogin()) {
+        await autoActivateTrial(result.user.email);
+      }
+      window.location.href = returnUrl;
+      return;
     } catch (err) {
       if (err?.code === "over_request_timeout") {
         // Sign-in hung (Web Locks after sign-out, or dead network). Never leave
@@ -258,7 +312,10 @@ form.addEventListener('submit', async (e) => {
   const subCheck = checkSubscription(result.user);
   if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
   storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
-  window.location.href = 'app.html';
+  if (isFirstLogin()) {
+    await autoActivateTrial(result.user.email);
+  }
+  window.location.href = returnUrl;
 });
 
 /* -------- Forgot password -------- */
@@ -341,7 +398,7 @@ googleBtn.addEventListener('click', async () => {
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html` },
+    options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html?return=${encodeURIComponent(returnUrl)}` },
   });
   if (error) {
     clearTimeout(googleWatchdog);
