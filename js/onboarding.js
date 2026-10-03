@@ -158,13 +158,27 @@ function finish() {
   location.replace(isActive ? "app.html" : "activate.html");
 }
 
-// Routing: returning users skip onboarding, go straight to login
+// Routing: returning users skip onboarding, go to appropriate screen based on license
 (function route() {
   const seen = localStorage.getItem(KEY_SEEN) === "1";
-  if (seen) {
-    // Returning user — send to login page
-    location.replace("login.html");
+  if (!seen) {
+    render();
     return;
   }
-  render();
+  
+  // Returning user — check license state to decide where to go
+  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  const now = Date.now();
+  const isActive = lic && (lic.expiresAt === 0 || (lic.expiresAt && now < lic.expiresAt));
+  const isReadOnly = lic && lic.expiresAt && now >= lic.expiresAt;
+  
+  if (isActive) {
+    location.replace("app.html");
+  } else if (isReadOnly) {
+    // Expired license — send to activate with trial hint
+    location.replace("activate.html#trial");
+  } else {
+    // No license at all — send to activate
+    location.replace("activate.html");
+  }
 })();
