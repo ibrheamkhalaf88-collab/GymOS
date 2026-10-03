@@ -33,7 +33,12 @@
     </div>
   </div>
 
-  <!-- Handle the OAuth callback — runs immediately -->
+  <!-- Handle the OAuth callback — runs immediately
+     This page handles BOTH:
+     1. Web flow: https://yoursite.com/auth/callback.html?code=...
+     2. APK deep link flow: com.digitalpulse.gym://auth/callback.html?code=...
+        (intercepted by Android app, forwarded here via native-oauth.js)
+-->
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
     import { supabase } from '../js/supabase-client.js';

@@ -7,8 +7,8 @@
 // browser redirect, open the OAuth URL ourselves in the system browser
 // (Chrome Custom Tab via @capacitor/browser), and return to the app
 // through the deep link com.digitalpulse.gym://auth/callback.html?code=…
-// (the scheme is registered in AndroidManifest.xml and is already on the
-// Supabase redirect allowlist — verified live 2026-09-28).
+// (the scheme is registered in AndroidManifest.xml and MUST be added to
+// Supabase Dashboard → Authentication → URL Configuration → Redirect URLs).
 // The deep link forwards its query/hash to auth/callback.html, which then
 // completes the PKCE exchange exactly like the browser flow (the code
 // verifier lives in this WebView's sessionStorage at https://localhost).
@@ -18,6 +18,14 @@ import { supabase } from './supabase-client.js';
 const DEEPLINK_CALLBACK = 'com.digitalpulse.gym://auth/callback.html';
 const SCHEME = 'com.digitalpulse.gym://';
 const GUARD_KEY = 'dp_oauth_deeplink_handled';
+
+/**
+ * REQUIRED: Add this URL to Supabase Dashboard:
+ * Authentication → URL Configuration → Redirect URLs
+ * 
+ * com.digitalpulse.gym://auth/callback.html
+ */
+export const DEEPLINK_CALLBACK_URL = DEEPLINK_CALLBACK;
 
 export function isNativeApp() {
   const C = window.Capacitor;
