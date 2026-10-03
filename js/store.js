@@ -234,8 +234,18 @@ function queueCloudSave() {
 // updatedAt (newer wins; deletions propagate via tombstones), writes the
 // merged result locally (only if changed), then pushes it back. The server
 // also merges, so two devices editing at the same time never clobber.
+// Uses SERVER TIMESTAMP as authoritative clock to avoid clock skew conflicts.
 let _syncing = false;
 let _syncTimer = null;
+let _serverTimeOffset = 0; // serverTime - localTime, updated on each successful sync
+
+function getServerTime() {
+  return Date.now() + _serverTimeOffset;
+}
+
+function setServerTimeOffset(serverTime) {
+  _serverTimeOffset = serverTime - Date.now();
+}
 
 function mergeTombstones(a, b) {
   const out = { ...(a || {}) };
@@ -251,6 +261,7 @@ function mergeTombstones(a, b) {
 
 function mergeStates(local, cloud, tombstones) {
   const result = {};
+  const now = getServerTime(); // Use server time as authoritative clock
   COLLECTIONS.forEach((c) => {
     if (c === "checkins" || c === "notifications") {
       result[c] = local[c] || []; // local-only logs
@@ -283,6 +294,28 @@ function mergeStates(local, cloud, tombstones) {
   return result;
 }
 
+// Prune tombstones older than 30 days to prevent unbounded growth
+function pruneTombstones(tombstones, maxAge = 30 * DAY_MS) {
+  const cutoff = getServerTime() - maxAge;
+  const pruned = {};
+  let totalBefore = 0, totalAfter = 0;
+  Object.keys(tombstones).forEach((c) => {
+    pruned[c] = {};
+    Object.keys(tombstones[c]).forEach((id) => {
+      totalBefore++;
+      const ts = Number(tombstones[c][id]) || 0;
+      if (ts > cutoff) {
+        pruned[c][id] = ts;
+        totalAfter++;
+      }
+    });
+  });
+  if (totalBefore !== totalAfter) {
+    console.log(`[GymOS] Pruned ${totalBefore - totalAfter} tombstones older than 30 days`);
+  }
+  return pruned;
+}
+
 async function syncNow() {
   if (_syncing) return;
   if (localStorage.getItem(STORAGE_KEYS.CLOUD_ENABLED) !== "1") return;
@@ -297,12 +330,19 @@ async function syncNow() {
     const cloudRes = await codesDb.loadGym(lic.code);
     const cloud = cloudRes && cloudRes.data ? cloudRes.data : null;
     let merged, mergedTomb;
+    
+    // Update server time offset from response
+    if (cloudRes && cloudRes.savedAt) {
+      setServerTimeOffset(cloudRes.savedAt);
+    }
+    
     if (cloud) {
       mergedTomb = mergeTombstones(local._tombstones, cloud._tombstones);
+      mergedTomb = pruneTombstones(mergedTomb); // Cleanup old tombstones
       merged = mergeStates(local, cloud, mergedTomb);
     } else {
       merged = local;
-      mergedTomb = local._tombstones;
+      mergedTomb = pruneTombstones(local._tombstones);
     }
     _suppressCloud = true;
     COLLECTIONS.forEach((c) => {
@@ -316,7 +356,10 @@ async function syncNow() {
     const push = {};
     COLLECTIONS.forEach((c) => { if (c in merged) push[c] = merged[c]; });
     push._tombstones = mergedTomb;
-    await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    const saveRes = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    if (saveRes && saveRes.savedAt) {
+      setServerTimeOffset(saveRes.savedAt);
+    }
     markSaved();
   } catch (e) {
     setSyncState("error");

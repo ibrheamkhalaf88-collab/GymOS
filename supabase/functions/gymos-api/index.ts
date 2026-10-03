@@ -564,11 +564,12 @@ async function handler(req: Request): Promise<Response> {
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
       const { data: cur } = await sb.from("gyms").select("data").eq("code", p.code).eq("device_id", deviceId).maybeSingle();
       const merged = mergeGymData(cur?.data || {}, body?.data || {});
+      const savedAt = new Date().toISOString();
       const { error } = await sb.from("gyms").upsert(
-        { code: p.code, device_id: deviceId, data: merged, saved_at: new Date().toISOString() },
+        { code: p.code, device_id: deviceId, data: merged, saved_at: savedAt },
         { onConflict: "code,device_id" });
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      return json({ ok: true, data: merged }, 200, origin);
+      return json({ ok: true, data: merged, savedAt: new Date(savedAt).getTime() }, 200, origin);
     }
 
     /* admin login */
