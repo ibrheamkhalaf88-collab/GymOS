@@ -33,7 +33,12 @@ test("login + signup: native branch opens the system browser, web keeps in-page 
     assert.match(src, /if \(isNativeApp\(\)\)/, `${name}.js has the native branch`);
     assert.match(src, /await startNativeGoogleOAuth\(\)/, `${name}.js starts the Custom Tab flow`);
     assert.match(src, /armNativeOAuthReturn\(\)/, `${name}.js arms the deep-link listener`);
-    assert.match(src, /redirectTo: `\$\{APP_BASE\}auth\/callback\.html`/, `${name}.js keeps the web redirect`);
+    // login.js includes return URL param, signup.js uses base callback
+    if (name === 'login') {
+      assert.match(src, /redirectTo: `\$\{APP_BASE\}auth\/callback\.html\?return=/, `${name}.js keeps the web redirect with return URL`);
+    } else {
+      assert.match(src, /redirectTo: `\$\{APP_BASE\}auth\/callback\.html`/, `${name}.js keeps the web redirect`);
+    }
   }
 });
 

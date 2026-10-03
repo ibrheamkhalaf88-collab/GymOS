@@ -5,12 +5,22 @@
 // ============================================================
 
 import { requireWrite } from "./access.js";
+import { 
+  STORAGE_KEYS, 
+  AUDIT_MAX, 
+  COLLECTIONS,
+  CLOUD_SAVE_DEBOUNCE_MS,
+  SYNC_INTERVAL_MS,
+  CODES_SYNC_INTERVAL_MS,
+  PLAN_DEFAULTS,
+  PLAN_KEYS,
+  PLAN_PRICES_KEY,
+  VALIDATION
+} from './constants.js';
 
 const PREFIX = "dp_";
-const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications", "audit_log"];
-const TOMB_KEY = "dp_tombstones";
-const AUDIT_KEY = "dp_audit_log";
-const AUDIT_MAX = 5000; // احتفظ بـ 5000 عملية كحد أقصى
+const TOMB_KEY = STORAGE_KEYS.TOMBSTONES;
+const AUDIT_KEY = STORAGE_KEYS.AUDIT_LOG;
 
 const listeners = new Map();
 let _suppressCloud = false;
@@ -20,7 +30,7 @@ let _suppressCloud = false;
 // بيانات الآخر على نفس الجهاز. قبل الحسابات كانت البيانات عمومية على الجهاز.
 function currentAccountId() {
   try {
-    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    const u = JSON.parse(localStorage.getItem(STORAGE_KEYS.CURRENT_USER) || "null");
     if (u && u.id) return String(u.id).replace(/[^A-Za-z0-9_-]/g, "") || null;
   } catch {}
   return null;
@@ -36,7 +46,7 @@ function memTombKey() {
 }
 function memSeededKey() {
   const uid = currentAccountId();
-  return uid ? `${PREFIX}${uid}_seeded` : "dp_seeded";
+  return uid ? `${PREFIX}${uid}_seeded` : STORAGE_KEYS.SEEDED;
 }
 // السحابة مرتبطة بترخيص الجهاز — لا تسمح بدفع بيانات حساب آخر إلى سحابة
 // ترخيص لا يملكه، ولا تعطل المزامنة إلا إذا كان الحساب مالك الترخيص.
@@ -77,7 +87,7 @@ function writeAudit(list) { localStorage.setItem(AUDIT_KEY, JSON.stringify(list)
 
 function currentUserIdentity() {
   try {
-    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    const u = JSON.parse(localStorage.getItem(STORAGE_KEYS.CURRENT_USER) || "null");
     if (u) return { id: u.id, name: u.name, email: u.email };
   } catch {}
   return { id: "unknown", name: "Unknown", email: "" };
@@ -132,7 +142,7 @@ let _cloudTimer = null;
 // dp_pending_sync = "1" means: there are local changes that have NOT
 // reached the cloud yet. The Settings cloud-sync row renders this state
 // live; the UI listens to the "dp:syncstatus" event.
-const PENDING_KEY = "dp_pending_sync";
+const PENDING_KEY = STORAGE_KEYS.PENDING_SYNC;
 let _syncState = "ok"; // ok | syncing | error
 let _lastSyncOk = 0;
 
@@ -199,14 +209,14 @@ function cloudDump() {
 }
 
 function queueCloudSave() {
-  if (localStorage.getItem("dp_cloud") !== "1") return;
+  if (localStorage.getItem(STORAGE_KEYS.CLOUD_ENABLED) !== "1") return;
   // There are local changes not yet confirmed by the cloud → badge "unsynced".
   localStorage.setItem(PENDING_KEY, "1");
   try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
   clearTimeout(_cloudTimer);
   _cloudTimer = setTimeout(async () => {
     try {
-      const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+      const lic = JSON.parse(localStorage.getItem(STORAGE_KEYS.LICENSE) || "null");
       if (!lic || !lic.code || !cloudAllowed(lic)) { localStorage.removeItem(PENDING_KEY); return; }
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) { localStorage.removeItem(PENDING_KEY); return; }
@@ -217,7 +227,7 @@ function queueCloudSave() {
       setSyncState("error"); // pending flag stays set → retried by sync loop / online event
       console.warn("[GymOS] cloud save skipped:", err && err.message);
     }
-  }, 1500);
+  }, CLOUD_SAVE_DEBOUNCE_MS);
 }
 // ---------- Multi-device sync engine ----------
 // Pulls the cloud state, merges item-by-item with the local state by
@@ -275,8 +285,8 @@ function mergeStates(local, cloud, tombstones) {
 
 async function syncNow() {
   if (_syncing) return;
-  if (localStorage.getItem("dp_cloud") !== "1") return;
-  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  if (localStorage.getItem(STORAGE_KEYS.CLOUD_ENABLED) !== "1") return;
+  const lic = JSON.parse(localStorage.getItem(STORAGE_KEYS.LICENSE) || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   _syncing = true;
   setSyncState("syncing");
@@ -326,11 +336,11 @@ let _onOnline = null;
 
 function startSync() {
   if (_syncTimer) return;
-  if (localStorage.getItem("dp_cloud") !== "1") return;
-  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  if (localStorage.getItem(STORAGE_KEYS.CLOUD_ENABLED) !== "1") return;
+  const lic = JSON.parse(localStorage.getItem(STORAGE_KEYS.LICENSE) || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   syncNow();
-  _syncTimer = setInterval(syncNow, 20000);
+  _syncTimer = setInterval(syncNow, SYNC_INTERVAL_MS);
   _onVis = () => { if (document.visibilityState === "visible") syncNow(); };
   _onFocus = () => syncNow();
   // Network came back → push any pending changes immediately.
@@ -363,18 +373,11 @@ export function uid(prefix = "id") {
 }
 
 // ---------- Plans & prices (editable by the admin) ----------
-const PLAN_PRICES_KEY = "dp_plan_prices";
 
-// Pricing per marketing-strategy skill: charm endings (<$100 rule),
-// middle-tier anchoring (Pro positioned as best value), entry "Half" tier
-export const PLANS = [
-  { key: "half", en: "Half", ar: "نص", defaultPrice: 9 },
-  { key: "regular", en: "Regular", ar: "عادي", defaultPrice: 29 },
-  { key: "pro", en: "Pro", ar: "اخترافي", defaultPrice: 49 },
-];
+export const PLANS = PLAN_KEYS.map(k => ({ key: k, ...PLAN_DEFAULTS[k] }));
 
 export function planPrices() {
-  const defaults = Object.fromEntries(PLANS.map((p) => [p.key, p.defaultPrice]));
+  const defaults = Object.fromEntries(PLAN_KEYS.map(k => [k, PLAN_DEFAULTS[k].defaultPrice]));
   try {
     const saved = JSON.parse(localStorage.getItem(PLAN_PRICES_KEY));
     if (saved && typeof saved === "object") return { ...defaults, ...saved };
@@ -408,11 +411,11 @@ export const store = {
     // الهجرة مرة واحدة فقط على الجهاز — فلا تتسرب الداتا القديمة لحسابات أخرى.
     if (seedFlag !== "1") {
       const uid = currentAccountId();
-      if (uid && localStorage.getItem(PREFIX + col) !== null && localStorage.getItem("dp_legacy_migrated") !== "1") {
+      if (uid && localStorage.getItem(PREFIX + col) !== null && localStorage.getItem(STORAGE_KEYS.LEGACY_MIGRATED) !== "1") {
         try {
           const legacy = JSON.parse(localStorage.getItem(PREFIX + col)) || [];
           localStorage.setItem(key, JSON.stringify(legacy));
-          localStorage.setItem("dp_legacy_migrated", "1");
+          localStorage.setItem(STORAGE_KEYS.LEGACY_MIGRATED, "1");
           return legacy;
         } catch { /* fallthrough */ }
       }

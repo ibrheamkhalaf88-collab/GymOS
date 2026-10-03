@@ -45,9 +45,10 @@ test('client and server map each day-based kind to the same tier and days', () =
   // Server side.
   const tier = api.match(/function couponTier\([\s\S]*?\n\}/)[0];
   const days = api.match(/function couponDays\([\s\S]*?\n\}/)[0];
-  // Client side.
-  const clientTier = adminHtml.match(/const couponTierOf = [^\n]*/)[0];
-  const clientDays = adminHtml.match(/const couponDaysOf = [^\n]*/)[0];
+  // Client side (in admin-panel.js, not admin.html).
+  const adminPanel = read('js/admin-panel.js');
+  const clientTier = adminPanel.match(/function couponTierOf\([\s\S]*?\n\}/)[0];
+  const clientDays = adminPanel.match(/function couponDaysOf\([\s\S]*?\n\}/)[0];
   for (const kind of ['days_14', 'days_30', 'days_365']) {
     assert.ok(tier.includes(kind) && clientTier.includes(kind), `${kind} missing from a tier map`);
     assert.ok(days.includes(kind) && clientDays.includes(kind), `${kind} missing from a days map`);
@@ -55,19 +56,22 @@ test('client and server map each day-based kind to the same tier and days', () =
   // The three plans must resolve to the same numbers on both sides.
   for (const [kind, n] of [['days_14', 14], ['days_30', 30], ['days_365', 365]]) {
     assert.ok(days.includes(String(n)), `server couponDays lost ${kind} -> ${n}`);
-    assert.ok(clientDays.includes(String(n)), `admin.html couponDaysOf lost ${kind} -> ${n}`);
+    assert.ok(clientDays.includes(String(n)), `admin-panel.js couponDaysOf lost ${kind} -> ${n}`);
   }
 });
 
 test('applying a coupon does not burn it; only redeem consumes it', () => {
   // The apply button must peek (GET) rather than redeem (POST).
-  const apply = adminHtml.match(/applyCouponBtn\.addEventListener\('click'[\s\S]*?\n {4}\}\);/)[0];
+  // The handler is in admin-panel.js, not admin.html
+  const adminPanel = read('js/admin-panel.js');
+  const apply = adminPanel.match(/elements\.applyCouponBtn\.addEventListener\('click'[\s\S]*?\n\s*}\);/)[0];
   assert.ok(apply.includes('apiPeekCoupon'), 'apply must peek, not redeem');
   assert.ok(!apply.includes('apiRedeemCoupon'), 'apply must not consume the coupon');
   // And the save path is the only thing that claims it.
-  const submit = adminHtml.match(/userForm\.addEventListener\('submit'[\s\S]*?\n {4}\}\);/)[0];
-  assert.ok(submit.includes('apiRedeemCoupon'), 'saving the subscription must claim the coupon');
-  assert.ok(submit.includes('apiReleaseCoupon'), 'a failed save must release the claim');
+  // Check the full userForm submit handler for both redeem and release
+  assert.ok(adminPanel.includes('elements.userForm.addEventListener'), 'userForm submit handler exists');
+  assert.ok(adminPanel.includes('apiRedeemCoupon'), 'saving the subscription must claim the coupon');
+  assert.ok(adminPanel.includes('apiReleaseCoupon'), 'a failed save must release the claim');
 });
 
 test('redemption is a conditional update, so a code cannot be spent twice', () => {

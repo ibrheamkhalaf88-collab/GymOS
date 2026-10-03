@@ -12,16 +12,10 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------- HTML escaping (XSS prevention) ----------
-const esc = (s) =>
-  String(s ?? '')
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&apos;');
-
-// Safe attribute value escaping
-const escAttr = (s) => esc(s).replace(/`/g, '&#96;');
+// Use the shared, tested escapeHtml from ui.js
+import { escapeHtml } from './ui.js';
+const esc = escapeHtml;
+const escAttr = (s) => escapeHtml(s).replace(/`/g, '&#96;');
 
 // ---------- Toast notifications ----------
 function showToast(msg, type = 'success') {
@@ -237,9 +231,33 @@ const elements = {
 const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
 const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
 
-if (!TOKEN) {
+// Validate JWT before allowing access
+async function validateAdminToken() {
+  if (IS_DEMO) return true;
+  if (!TOKEN) return false;
+  
+  try {
+    const payload = JSON.parse(atob(TOKEN.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    // Check expiry
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      sessionStorage.removeItem('dp_admin_token');
+      return false;
+    }
+    // Check admin claim
+    if (payload.admin !== true) {
+      sessionStorage.removeItem('dp_admin_token');
+      return false;
+    }
+    return true;
+  } catch {
+    sessionStorage.removeItem('dp_admin_token');
+    return false;
+  }
+}
+
+if (!TOKEN || !(await validateAdminToken())) {
   window.location.href = 'admin-login.html';
-  throw new Error('no admin token');
+  throw new Error('no admin token or invalid');
 }
 
 // Initialize UI for demo/online mode

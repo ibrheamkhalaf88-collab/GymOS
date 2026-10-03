@@ -15,15 +15,16 @@
 // never lock a paying customer out over missing metadata — and let
 // the server be the authority that actually matters.
 // ============================================================
+import { STORAGE_KEYS, DAY_MS, ACCESS_STATES } from './constants.js';
 
-const LICENSE_KEY = "dp_license";
-const SESSION_KEY = "dp_current_user";
+const LICENSE_KEY = STORAGE_KEYS.LICENSE;
+const SESSION_KEY = STORAGE_KEYS.CURRENT_USER;
 
-export const DAY = 86400000;
+export const DAY = DAY_MS;
 
-export const FULL = "full";         // everything works
-export const READONLY = "readonly"; // expired — read + export, no writes
-export const LOCKED = "locked";     // no licence at all — must activate
+export const FULL = ACCESS_STATES.FULL;
+export const READONLY = ACCESS_STATES.READONLY;
+export const LOCKED = ACCESS_STATES.LOCKED;
 
 /* ---------------------------------------------------------------
    Pure logic — no DOM, no storage. Directly unit-tested.
@@ -94,7 +95,7 @@ export function computeAccess(input = {}, now = Date.now()) {
 
 export function daysBetween(expiresAt, now = Date.now()) {
   if (expiresAt === 0) return Infinity;
-  return Math.max(0, Math.floor((expiresAt - now) / DAY));
+  return Math.max(0, Math.floor((expiresAt - now) / DAY_MS));
 }
 
 export function canWrite(access) {

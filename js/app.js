@@ -11,12 +11,16 @@ import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "
 import { sanitizeName, sanitizeAmount, sanitizePhone, validatePassword } from "./validate.js";
 import { appConfig } from "./config.js";
 import { install as installAccess } from "./access.js";
+import { DAY_MS, VALIDATION } from "./constants.js";
 import "./sync-status-ui.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
+
+// Use shared constant
+const DAY = DAY_MS;
 
 // ---------- Force update (native APK only) — non-blocking with timeout + cache ----------
 enforceUpdateIfNeeded().catch(() => {});
@@ -211,7 +215,7 @@ function effStatus(m) {
 function effectiveLicense() {
   const lic = license.get();
   if (lic) return { lic, left: license.daysLeft() };
-  let code = "TRIAL", owner = "", end = Date.now() + 30 * 86400000;
+  let code = "TRIAL", owner = "", end = Date.now() + 30 * DAY_MS;
   try {
     const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
     if (u) {
@@ -220,7 +224,7 @@ function effectiveLicense() {
       if (u.subEnd) end = Number(u.subEnd);
     }
   } catch {}
-  const left = Math.max(1, Math.ceil((end - Date.now()) / 86400000));
+  const left = Math.max(1, Math.ceil((end - Date.now()) / DAY_MS));
   return { lic: { code, tier: "trial", expiresAt: end, owner }, left };
 }
 const nf = new Intl.NumberFormat("en-US");
@@ -1702,7 +1706,7 @@ function openTrainerForm(id = null) {
           <input name="startedAt" type="date" value="${iso(cur?.startedAt)}" max="${new Date().toLocaleDateString("en-CA")}" class="dp-field mt-1"/></div>
       </div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Contract end / تاريخ انتهاء العقد (شهر من اليوم — قابل للتعديل)</label>
-        <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : iso(Date.now() + 30 * 86400000)}" class="dp-field mt-1"/></div>
+        <input name="contractEnd" type="date" value="${cur?.contractEnd ? iso(cur.contractEnd) : iso(Date.now() + 30 * DAY_MS)}" class="dp-field mt-1"/></div>
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Phone (optional)</label>
         <input name="phone" dir="ltr" value="${cur ? escapeHtml(cur.phone || "") : ""}" class="dp-field mt-1" /></div>
       <div class="flex gap-3 pt-2">
