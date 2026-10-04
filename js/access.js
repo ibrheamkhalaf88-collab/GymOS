@@ -139,15 +139,14 @@ export function requireWrite(what = "") {
 }
 
 /* ---------------------------------------------------------------
-   UI — self-contained so it works on any page regardless of that
-   page's stylesheet (the .auth-* classes only exist in login.html).
+   UI — Modal activation gate over the app (not a separate page)
    --------------------------------------------------------------- */
 const BRAND = "#CCFF00";
 const INK = "#c4c9ac";
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    ({ "&": "&", "<": "<", ">": ">", '"': "\"", "'": "'" }[c]));
 }
 
 function fmtDate(ts) {
@@ -157,78 +156,208 @@ function fmtDate(ts) {
   } catch { return ""; }
 }
 
+function gateContent(a) {
+  const isLocked = a.state === LOCKED;
+  const when = fmtDate(a.expiresAt);
+  const title = isLocked ? "Activate your gym" : "Free trial ended";
+  const titleAr = isLocked ? "فعّل التطبيق" : "انتهت الفترة المجانية";
+  const icon = isLocked ? "🔑" : "⏳";
+  const message = isLocked
+    ? "Enter the activation code we sent you to start managing your gym."
+    : "Your data is safe. You can still view, search and export everything.";
+  const messageAr = isLocked
+    ? "أدخل كود التفعيل الذي أرسلناه لك لبدء إدارة صالتك."
+    : "بياناتك محفوظة. لا يزال بإمكانك عرض وبحث وتصدير كل شيء.";
+
+  return `
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:52px;line-height:1;margin-bottom:12px">${icon}</div>
+      <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-.02em">${esc(title)}</h1>
+      <p style="margin:6px 0 0;font-size:19px;font-weight:700;color:#c4c9ac" dir="rtl">${esc(titleAr)}</p>
+      ${when ? `<p style="margin:10px 0 0;font-size:12px;color:#6b6f5a">${esc(when)}</p>` : ""}
+    </div>
+    <p style="font-size:13.5px;line-height:1.7;color:${INK};text-align:center;margin:0 0 18px">
+      ${esc(message)}
+      <br /><span dir="rtl" style="color:#8b8f78">${esc(messageAr)}</span>
+    </p>
+    ${!isLocked ? `
+    <div style="background:#14150f;border:1px solid #2a2c1e;border-radius:12px;padding:14px;margin-bottom:20px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b6f5a;margin-bottom:9px">Still available</div>
+      <div style="font-size:12.5px;color:${INK};line-height:1.9">
+        ✓ View members & history<br />✓ Search and reports<br />✓ Export a backup
+      </div>
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b6f5a;margin:11px 0 9px">Paused</div>
+      <div style="font-size:12.5px;color:#7a7e68;line-height:1.9">
+        ✕ Adding or editing members<br />✕ Payments and check-ins
+      </div>
+    </div>` : ""}
+    <!-- Inline activation form -->
+    <form id="activationFormInline" class="space-y-4" autocomplete="off">
+      <div class="flex justify-center gap-2 sm:gap-3" dir="ltr" style="margin-bottom: 8px;">
+        <input aria-label="Digit 1" autofocus class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 2" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 3" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <span class="text-3xl font-light self-center" style="color:#444933;">-</span>
+        <input aria-label="Digit 4" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 5" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 6" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+      </div>
+      <div id="manualBlockInline" class="flex flex-col gap-2 mb-2" style="display: none;">
+        <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Manual Activation / التنشيط اليدوي</label>
+        <input id="manualCodeInline" class="w-full bg-[#171717] border border-[#333333] rounded-lg py-4 px-4 font-headline tracking-widest focus:outline-none focus:border-[#C3F400] focus:ring-1 focus:ring-[#C3F400]/30 transition-all placeholder:opacity-40" placeholder="Enter Code Manually / أدخل الرمز يدوياً" style="color: #CCFF00;" type="text"/>
+      </div>
+      <p id="actMsgInline" class="text-sm text-center min-h-[1.5em]" style="color:#ff3366;"></p>
+      <button type="submit" class="w-full py-4 font-headline font-bold text-lg rounded-lg neon-shadow hover:bg-[#abd600] active:scale-95 transition-all duration-150 uppercase tracking-widest flex items-center justify-center gap-2" style="background-color: #CCFF00; color: #000000; box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);">
+        <div class="flex flex-col items-center">
+          <span>VERIFY</span>
+          <span class="text-xs opacity-80" dir="rtl">تحقق</span>
+        </div>
+        <span class="material-symbols-outlined">arrow_forward</span>
+      </button>
+      <div class="flex gap-2">
+        <button type="button" id="toggleManualBtn" class="flex-1 py-2 text-xs uppercase tracking-widest font-headline opacity-70 hover:opacity-100 transition-opacity" style="color:#c7c6c6; background: transparent; border: none;">Show manual entry / إدخال يدوي</button>
+      </div>
+    </form>
+    <p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
+      Need a code? Contact us on WhatsApp
+      <span dir="rtl" style="display:block">تحتاج كود؟ تواصل معنا على واتساب</span>
+    </p>`;
+}
+
+// Modal shell with semi-transparent backdrop
 function shell(inner) {
-  return `<div id="dpGate" style="position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.94);backdrop-filter:blur(6px);color:#fff;font-family:Inter,Tajawal,system-ui,sans-serif;overflow-y:auto">
-  <div style="width:100%;max-width:440px;background:#000;border:1px solid #444933;border-radius:16px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.8);position:relative;overflow:hidden">
+  return `<div id="dpGate" style="position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);color:#fff;font-family:Inter,Tajawal,system-ui,sans-serif;overflow-y:auto">
+  <div style="width:100%;max-width:440px;background:#000;border:1px solid #444933;border-radius:16px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.9);position:relative;overflow:hidden">
     <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:${BRAND}"></div>
     ${inner}
   </div>
 </div>`;
 }
 
-function gateContent(a) {
-  if (a.state === READONLY) {
-    const when = fmtDate(a.expiresAt);
-    return `
-      <div style="text-align:center;margin-bottom:20px">
-        <div style="font-size:52px;line-height:1;margin-bottom:12px">⏳</div>
-        <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-.02em">Free trial ended</h1>
-        <p style="margin:6px 0 0;font-size:19px;font-weight:700;color:#c4c9ac" dir="rtl">انتهت الفترة المجانية</p>
-        ${when ? `<p style="margin:10px 0 0;font-size:12px;color:#6b6f5a">${esc(when)}</p>` : ""}
-      </div>
-      <p style="font-size:13.5px;line-height:1.7;color:${INK};text-align:center;margin:0 0 18px">
-        Your data is safe. You can still view, search and export everything.
-        <br /><span dir="rtl" style="color:#8b8f78">بياناتك محفوظة. لا يزال بإمكانك عرض وبحث وتصدير كل شيء.</span>
-      </p>
-      <div style="background:#14150f;border:1px solid #2a2c1e;border-radius:12px;padding:14px;margin-bottom:20px">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b6f5a;margin-bottom:9px">Still available</div>
-        <div style="font-size:12.5px;color:${INK};line-height:1.9">
-          ✓ View members &amp; history<br />✓ Search and reports<br />✓ Export a backup
-        </div>
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b6f5a;margin:11px 0 9px">Paused</div>
-        <div style="font-size:12.5px;color:#7a7e68;line-height:1.9">
-          ✕ Adding or editing members<br />✕ Payments and check-ins
-        </div>
-      </div>
-      <a href="activate.html" style="display:block;text-align:center;background:${BRAND};color:#000;font-weight:800;padding:15px;border-radius:12px;text-decoration:none;font-size:15px">
-        Enter activation code
-        <span style="display:block;font-size:11px;font-weight:600;opacity:.75" dir="rtl">ضع كود التفعيل</span>
-      </a>
-      <p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
-        Need a code? <a href="activate.html" style="color:${BRAND}">Get one</a> or contact us on WhatsApp
-        <span dir="rtl" style="display:block">تحتاج كود؟ اطلبه منّا</span>
-      </p>`;
-  }
-
-  // LOCKED
-  return `
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:52px;line-height:1;margin-bottom:12px">🔑</div>
-      <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-.02em">Activate your gym</h1>
-      <p style="margin:6px 0 0;font-size:19px;font-weight:700;color:#c4c9ac" dir="rtl">فعّل التطبيق</p>
-    </div>
-    <p style="font-size:13.5px;line-height:1.7;color:${INK};text-align:center;margin:0 0 20px">
-      Enter the activation code we sent you to start managing your gym.
-      <br /><span dir="rtl" style="color:#8b8f78">أدخل كود التفعيل الذي أرسلناه لك لبدء إدارة صالتك.</span>
-    </p>
-    <a href="activate.html" style="display:block;text-align:center;background:${BRAND};color:#000;font-weight:800;padding:15px;border-radius:12px;text-decoration:none;font-size:15px">
-      Enter activation code
-      <span style="display:block;font-size:11px;font-weight:600;opacity:.75" dir="rtl">ضع كود التفعيل</span>
-    </a>
-    <a href="activate.html#trial" style="display:block;text-align:center;margin-top:10px;background:transparent;color:${INK};font-weight:700;padding:13px;border-radius:12px;text-decoration:none;border:1px solid #333527;font-size:13.5px">
-      Start a 30-day free trial
-      <span style="display:block;font-size:11px;font-weight:600;opacity:.7" dir="rtl">ابدأ تجربة مجانية ٣٠ يوم</span>
-    </a>`;
-}
+let _gateResolve = null;
+let _gateReject = null;
 
 export function hideGate() {
   document.getElementById("dpGate")?.remove();
+  document.body.style.overflow = "";
 }
 
 export function showGate(access = getAccess()) {
   if (access.state === FULL) { hideGate(); return; }
   if (document.getElementById("dpGate")) return;
+  
+  document.body.style.overflow = "hidden";
   document.body.insertAdjacentHTML("beforeend", shell(gateContent(access)));
+  
+  // Wire up the inline activation form
+  const form = document.getElementById("activationFormInline");
+  const msgEl = document.getElementById("actMsgInline");
+  const digitInputs = form?.querySelectorAll(".digit-input");
+  const manualBlock = document.getElementById("manualBlockInline");
+  const manualCodeInput = document.getElementById("manualCodeInline");
+  const toggleManualBtn = document.getElementById("toggleManualBtn");
+  let useManual = false;
+
+  // Auto-focus and auto-advance digit inputs
+  if (digitInputs) {
+    digitInputs.forEach((input, idx) => {
+      input.addEventListener("input", (e) => {
+        if (e.target.value && idx < digitInputs.length - 1) {
+          digitInputs[idx + 1].focus();
+        }
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Backspace" && !e.target.value && idx > 0) {
+          digitInputs[idx - 1].focus();
+        }
+      });
+    });
+  }
+
+  // Toggle manual entry
+  if (toggleManualBtn && manualBlock) {
+    toggleManualBtn.addEventListener("click", () => {
+      useManual = !useManual;
+      manualBlock.style.display = useManual ? "flex" : "none";
+      toggleManualBtn.textContent = useManual ? "Hide manual entry / إخفاء الإدخال اليدوي" : "Show manual entry / إدخال يدوي";
+      if (useManual) manualCodeInput?.focus();
+    });
+  }
+
+  // Handle form submit
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn.innerHTML;
+      
+      // Get code from either digit inputs or manual input
+      let code = "";
+      if (useManual && manualCodeInput?.value) {
+        code = manualCodeInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      } else if (digitInputs) {
+        code = Array.from(digitInputs).map(i => i.value).join("").toUpperCase();
+      }
+      
+      if (!code || code.length !== 6) {
+        msgEl.textContent = "Enter a valid 6-character code / أدخل كود صحيح من 6 خانات";
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<div class="flex items-center gap-2"><svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg> Verifying...</div>`;
+      msgEl.textContent = "";
+
+      try {
+        const { codesDb } = await import('./db.js');
+        const res = await codesDb.verifyClientLogin(code, ""); // No password for activation
+        if (res.ok) {
+          const { license } = await import('./license.js');
+          license.save(res.record);
+          localStorage.setItem('dp_license_mode', codesDb.mode());
+          const L = license.get();
+          localStorage.setItem('dp_cloud', (codesDb.mode() === 'online' && L && L.data_enabled !== false) ? '1' : '0');
+          
+          msgEl.textContent = "";
+          msgEl.style.color = "#CCFF00";
+          msgEl.textContent = "✅ Activated! / تم التفعيل بنجاح";
+          
+          // Refresh access and close gate
+          setTimeout(() => {
+            invalidate();
+            const newAccess = getAccess(true);
+            if (canWrite(newAccess)) {
+              hideGate();
+              // Reload the app to reflect new license state
+              window.location.reload();
+            }
+          }, 800);
+        } else {
+          const errors = {
+            NOT_FOUND: 'Code not found / الكود غير موجود',
+            NOT_ACTIVATED: 'This code was never activated / الكود لم يُفعّل بعد',
+            NO_PASSWORD: 'No password set for this code / لا توجد كلمة سر لهذا الكود',
+            WRONG_PASSWORD: 'Wrong code / الكود خاطئ',
+            RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة`,
+            NETWORK: 'No connection — check your internet / لا يوجد اتصال — افحص الشبكة',
+          };
+          msgEl.textContent = errors[res.error] || `Activation failed (${res.error}) / فشل التفعيل`;
+        }
+      } catch (err) {
+        console.error('[activation] error:', err);
+        msgEl.textContent = "No connection / لا اتصال";
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    });
+  }
+  
+  // Return a promise that resolves when gate closes (for future use)
+  return new Promise((resolve, reject) => {
+    _gateResolve = resolve;
+    _gateReject = reject;
+  });
 }
 
 export function isGateOpen() {

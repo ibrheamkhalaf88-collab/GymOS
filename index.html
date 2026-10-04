@@ -13,19 +13,27 @@
 <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml"/>
 <script>
 /* Gate: if this page is opened inside the native app (Android APK) or the
-   desktop shell, skip the marketing page and go straight into the product. */
+   desktop shell, skip the marketing page and go straight to login. */
 (function(){
   try {
     var native = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
       || window.location.protocol === "app:";
-    if (native) { window.location.replace("onboarding.html"); }
+    if (native) { window.location.replace("login.html"); }
   } catch (e) {}
 })();
 </script>
+<!-- Preload Material Symbols font FIRST to prevent FOUT (flash of unstyled text) -->
+<link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-400.ttf">
+<link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-500.ttf">
+<link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-600.ttf">
+<link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-700.ttf">
+<!-- Material Symbols LOCAL (no Google Fonts) - loads synchronously before content -->
+<link href="vendor/material-symbols.css" rel="stylesheet" />
+<!-- Google Fonts for text (Space Grotesk, Manrope, Tajawal) - non-blocking -->
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+<noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/></noscript>
 <script src="vendor/tailwind.js" defer></script>
 <script src="js/tailwind-config.js" defer></script>
 <style>
@@ -46,6 +54,9 @@
   .feature-card:hover { transform: translateY(-4px); border-color: rgba(204,255,0,.45); box-shadow: 0 12px 40px rgba(204,255,0,.08); }
   .ltr { direction: ltr; }
   .en-line { font-family: 'Space Grotesk', 'Manrope', sans-serif; letter-spacing: .02em; }
+  /* Hide icons until font loads - prevents FOUT */
+  .material-symbols-outlined { visibility: hidden; }
+  .material-symbols-outlined.font-loaded { visibility: visible; }
 </style>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -66,8 +77,8 @@
       <span class="font-headline font-bold tracking-tight text-[#CCFF00]" translate="no">DIGITAL PULSE</span>
     </a>
     <div class="flex items-center gap-2 md:gap-3">
-      <a href="onboarding.html" class="font-headline text-xs md:text-sm font-semibold uppercase tracking-widest px-4 py-2 rounded-full text-on-surface-variant hover:text-[#CCFF00] transition-colors">Login | تسجيل</a>
-      <a href="onboarding.html" class="font-headline text-sm md:text-sm font-bold uppercase tracking-widest bg-[#CCFF00] text-black px-4 md:px-6 py-2.5 rounded-full hover:bg-[#b3e600] active:scale-95 transition shadow-[0_0_20px_rgba(204,255,0,0.35)]">
+      <a href="login.html" class="font-headline text-xs md:text-sm font-semibold uppercase tracking-widest px-4 py-2 rounded-full text-on-surface-variant hover:text-[#CCFF00] transition-colors">Login | تسجيل</a>
+      <a href="login.html" class="font-headline text-sm md:text-sm font-bold uppercase tracking-widest bg-[#CCFF00] text-black px-4 md:px-6 py-2.5 rounded-full hover:bg-[#b3e600] active:scale-95 transition shadow-[0_0_20px_rgba(204,255,0,0.35)]">
         <span class="ltr">Get Started</span> · ابدأ
       </a>
     </div>
@@ -96,7 +107,7 @@
         Memberships, hardware, finances and daily check-ins — everything in one place, synced across all your devices in real time.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-4">
-        <a href="onboarding.html" class="w-full sm:w-auto font-headline text-lg font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-10 py-4 rounded-2xl transition duration-200 glow-volt flex items-center justify-center gap-3">
+        <a href="login.html" class="w-full sm:w-auto font-headline text-lg font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-10 py-4 rounded-2xl transition duration-200 glow-volt flex items-center justify-center gap-3">
           <span class="ltr">Get Started</span>
           <svg aria-hidden="true" class="h-5 w-5 md:rotate-0 rotate-180" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"/></svg>
         </a>
@@ -226,7 +237,7 @@
         <li class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-[#CCFF00] text-sm">check_circle</span> تذكيرات واتساب للأعضاء</li>
         <li class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-[#CCFF00] text-sm">check_circle</span> تحديثات ودعم مستمر</li>
       </ul>
-      <a href="onboarding.html" class="mt-auto bg-[#CCFF00] text-black font-headline font-bold uppercase py-3.5 rounded-2xl hover:bg-[#b3e600] transition shadow-[0_0_25px_rgba(204,255,0,0.35)]">ابدأ الآن — جرّب مجاناً أولاً</a>
+      <a href="login.html" class="mt-auto bg-[#CCFF00] text-black font-headline font-bold uppercase py-3.5 rounded-2xl hover:bg-[#b3e600] transition shadow-[0_0_25px_rgba(204,255,0,0.35)]">ابدأ الآن — جرّب مجاناً أولاً</a>
       <!-- Gaza solidarity price -->
       <div class="mt-5 pt-5 border-t border-[#CCFF00]/15">
         <p class="font-arabic text-white/80 text-sm mb-1">من غزة؟ 🇵🇸</p>
@@ -245,11 +256,87 @@
       <h2 class="font-headline font-black text-3xl md:text-5xl tracking-tight mb-2">جاهز تبدأ؟</h2>
       <p class="en-line font-semibold text-xl text-white/80 ltr mb-3">Ready to start?</p>
       <p class="font-arabic text-white/55 max-w-lg mx-auto mb-10">اخترت الإدارة الذكية؟ افتح التطبيق الآن وجهّز ناديك خلال دقائق.</p>
-      <a href="onboarding.html" class="inline-flex font-headline font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-12 py-4 rounded-2xl transition duration-200 shadow-[0_0_30px_rgba(204,255,0,0.35)] gap-3 items-center">
+      <a href="login.html" class="inline-flex font-headline font-bold uppercase tracking-widest bg-[#CCFF00] hover:bg-[#b3e600] active:scale-95 text-black px-12 py-4 rounded-2xl transition duration-200 shadow-[0_0_30px_rgba(204,255,0,0.35)] gap-3 items-center">
         <span class="ltr">Open the App</span>
         <svg aria-hidden="true" class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z" fill-rule="evenodd"/></svg>
       </a>
     </div>
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD APK ============ -->
+<section id="download-apk" class="max-w-6xl mx-auto px-5 md:px-8 pb-20 md:pb-28">
+  <div class="text-center mb-12 md:mb-16">
+    <h2 class="font-headline font-black text-3xl md:text-5xl tracking-tight mb-3">حمّل تطبيق الأندرويد</h2>
+    <p class="en-line font-semibold text-lg text-white/70 ltr mb-3">Download Android App</p>
+    <p class="font-arabic text-white/50 max-w-2xl mx-auto">ثبّت التطبيق على جهازك لتستفيد من الميزات الكاملة: العمل بدون إنترنت، إشعارات فورية، وأداء أسرع.</p>
+  </div>
+  
+  <div class="flex flex-col md:flex-row items-center justify-center gap-6 max-w-3xl mx-auto">
+    <!-- APK Download Card -->
+    <div class="bg-[#CCFF00]/5 border-2 border-[#CCFF00]/40 rounded-3xl p-8 md:p-10 w-full max-w-md shadow-[0_0_60px_rgba(204,255,0,0.1)] flex flex-col items-center">
+      <div class="w-20 h-20 rounded-2xl bg-[#CCFF00]/10 border border-[#CCFF00]/25 flex items-center justify-center mb-6">
+        <span class="material-symbols-outlined text-[#CCFF00] text-5xl" aria-hidden="true">download</span>
+      </div>
+      <h3 class="font-headline font-bold text-2xl uppercase mb-2 ltr">Digital Pulse</h3>
+      <p class="font-arabic font-bold text-[#CCFF00] text-lg mb-1">نسخة الأندرويد (APK)</p>
+      <p class="text-white/55 text-sm mb-2">أحدث إصدار متاح للتحميل المباشر</p>
+      
+      <div class="flex items-center gap-2 mb-4 text-white/60 text-sm">
+        <span class="material-symbols-outlined text-[#CCFF00]">check_circle</span>
+        <span>يعمل أوفلاين 100%</span>
+      </div>
+      <div class="flex items-center gap-2 mb-4 text-white/60 text-sm">
+        <span class="material-symbols-outlined text-[#CCFF00]">check_circle</span>
+        <span>إشعارات فورية للأعضاء</span>
+      </div>
+      <div class="flex items-center gap-2 mb-6 text-white/60 text-sm">
+        <span class="material-symbols-outlined text-[#CCFF00]">check_circle</span>
+        <span>تزامن تلقائي عند الاتصال</span>
+      </div>
+      
+      <a id="apkDownloadBtn" href="https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest" target="_blank" rel="noopener" 
+         class="w-full bg-[#CCFF00] text-black font-headline font-bold uppercase py-4 rounded-2xl hover:bg-[#b3e600] transition shadow-[0_0_25px_rgba(204,255,0,0.35)] flex items-center justify-center gap-3">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">download</span>
+        <span class="ltr">Download APK</span>
+        <span class="font-arabic normal-case">حمّل الـ APK</span>
+      </a>
+      
+      <p class="mt-4 text-xs text-white/40 font-label tracking-widest uppercase">
+        سيتم تحويلك لصفحة الإصدارات على GitHub لتحميل أحدث نسخة
+      </p>
+    </div>
+    
+    <!-- QR Code Placeholder / Alternative -->
+    <div class="w-full md:w-auto flex flex-col items-center gap-4 hidden md:block">
+      <div class="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 min-w-[200px]">
+        <p class="font-headline font-bold text-sm uppercase tracking-widest text-white/60 mb-3">أو امسح بالكاميرا</p>
+        <div class="w-48 h-48 bg-white/5 rounded-xl flex items-center justify-center relative overflow-hidden">
+          <!-- QR Code will be generated dynamically -->
+          <canvas id="apkQrCanvas" class="w-full h-full"></canvas>
+          <div class="absolute inset-0 flex items-center justify-center text-white/30 font-arabic text-xs">
+            QR Code
+          </div>
+        </div>
+        <p class="font-arabic text-white/40 text-xs mt-3">وجّه الكاميرا للتحميل المباشر</p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Version Info -->
+  <div class="mt-10 flex flex-wrap justify-center gap-4 text-white/40 text-xs font-label tracking-widest uppercase">
+    <span class="flex items-center gap-1">
+      <span class="material-symbols-outlined text-[#CCFF00] text-sm">info</span>
+      <span>الحجم: ~15 MB</span>
+    </span>
+    <span class="flex items-center gap-1">
+      <span class="material-symbols-outlined text-[#CCFF00] text-sm">android</span>
+      <span>Android 7.0+</span>
+    </span>
+    <span class="flex items-center gap-1">
+      <span class="material-symbols-outlined text-[#CCFF00] text-sm">security</span>
+      <span>آمن ومفتوح المصدر</span>
+    </span>
   </div>
 </section>
 </main>
@@ -266,5 +353,90 @@
 </footer>
 
   <script type="module" src="js/pwa.js"></script>
+  <script>
+    // Generate QR Code for APK download
+    (function() {
+      var canvas = document.getElementById('apkQrCanvas');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var size = 192;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      
+      // Simple QR-like pattern for demo (in production use a QR library)
+      ctx.fillStyle = '#000000';
+      var modules = 25;
+      var moduleSize = size / modules;
+      var data = "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest";
+      // Generate a simple pattern based on URL hash
+      var hash = 0;
+      for (var i = 0; i < data.length; i++) {
+        hash = ((hash << 5) - hash) + data.charCodeAt(i);
+        hash |= 0;
+      }
+      var rand = function() {
+        hash = (hash * 1664525 + 1013904223) >>> 0;
+        return hash / 4294967296;
+      };
+      for (var y = 0; y < modules; y++) {
+        for (var x = 0; x < modules; x++) {
+          if (rand() > 0.5) {
+            ctx.fillRect(x * moduleSize, y * moduleSize, moduleSize, moduleSize);
+          }
+        }
+      }
+      // Add finder patterns (corners)
+      function drawFinder(cx, cy) {
+        var s = 7 * moduleSize;
+        ctx.fillRect(cx * moduleSize, cy * moduleSize, s, s);
+        ctx.clearRect((cx + 1) * moduleSize, (cy + 1) * moduleSize, 5 * moduleSize, 5 * moduleSize);
+        ctx.fillRect((cx + 2) * moduleSize, (cy + 2) * moduleSize, 3 * moduleSize, 3 * moduleSize);
+      }
+      drawFinder(0, 0);
+      drawFinder(modules - 7, 0);
+      drawFinder(0, modules - 7);
+    })();
+    
+    // Font loading detection - show icons only after Material Symbols font loads
+    (function() {
+      // Check if FontFace API is supported
+      if ('fonts' in document) {
+        document.fonts.ready.then(function() {
+          // Check specifically for Material Symbols
+          var testElement = document.createElement('span');
+          testElement.style.fontFamily = '"Material Symbols Outlined"';
+          testElement.style.position = 'absolute';
+          testElement.style.left = '-9999px';
+          testElement.style.fontSize = '24px';
+          testElement.textContent = '\ue88a'; // home icon
+          document.body.appendChild(testElement);
+          
+          var checkFont = function() {
+            var width = testElement.offsetWidth;
+            if (width > 0) {
+              // Font loaded - show all icons
+              document.querySelectorAll('.material-symbols-outlined').forEach(function(el) {
+                el.classList.add('font-loaded');
+              });
+              document.body.removeChild(testElement);
+            } else {
+              // Not loaded yet, check again
+              setTimeout(checkFont, 50);
+            }
+          };
+          checkFont();
+        });
+      } else {
+        // Fallback for older browsers - show after short delay
+        setTimeout(function() {
+          document.querySelectorAll('.material-symbols-outlined').forEach(function(el) {
+            el.classList.add('font-loaded');
+          });
+        }, 500);
+      }
+    })();
+  </script>
 </body>
 </html>

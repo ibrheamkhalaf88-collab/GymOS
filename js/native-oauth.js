@@ -73,17 +73,19 @@ export function armNativeOAuthReturn() {
 // Starts Google OAuth in the system browser (Custom Tab). Returns null when
 // the browser opened — the login then completes asynchronously through the
 // deep link — or an error message to show the user.
-export async function startNativeGoogleOAuth() {
+export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
   if (!supabase) return 'No connection / لا اتصال';
   const { browser } = plugins();
   if (!browser || typeof browser.open !== 'function') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
+  // Include return URL in deep link so callback page knows where to redirect after auth
+  const deepLinkWithReturn = `${DEEPLINK_CALLBACK}?return=${encodeURIComponent(returnUrl)}`;
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: DEEPLINK_CALLBACK,
+      redirectTo: deepLinkWithReturn,
       skipBrowserRedirect: true,
     },
   });

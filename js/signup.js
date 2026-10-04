@@ -13,6 +13,10 @@ const form = $('#signupForm');
 const googleBtn = $('#googleBtn');
 let loading = false;
 
+// Get return URL from query params (for redirect after signup)
+const urlParams = new URLSearchParams(window.location.search);
+const returnUrl = urlParams.get('return') || 'app.html';
+
 /* -------- helpers -------- */
 function setMsg(text, color = '#ff3366') {
   msg.textContent = text;
@@ -283,7 +287,7 @@ googleBtn.addEventListener('click', async () => {
   // user closes the browser without finishing. See js/native-oauth.js.
   if (isNativeApp()) {
     clearTimeout(googleWatchdog);
-    const nativeErr = await startNativeGoogleOAuth();
+    const nativeErr = await startNativeGoogleOAuth(returnUrl);
     if (nativeErr) {
       setMsg(nativeErr);
       setGoogleLoading(false);
@@ -299,7 +303,7 @@ googleBtn.addEventListener('click', async () => {
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: `${APP_BASE}auth/callback.html`,
+      redirectTo: `${APP_BASE}auth/callback.html?return=${encodeURIComponent(returnUrl)}`,
     },
   });
   if (error) {

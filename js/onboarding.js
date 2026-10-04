@@ -153,9 +153,9 @@ function render() {
 
 function finish() {
   localStorage.setItem(KEY_SEEN, "1");
-  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
-  const isActive = lic && (lic.expiresAt === 0 || (lic.expiresAt && Date.now() < lic.expiresAt));
-  location.replace(isActive ? "app.html" : "activate.html");
+  // Always go to login page after onboarding. Login page handles auth,
+  // then app.html checks subscription/trial status and shows activation modal if needed.
+  location.replace("login.html");
 }
 
 // Routing: returning users skip onboarding, go straight to login

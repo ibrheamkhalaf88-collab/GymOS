@@ -1,0 +1,55 @@
+/* Material Symbols Outlined - Local Font */
+/* Downloaded from Google Fonts for offline support */
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('./fonts/MaterialSymbolsOutlined-400.ttf') format('truetype');
+  unicode-range: U+0000-FFFF, U+E000-F8FF;
+}
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('./fonts/MaterialSymbolsOutlined-500.ttf') format('truetype');
+  unicode-range: U+0000-FFFF, U+E000-F8FF;
+}
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url('./fonts/MaterialSymbolsOutlined-600.ttf') format('truetype');
+  unicode-range: U+0000-FFFF, U+E000-F8FF;
+}
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('./fonts/MaterialSymbolsOutlined-700.ttf') format('truetype');
+  unicode-range: U+0000-FFFF, U+E000-F8FF;
+}
+
+/* Ensure the icon class works */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}

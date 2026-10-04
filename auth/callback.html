@@ -37,6 +37,7 @@
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
     import { supabase } from '../js/supabase-client.js';
+    import { APP_BASE } from '../js/config.js';
 
     const statusEl = document.getElementById('cbStatus');
     const subEl = document.getElementById('cbSub');
@@ -67,79 +68,55 @@
       }));
       localStorage.setItem('dp_user_email', user.email || '');
       
-      // Redirect to return URL or app.html
-      const returnUrl = new URLSearchParams(window.location.search).get('return') || '../app.html';
-      window.location.replace(new URL(returnUrl, import.meta.url).href);
+      // Redirect to return URL or app.html — resolve correctly from site root
+      const returnUrl = new URLSearchParams(window.location.search).get('return') || 'app.html';
+      // Use absolute path from origin to avoid resolving relative to /auth/
+      const redirectUrl = new URL(returnUrl.startsWith('/') ? returnUrl : '/' + returnUrl, window.location.origin).href;
+      window.location.replace(redirectUrl);
     }
 
-    function decodeJwt(token) {
-      try {
-        const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        return JSON.parse(decodeURIComponent(escape(atob(body))));
-      } catch (err) {
-        return {};
+    // Failsafe watchdog — if main flow doesn't complete in 10s, try to recover from hash (legacy implicit flow)
+    setTimeout(() => {
+      if (done) return;
+      // Only attempt hash recovery for legacy implicit flow (not PKCE)
+      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
+      const at = hash.get('access_token') || hash.get('token');
+      if (!at) {
+        setStatus('Login not completed', 'No session found. Please return and try again.');
+        return;
       }
-    }
-
-    function persistSessionIntoLibrary(accessToken, refreshToken, expiresIn) {
       try {
-        const payload = decodeJwt(accessToken);
+        // Decode JWT to get user info
+        const body = at.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(decodeURIComponent(escape(atob(body))));
+        // Store session for library compatibility
         const session = {
-          access_token: accessToken,
+          access_token: at,
           token_type: 'bearer',
-          expires_in: Number(expiresIn) || 3600,
-          expires_at: NOW + (Number(expiresIn) || 3600) * 1000,
-          refresh_token: refreshToken || '',
+          expires_in: Number(hash.get('expires_in')) || 3600,
+          expires_at: NOW + (Number(hash.get('expires_in')) || 3600) * 1000,
+          refresh_token: hash.get('refresh_token') || '',
           user: {
             id: payload.sub || '',
             aud: 'authenticated',
             role: 'authenticated',
             email: payload.email || '',
             email_confirmed_at: NOW,
-            user_metadata: {},
+            user_metadata: { name: hash.get('name') || '' },
             app_metadata: { provider: 'google' },
           },
         };
         localStorage.setItem(SB_KEY, JSON.stringify(session));
-      } catch (err) {
-        console.warn('persistSessionIntoLibrary failed:', err);
-      }
-    }
-
-    function hashTokens() {
-      // implicit flow delivers #access_token=...,#refresh_token=...
-      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
-      return {
-        at: hash.get('access_token') || hash.get('token'),
-        rt: hash.get('refresh_token'),
-        expiresIn: hash.get('expires_in'),
-        email: hash.get('email'),
-        name: hash.get('name'),
-      };
-    }
-
-    // Failsafe watchdog — guaranteed path, no library involved, cannot hang.
-    setTimeout(() => {
-      if (done) return;
-      const t = hashTokens();
-      setStatus('Signing you in…', 'Completing sign in.');
-      if (!t.at) {
-        setStatus('Login not completed', 'No session found in the address bar. Please return and try again.');
-        return;
-      }
-      try {
-        const payload = decodeJwt(t.at);
-        persistSessionIntoLibrary(t.at, t.rt, t.expiresIn);
         persistLogin({
-          id: payload.sub || t.email || '',
-          email: payload.email || t.email || '',
-          user_metadata: { name: t.name },
+          id: payload.sub || '',
+          email: payload.email || '',
+          user_metadata: { name: hash.get('name') || '' },
         });
       } catch (err) {
         console.error('failsafe login failed:', err);
         setStatus('Login not completed', 'Could not read the session. Close and try again.');
       }
-    }, 8000);
+    }, 10000);
 
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
@@ -156,63 +133,102 @@
       return;
     }
 
-    let user = null;
-
-    if (code) {
-      setStatus('Signing you in…', 'Verifying secure login.');
+    // Main flow: Supabase automatically handles PKCE code exchange on page load.
+    // Just wait for the session to be established, then persist user data and redirect.
+    async function completeLogin() {
       try {
-        const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
-        if (e1) {
-          console.error('OAuth exchange failed:', e1);
-        } else if (data?.user) {
-          user = data.user;
+        setStatus('Signing you in…', 'Verifying session…');
+        
+        // Give Supabase a moment to auto-exchange the code (it does this on page load)
+        await new Promise(r => setTimeout(r, 100));
+        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('getSession error:', sessionError);
+          throw sessionError;
         }
+        
+        if (!session?.user) {
+          // If no session yet, try explicit exchange (for cases where auto-exchange didn't run)
+          if (code) {
+            setStatus('Signing you in…', 'Exchanging code…');
+            const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+            if (exchangeError) {
+              console.error('OAuth exchange failed:', exchangeError);
+              throw exchangeError;
+            }
+            if (data?.user) {
+              await completeWithUser(data.user);
+              return;
+            }
+          }
+          throw new Error('No session after OAuth redirect');
+        }
+        
+        await completeWithUser(session.user);
       } catch (err) {
-        console.warn('exchangeCodeForSession threw:', err);
+        console.error('Callback login failed:', err);
+        setStatus('Login failed', 'Could not complete sign in. Please try again.');
+        // Don't redirect on error — let user retry
       }
     }
 
-    if (!user) {
-      setStatus('Signing you in…', 'Confirming your session.');
-      try {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s?.user) user = s.user;
-      } catch (err) {
-        console.warn('getSession failed:', err);
-      }
-    }
-
-    if (!user) {
-      const t = hashTokens();
-      if (t.at) {
+    async function completeWithUser(user) {
+      if (done) return;
+      done = true;
+      
+      const meta = user.user_metadata || {};
+      
+      // Ensure trial metadata exists for new users
+      if (!meta.subscription) {
         try {
-          const { data } = await supabase.auth.setSession({ access_token: t.at, refresh_token: t.rt || '' });
-          if (data?.user) user = data.user;
+          await supabase.auth.updateUser({
+            data: {
+              subscription: 'trial',
+              subStart: NOW,
+              subEnd: NOW + 30 * 86400000,
+              subTier: 'free_trial',
+            },
+          });
         } catch (err) {
-          console.warn('setSession failed:', err);
+          console.warn('metadata update failed:', err);
         }
       }
+      
+      // Persist user data for app access
+      localStorage.setItem('dp_current_user', JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
+        status: 'active',
+        subscription: meta.subscription || 'trial',
+        subStart: meta.subStart || NOW,
+        subEnd: meta.subEnd || NOW + 30 * 86400000,
+        subTier: meta.subTier || 'free_trial',
+        loginAt: NOW,
+      }));
+      localStorage.setItem('dp_user_email', user.email || '');
+      
+      // Ensure Supabase session is persisted in localStorage (it should be automatic, but verify)
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Session exists in Supabase client — it's already in localStorage with correct key
+          console.log('[callback] Supabase session confirmed');
+        }
+      } catch {}
+      
+      setStatus('Signing you in…', 'Redirecting to your dashboard.');
+      
+      // Redirect using absolute URL from origin (avoid /auth/ resolution bug)
+      const returnUrl = new URLSearchParams(window.location.search).get('return') || 'app.html';
+      const redirectUrl = new URL(returnUrl.startsWith('/') ? returnUrl : '/' + returnUrl, window.location.origin).href;
+      window.location.replace(redirectUrl);
     }
 
-    if (!user) {
-      // Let the watchdog finish the job; it will redirect to the dashboard.
-      return;
-    }
-
-    const meta = user.user_metadata || {};
-    if (!meta.subscription) {
-      supabase.auth.updateUser({
-        data: {
-          subscription: 'trial',
-          subStart: NOW,
-          subEnd: NOW + 30 * 86400000,
-          subTier: 'free_trial',
-        },
-      }).catch((err) => console.warn('metadata update failed:', err));
-    }
-
-    setStatus('Signing you in…', 'Redirecting to your dashboard.');
-    persistLogin(user);
+    // Start the login completion flow
+    completeLogin();
   </script>
 </body>
 </html>

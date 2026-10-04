@@ -137,7 +137,13 @@ const SESSION_AUTOLOGIN_MS = 30 * 24 * 60 * 60 * 1000;
 function checkExistingSession() {
   const currentUser = JSON.parse(localStorage.getItem('dp_current_user'));
   if (currentUser && currentUser.loginAt && (Date.now() - currentUser.loginAt < SESSION_AUTOLOGIN_MS)) {
-    if (checkSubscription(currentUser).ok) { window.location.href = 'app.html'; return true; }
+    const subCheck = checkSubscription(currentUser);
+    if (subCheck.ok) { window.location.href = 'app.html'; return true; }
+    // Session exists but subscription expired — show clear message instead of silent fail
+    if (subCheck.access && subCheck.access.state === READONLY) {
+      // Don't auto-redirect, let user see the login form with a clear message
+      setMsg(subCheck.message || 'Free trial ended — enter activation code / انتهت الفترة المجانية — أدخل كود التفعيل', '#ff3366');
+    }
   }
   return false;
 }
@@ -233,13 +239,26 @@ form.addEventListener('submit', async (e) => {
         NETWORK: 'No connection — check your internet / لا يوجد اتصال — افحص الشبكة',
       };
       setMsg(errors[res.error] || `Login failed (${res.error}) / فشل الدخول`);
-    } catch {
+    } catch (e) {
+      console.error('[login] code login error:', e);
       setMsg('No connection / لا اتصال');
     }
     setLoading(false);
     return;
   }
 
+  // Wrap entire login flow in try-catch to prevent stuck spinner
+  try {
+    await doEmailPasswordLogin(email, password, returnUrl);
+  } catch (e) {
+    console.error('[login] Unexpected error:', e);
+    setMsg('Login error — please try again / خطأ في تسجيل الدخول — حاول مرة ثانية');
+    setLoading(false);
+  }
+});
+
+/* -------- Core email/password login logic (extracted for error handling) -------- */
+async function doEmailPasswordLogin(email, password, returnUrl) {
   setLoading(true); setMsg('');
   if (resendBtn) resendBtn.classList.add('hidden');
   // Try Supabase first (lazy-loaded)
@@ -262,7 +281,8 @@ form.addEventListener('submit', async (e) => {
         // do NOT silently fall back to a demo account.
         credError = true;
         throw error;
-      }      const { data: { user: supUser } } = await Promise.race([supabase.auth.getUser(), deadline]);
+      }
+      const { data: { user: supUser } } = await Promise.race([supabase.auth.getUser(), deadline]);
       if (!supUser) { credError = true; throw new Error('No user'); }
       const sub = supUser.user_metadata?.subscription || 'trial';
       // Never invent a fresh 30 days when metadata lacks subEnd — that let any
@@ -271,14 +291,16 @@ form.addEventListener('submit', async (e) => {
       // activate, and a later login with valid metadata restores full access.
       const subEnd = supUser.user_metadata?.subEnd ? new Date(supUser.user_metadata.subEnd).getTime() : 0;
       const result = { ok: true, user: { id: supUser.id, email: supUser.email, name: supUser.user_metadata?.name || supUser.email.split('@')[0], status: 'active', subscription: sub, subStart: supUser.user_metadata?.subStart || Date.now(), subEnd: subEnd, subTier: supUser.user_metadata?.subTier || 'trial' } };
-      const subCheck = checkSubscription(result.user);
-      if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
       // Adopt the server code bound to this account so this device syncs the
       // same gym data as every other device (was: email logins never synced).
       try { const { linkCloudIdentity } = await import('./cloud-link.js'); await linkCloudIdentity(supabase); } catch {}
-      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id); 
-      if (isFirstLogin()) {
-        await autoActivateTrial(result.user.email);
+      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
+      try {
+        if (isFirstLogin()) {
+          await autoActivateTrial(result.user.email);
+        }
+      } catch (e) {
+        console.warn('[login] autoActivateTrial failed:', e);
       }
       window.location.href = returnUrl;
       return;
@@ -307,16 +329,26 @@ form.addEventListener('submit', async (e) => {
     }
   }
   // Demo fallback
-  const result = await demoSignIn(email, password);
+  let result;
+  try {
+    result = await demoSignIn(email, password);
+  } catch (e) {
+    console.error('[login] demoSignIn threw:', e);
+    setMsg('Login error — please try again / خطأ في تسجيل الدخول — حاول مرة ثانية');
+    setLoading(false);
+    return;
+  }
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
-  const subCheck = checkSubscription(result.user);
-  if (!subCheck.ok) { deny(subCheck); setLoading(false); return; }
   storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
-  if (isFirstLogin()) {
-    await autoActivateTrial(result.user.email);
+  try {
+    if (isFirstLogin()) {
+      await autoActivateTrial(result.user.email);
+    }
+  } catch (e) {
+    console.warn('[login] autoActivateTrial failed:', e);
   }
   window.location.href = returnUrl;
-});
+}
 
 /* -------- Forgot password -------- */
 forgotLink.addEventListener('click', async (e) => {
@@ -384,7 +416,7 @@ googleBtn.addEventListener('click', async () => {
   // if the user closes the browser without finishing.
   if (isNativeApp()) {
     clearTimeout(googleWatchdog);
-    const nativeErr = await startNativeGoogleOAuth();
+    const nativeErr = await startNativeGoogleOAuth(returnUrl);
     if (nativeErr) {
       setMsg(nativeErr);
       setGoogleLoading(false);
@@ -396,6 +428,7 @@ googleBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Web flow: redirect to Google OAuth
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html?return=${encodeURIComponent(returnUrl)}` },
@@ -409,6 +442,7 @@ googleBtn.addEventListener('click', async () => {
     return;
   }
   // success path navigates away; the page (and timers) die with it.
+  // If we reach here without redirect, something went wrong — watchdog will handle it.
 });
 
 /* -------- Auto-redirect if session exists -------- */
@@ -417,3 +451,32 @@ if (checkExistingSession()) { /* auto-redirecting to app.html */ }
 // Native APK: arm the deep-link return path for Google OAuth (system
 // browser → com.digitalpulse.gym://auth/callback.html → auth/callback.html).
 armNativeOAuthReturn();
+
+/* -------- Safety net: force-unfreeze loading after 30s (last resort) -------- */
+setTimeout(() => {
+  if (loading) {
+    console.warn('[login] Safety net triggered: loading was stuck for 30s, forcing reset');
+    loading = false;
+    setLoading(false);
+    setMsg('Something went wrong — please refresh and try again / حدث خطأ — يرجى تحديث الصفحة والمحاولة مرة ثانية');
+  }
+}, 30000);
+
+/* -------- Global error handler (prevents silent failures) -------- */
+window.addEventListener('error', (e) => {
+  console.error('[login] Uncaught error:', e.error || e.message);
+  if (loading) {
+    loading = false;
+    setLoading(false);
+    setMsg('An error occurred — please refresh and try again / حدث خطأ — يرجى تحديث الصفحة والمحاولة مرة ثانية');
+  }
+});
+
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[login] Unhandled rejection:', e.reason);
+  if (loading) {
+    loading = false;
+    setLoading(false);
+    setMsg('An error occurred — please refresh and try again / حدث خطأ — يرجى تحديث الصفحة والمحاولة مرة ثانية');
+  }
+});

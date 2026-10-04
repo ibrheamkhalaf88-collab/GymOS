@@ -18,19 +18,24 @@ const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
 
-// ---------- Force update (native APK only) — non-blocking with timeout + cache ----------
+// ---------- Force update (native APK only) — auto-download & install ----------
 enforceUpdateIfNeeded().catch(() => {});
 
 async function enforceUpdateIfNeeded() {
   const isNative = !!(window.Capacitor && window.Capacitor.isNative);
   if (!isNative) return;
+  
   const lastCheck = Number(localStorage.getItem("dp_last_version_check") || 0);
   if (Date.now() - lastCheck < 6 * 3600 * 1000) return;
   if (!navigator.onLine) return;
+  
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3000);
-    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { headers: { "Accept": "application/vnd.github+json" }, signal: ctrl.signal });
+    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { 
+      headers: { "Accept": "application/vnd.github+json" }, 
+      signal: ctrl.signal 
+    });
     clearTimeout(t);
     if (!res.ok) return;
     const data = await res.json();
@@ -38,7 +43,12 @@ async function enforceUpdateIfNeeded() {
     if (!latest) return;
     if (cmpVersion(latest, appConfig.appVersion) > 0) {
       const apk = (data.assets || []).find((a) => /apk/i.test(a.name || ""));
-      showUpdateOverlay(apk ? apk.browser_download_url : "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
+      if (apk && apk.browser_download_url) {
+        // Try auto-download and install using Capacitor plugin
+        await autoDownloadAndInstall(apk.browser_download_url);
+      } else {
+        showUpdateOverlay("https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
+      }
     }
     localStorage.setItem("dp_last_version_check", String(Date.now()));
   } catch (e) {
@@ -46,32 +56,49 @@ async function enforceUpdateIfNeeded() {
   }
 }
 
-function cmpVersion(a, b) {
-  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const x = pa[i] || 0, y = pb[i] || 0;
-    if (x > y) return 1; if (x < y) return -1;
-  }
-  return 0;
-}
-
-function sanitizeUrl(url) {
-  if (!url) return "#";
+async function autoDownloadAndInstall(apkUrl) {
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
-  } catch {}
-  return "#";
+    // Check if Capacitor plugin is available
+    const { AutoUpdater } = await import('@capacitor/core').then(m => m.Plugins).catch(() => ({}));
+    if (!AutoUpdater) {
+      console.warn('[AutoUpdater] Plugin not available, showing manual update');
+      showUpdateOverlay(apkUrl);
+      return;
+    }
+
+    // Check install permission
+    const permResult = await AutoUpdater.checkInstallPermission();
+    if (!permResult.canInstall) {
+      // Request permission
+      await AutoUpdater.openInstallSettings();
+      // Re-check after user returns
+      const permResult2 = await AutoUpdater.checkInstallPermission();
+      if (!permResult2.canInstall) {
+        showUpdateOverlay(apkUrl);
+        return;
+      }
+    }
+
+    // Show downloading indicator
+    showDownloadingOverlay();
+
+    // Download and install
+    await AutoUpdater.downloadAndInstall({ url: apkUrl });
+    // If we reach here, install intent was launched
+    // The app will be restarted after install
+    
+  } catch (e) {
+    console.error('[AutoUpdater] Failed:', e);
+    showUpdateOverlay(apkUrl);
+  }
 }
 
-function showUpdateOverlay(apkUrl) {
-  const safeUrl = sanitizeUrl(apkUrl);
+function showDownloadingOverlay() {
   document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
     '<div style="font-size:72px;color:#ccff00">⬇</div>' +
-    '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
-    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
-    '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
-    '<p style="font-size:11px;color:#777;margin:8px 0 0">Update / حدّث التطبيق</p>' +
+    '<h1 style="font-size:24px;margin:0;font-weight:800">جاري تحميل التحديث...</h1>' +
+    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يرجى الانتظار، يتم تحميل وتثبيت الإصدار الجديد تلقائياً.</p>' +
+    '<div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>' +
     '</div>';
 }
 
@@ -124,12 +151,12 @@ import { supabase } from "./supabase-client.js";
       try {
         const user = JSON.parse(demoUser);
         localStorage.setItem('dp_user_email', user.email || '');
-        if (user.subscription === 'trial' && Date.now() > user.subEnd) {
-          localStorage.removeItem('dp_current_user');
-          localStorage.removeItem('dp_user_email');
-          window.location.href = 'login.html';
-          return;
-        }
+        // An expired trial is NOT logged out and NOT bounced to login.html.
+        // That made the read-only state unreachable: login showed the gate
+        // offering "enter activation code", the only way back was the app,
+        // and the app immediately redirected here again. installAccess()
+        // now renders the read-only view + gate from dp_current_user, so the
+        // session is deliberately left intact.
       } catch {}
     }
     // Sync is local-first, so still try to start it even if auth lookup failed.
@@ -138,6 +165,47 @@ import { supabase } from "./supabase-client.js";
       if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
     } catch {}
     console.warn('[initAuth] skipped (no connection or auth error):', e?.message || e);
+  }
+
+  // Note: We do NOT redirect to login.html on expired trial here.
+  // The access.js install() will show the read-only gate + activation link.
+  // Redirecting would create a loop with login.js's checkExistingSession().
+})();
+
+// ---------- App Initialization Flow ----------
+// Check if user is authenticated before rendering the app.
+// Show loading state until auth check completes.
+(async function initApp() {
+  // Check if user has a valid session (Supabase or demo)
+  let hasSupabaseSession = false;
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    hasSupabaseSession = !!session?.user;
+  }
+  const hasDemoSession = !!localStorage.getItem('dp_current_user');
+  
+  // If user has demo session (dp_current_user) but no Supabase session yet,
+  // they might be returning from OAuth callback where session is still being written.
+  // Wait briefly and retry once.
+  if (!hasSupabaseSession && hasDemoSession && supabase) {
+    await new Promise(r => setTimeout(r, 200));
+    const { data: { session: retrySession } } = await supabase.auth.getSession();
+    hasSupabaseSession = !!retrySession?.user;
+  }
+  
+  if (!hasSupabaseSession && !hasDemoSession) {
+    // No session at all — redirect to login
+    window.location.replace('login.html');
+    return;
+  }
+  
+  // Session exists — now initialize access gate
+  installAccess();
+  
+  // Hide loading overlay after initialization
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.remove();
   }
 })();
 
