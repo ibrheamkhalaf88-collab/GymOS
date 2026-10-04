@@ -38,16 +38,22 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
+      - name: Copy Debug APK
         run: |
           mkdir -p output
           cp android/app/build/outputs/apk/debug/app-debug.apk output/DigitalPulse-debug.apk
 
       # Release APK on version tags (signed with debug key for testing)
-      - name: Build Release Bundle (tags only)
+      - name: Build Release APK (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
+
+      - name: Copy Release APK (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p output
+          cp android/app/build/outputs/apk/release/app-release.apk output/DigitalPulse-release.apk
 
       - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
@@ -55,11 +61,11 @@ jobs:
           name: DigitalPulse-debug-apk
           path: output/DigitalPulse-debug.apk
 
-      - name: Attach APK to GitHub Release
+      - name: Attach Release APK to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: output/DigitalPulse-debug.apk
+          files: output/DigitalPulse-release.apk
 
   # ── Windows desktop build (Electron portable exe) ──
   desktop:
