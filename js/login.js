@@ -339,9 +339,17 @@ googleBtn.addEventListener('click', async () => {
     return;
   }
 
+  // Carry ?return= through the OAuth hop so Google login can drop the user back
+  // on the page they came from instead of always app.html. Same allowlist
+  // auth/callback.html enforces on the way back, so an unknown value is dropped
+  // here and the callback never even sees it.
+  const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.html'];
+  const wantBack = new URLSearchParams(location.search).get('return');
+  const back = RETURN_ALLOWED.includes(wantBack) ? `?return=${encodeURIComponent(wantBack)}` : '';
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html` },
+    options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html${back}` },
   });
   if (error) {
     clearTimeout(googleWatchdog);

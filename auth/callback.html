@@ -89,150 +89,160 @@
       window.location.replace(new URL('../' + returnTarget(), import.meta.url).href);
     }
 
-    // Create Supabase client with detectSessionInUrl disabled to avoid auto-detect race
-    const { appConfig } = await import('../js/config.js');
-    const createClientFn = window.supabase?.createClient;
-    let supabase = null;
-    try {
-      if (createClientFn && appConfig?.supabaseUrl && appConfig?.supabaseAnonKey) {
-        supabase = createClientFn(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-          auth: {
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: false,
-            storage: window.localStorage,
-            flowType: 'pkce',
-          },
-        });
-      } else {
-        const mod = await import('../js/supabase-client.js');
-        supabase = mod.supabase;
-      }
-    } catch (err) {
-      console.error('[callback] failed to init supabase:', err);
-      setStatus('Login failed', 'Supabase init failed', 'فشل تهيئة المصادقة');
-      return;
-    }
-
-    function decodeJwt(token) {
+    // Everything from here down used to run at module top level, but four
+    // `return;` statements make `return` illegal there, so the whole
+    // <script type="module"> was a SyntaxError ("Illegal return statement")
+    // and NONE of this file ever ran — Google sign-in hung on the spinner
+    // forever. One async function makes those returns legal and keeps the
+    // top-level awaits working. (Verified with node --check on the module.)
+    async function handleCallback() {
+      // Create Supabase client with detectSessionInUrl disabled to avoid auto-detect race
+      const { appConfig } = await import('../js/config.js');
+      const createClientFn = window.supabase?.createClient;
+      let supabase = null;
       try {
-        const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        return JSON.parse(decodeURIComponent(escape(atob(body))));
-      } catch (err) {
-        return {};
-      }
-    }
-
-    function persistSessionIntoLibrary(accessToken, refreshToken, expiresIn) {
-      try {
-        const payload = decodeJwt(accessToken);
-        const session = {
-          access_token: accessToken,
-          token_type: 'bearer',
-          expires_in: Number(expiresIn) || 3600,
-          expires_at: NOW + (Number(expiresIn) || 3600) * 1000,
-          refresh_token: refreshToken || '',
-          user: {
-            id: payload.sub || '',
-            aud: 'authenticated',
-            role: 'authenticated',
-            email: payload.email || '',
-            email_confirmed_at: NOW,
-            user_metadata: {},
-            app_metadata: { provider: 'google' },
-          },
-        };
-        localStorage.setItem(SB_KEY, JSON.stringify(session));
-      } catch (err) {
-        console.warn('persistSessionIntoLibrary failed:', err);
-      }
-    }
-
-    function hashTokens() {
-      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
-      return {
-        at: hash.get('access_token') || hash.get('token'),
-        rt: hash.get('refresh_token'),
-        expiresIn: hash.get('expires_in'),
-        email: hash.get('email'),
-        name: hash.get('name'),
-      };
-    }
-
-    // Watchdog: show error on timeout, do NOT create synthetic session
-    const watchdog = setTimeout(() => {
-      if (done) return;
-      setStatus('Login not completed', 'Sign-in timed out. Please try again.', 'انتهت مهلة تسجيل الدخول — جرّب مرة ثانية');
-    }, 8000);
-
-    const params = new URLSearchParams(location.search);
-    const code = params.get('code');
-    const error = params.get('error');
-    const errorDesc = params.get('error_description');
-
-    if (!supabase) {
-      setStatus('Login failed', 'Supabase is not configured in this build.', 'Supabase غير مُعد');
-      return;
-    }
-
-    if (error) {
-      const safeMsg = (errorDesc || error || '').toString().replace(/[?&#].*$/, '').slice(0, 200);
-      setStatus('Login failed', 'Please try again. (' + safeMsg + ')', 'خطأ: ' + safeMsg);
-      console.error('OAuth callback error param:', error, errorDesc);
-      return;
-    }
-
-    let user = null;
-    let exchangeAttempted = false;
-
-    // Step 1: Check existing session first
-    logStep('Checking existing session… / جارٍ التحقق من الجلسة الحالية…');
-    try {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (s?.user) {
-        user = s.user;
-        logStep('Session found / تم العثور على جلسة');
-      } else {
-        logStep('No active session / لا توجد جلسة نشطة');
-      }
-    } catch (err) {
-      logStep('getSession failed: ' + err.message, 'فشل فحص الجلسة: ' + err.message);
-      console.warn('getSession failed:', err);
-    }
-
-    // Step 2: Exchange code ONCE if no session
-    if (!user && code && !exchangeAttempted) {
-      exchangeAttempted = true;
-      logStep('Exchanging code for session… / جارٍ تبادل الكود…');
-      try {
-        const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
-        if (!e1 && data?.user) {
-          user = data.user;
-          logStep('Code exchange succeeded / تم تبادل الكود بنجاح');
-        } else if (e1) {
-          logStep('Code exchange failed: ' + e1.message, 'فشل تبادل الكود: ' + e1.message);
-          console.error('OAuth exchange failed:', e1);
+        if (createClientFn && appConfig?.supabaseUrl && appConfig?.supabaseAnonKey) {
+          supabase = createClientFn(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
+            auth: {
+              autoRefreshToken: true,
+              persistSession: true,
+              detectSessionInUrl: false,
+              storage: window.localStorage,
+              flowType: 'pkce',
+            },
+          });
+        } else {
+          const mod = await import('../js/supabase-client.js');
+          supabase = mod.supabase;
         }
       } catch (err) {
-        logStep('Code exchange threw: ' + err.message, 'خطأ في التبادل: ' + err.message);
-        console.warn('exchangeCodeForSession threw:', err);
+        console.error('[callback] failed to init supabase:', err);
+        setStatus('Login failed', 'Supabase init failed', 'فشل تهيئة المصادقة');
+        return;
       }
-    } else if (!user && !code) {
-      logStep('No code in URL / لا يوجد كود في الرابط');
-    }
 
-    // Final result
-    if (!user) {
+      function decodeJwt(token) {
+        try {
+          const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          return JSON.parse(decodeURIComponent(escape(atob(body))));
+        } catch (err) {
+          return {};
+        }
+      }
+
+      function persistSessionIntoLibrary(accessToken, refreshToken, expiresIn) {
+        try {
+          const payload = decodeJwt(accessToken);
+          const session = {
+            access_token: accessToken,
+            token_type: 'bearer',
+            expires_in: Number(expiresIn) || 3600,
+            expires_at: NOW + (Number(expiresIn) || 3600) * 1000,
+            refresh_token: refreshToken || '',
+            user: {
+              id: payload.sub || '',
+              aud: 'authenticated',
+              role: 'authenticated',
+              email: payload.email || '',
+              email_confirmed_at: NOW,
+              user_metadata: {},
+              app_metadata: { provider: 'google' },
+            },
+          };
+          localStorage.setItem(SB_KEY, JSON.stringify(session));
+        } catch (err) {
+          console.warn('persistSessionIntoLibrary failed:', err);
+        }
+      }
+
+      function hashTokens() {
+        const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
+        return {
+          at: hash.get('access_token') || hash.get('token'),
+          rt: hash.get('refresh_token'),
+          expiresIn: hash.get('expires_in'),
+          email: hash.get('email'),
+          name: hash.get('name'),
+        };
+      }
+
+      // Watchdog: show error on timeout, do NOT create synthetic session
+      const watchdog = setTimeout(() => {
+        if (done) return;
+        setStatus('Login not completed', 'Sign-in timed out. Please try again.', 'انتهت مهلة تسجيل الدخول — جرّب مرة ثانية');
+      }, 8000);
+
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const error = params.get('error');
+      const errorDesc = params.get('error_description');
+
+      if (!supabase) {
+        setStatus('Login failed', 'Supabase is not configured in this build.', 'Supabase غير مُعد');
+        return;
+      }
+
+      if (error) {
+        const safeMsg = (errorDesc || error || '').toString().replace(/[?&#].*$/, '').slice(0, 200);
+        setStatus('Login failed', 'Please try again. (' + safeMsg + ')', 'خطأ: ' + safeMsg);
+        console.error('OAuth callback error param:', error, errorDesc);
+        return;
+      }
+
+      let user = null;
+      let exchangeAttempted = false;
+
+      // Step 1: Check existing session first
+      logStep('Checking existing session… / جارٍ التحقق من الجلسة الحالية…');
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s?.user) {
+          user = s.user;
+          logStep('Session found / تم العثور على جلسة');
+        } else {
+          logStep('No active session / لا توجد جلسة نشطة');
+        }
+      } catch (err) {
+        logStep('getSession failed: ' + err.message, 'فشل فحص الجلسة: ' + err.message);
+        console.warn('getSession failed:', err);
+      }
+
+      // Step 2: Exchange code ONCE if no session
+      if (!user && code && !exchangeAttempted) {
+        exchangeAttempted = true;
+        logStep('Exchanging code for session… / جارٍ تبادل الكود…');
+        try {
+          const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
+          if (!e1 && data?.user) {
+            user = data.user;
+            logStep('Code exchange succeeded / تم تبادل الكود بنجاح');
+          } else if (e1) {
+            logStep('Code exchange failed: ' + e1.message, 'فشل تبادل الكود: ' + e1.message);
+            console.error('OAuth exchange failed:', e1);
+          }
+        } catch (err) {
+          logStep('Code exchange threw: ' + err.message, 'خطأ في التبادل: ' + err.message);
+          console.warn('exchangeCodeForSession threw:', err);
+        }
+      } else if (!user && !code) {
+        logStep('No code in URL / لا يوجد كود في الرابط');
+      }
+
+      // Final result
+      if (!user) {
+        clearTimeout(watchdog);
+        logStep('Login failed. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
+        setStatus('Login not completed', 'Could not complete sign in. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
+        return;
+      }
+
       clearTimeout(watchdog);
-      logStep('Login failed. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
-      setStatus('Login not completed', 'Could not complete sign in. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
-      return;
+      logStep('Login successful! Redirecting… / تم الدخول بنجاح! جارٍ التوجيه…');
+      setStatus('Signing you in…', 'Redirecting to your dashboard.', 'جارٍ التوجيه للوحة التحكم…');
+      persistLogin(user);
     }
 
-    clearTimeout(watchdog);
-    logStep('Login successful! Redirecting… / تم الدخول بنجاح! جارٍ التوجيه…');
-    setStatus('Signing you in…', 'Redirecting to your dashboard.', 'جارٍ التوجيه للوحة التحكم…');
-    persistLogin(user);
+    handleCallback();
   </script>
   <script>
   (function(){
