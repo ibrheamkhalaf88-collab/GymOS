@@ -19,6 +19,9 @@
   </style>
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid items-center justify-center" style="color: #e2e4cf;">
+  <div id="offlineBanner" class="offline-banner hidden" role="status" aria-live="polite">
+  Offline — لا يوجد اتصال · تعرض البيانات المحلية
+</div>
 
   <div class="w-full max-w-md p-8 text-center">
     <div class="w-16 h-16 mx-auto mb-6 rounded-full border border-[#8e9379] flex items-center justify-center" style="background-color:#333627;">
@@ -31,24 +34,30 @@
     <div class="flex justify-center">
       <div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div>
     </div>
+    <p class="text-xs text-muted mt-4" id="cbDebug"></p>
   </div>
 
   <!-- Handle the OAuth callback — runs immediately -->
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
-    import { supabase } from '../js/supabase-client.js';
-
     const statusEl = document.getElementById('cbStatus');
     const subEl = document.getElementById('cbSub');
-    const setStatus = (t, s) => {
+    const debugEl = document.getElementById('cbDebug');
+    const setStatus = (t, s, d) => {
       if (t) statusEl.textContent = t;
       if (s) subEl.textContent = s;
+      if (d) debugEl.textContent = d;
     };
 
     const REF = 'mwfbgucayjgbbvcyelbo';
     const SB_KEY = 'sb-' + REF + '-auth-token';
     const NOW = Date.now();
     let done = false;
+
+    function logStep(msg) {
+      console.log('[callback]', msg);
+      setStatus(null, null, msg);
+    }
 
     function persistLogin(user) {
       if (done) return;
@@ -67,6 +76,31 @@
       }));
       localStorage.setItem('dp_user_email', user.email || '');
       window.location.replace(new URL('../app.html', import.meta.url).href);
+    }
+
+    // Create Supabase client with detectSessionInUrl disabled to avoid auto-detect race
+    const { appConfig } = await import('../js/config.js');
+    const createClientFn = window.supabase?.createClient;
+    let supabase = null;
+    try {
+      if (createClientFn && appConfig?.supabaseUrl && appConfig?.supabaseAnonKey) {
+        supabase = createClientFn(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
+          auth: {
+            autoRefreshToken: true,
+            persistSession: true,
+            detectSessionInUrl: false,
+            storage: window.localStorage,
+            flowType: 'pkce',
+          },
+        });
+      } else {
+        const mod = await import('../js/supabase-client.js');
+        supabase = mod.supabase;
+      }
+    } catch (err) {
+      console.error('[callback] failed to init supabase:', err);
+      setStatus('Login failed', 'Supabase init failed', 'فشل تهيئة المصادقة');
+      return;
     }
 
     function decodeJwt(token) {
@@ -104,7 +138,6 @@
     }
 
     function hashTokens() {
-      // implicit flow delivers #access_token=...,#refresh_token=...
       const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
       return {
         at: hash.get('access_token') || hash.get('token'),
@@ -115,101 +148,91 @@
       };
     }
 
-    // Failsafe watchdog — guaranteed path, no library involved, cannot hang.
-    setTimeout(() => {
+    // Watchdog: show error on timeout, do NOT create synthetic session
+    const watchdog = setTimeout(() => {
       if (done) return;
-      const t = hashTokens();
-      setStatus('Signing you in…', 'Completing sign in.');
-      if (!t.at) {
-        setStatus('Login not completed', 'No session found in the address bar. Please return and try again.');
-        return;
-      }
-      try {
-        const payload = decodeJwt(t.at);
-        persistSessionIntoLibrary(t.at, t.rt, t.expiresIn);
-        persistLogin({
-          id: payload.sub || t.email || '',
-          email: payload.email || t.email || '',
-          user_metadata: { name: t.name },
-        });
-      } catch (err) {
-        console.error('failsafe login failed:', err);
-        setStatus('Login not completed', 'Could not read the session. Close and try again.');
-      }
+      setStatus('Login not completed', 'Sign-in timed out. Please try again.', 'انتهت مهلة تسجيل الدخول — جرّب مرة ثانية');
     }, 8000);
 
     const params = new URLSearchParams(location.search);
     const code = params.get('code');
     const error = params.get('error');
+    const errorDesc = params.get('error_description');
 
     if (!supabase) {
-      setStatus('Login failed', 'Supabase is not configured in this build.');
+      setStatus('Login failed', 'Supabase is not configured in this build.', 'Supabase غير مُعد');
       return;
     }
 
     if (error) {
-      setStatus('Login failed', 'Please try again. (' + error + ')');
-      console.error('OAuth callback error param:', error);
+      const safeMsg = (errorDesc || error || '').toString().replace(/[?&#].*$/, '').slice(0, 200);
+      setStatus('Login failed', 'Please try again. (' + safeMsg + ')', 'خطأ: ' + safeMsg);
+      console.error('OAuth callback error param:', error, errorDesc);
       return;
     }
 
     let user = null;
+    let exchangeAttempted = false;
 
-    if (code) {
-      setStatus('Signing you in…', 'Verifying secure login.');
+    // Step 1: Check existing session first
+    logStep('Checking existing session… / جارٍ التحقق من الجلسة الحالية…');
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (s?.user) {
+        user = s.user;
+        logStep('Session found / تم العثور على جلسة');
+      } else {
+        logStep('No active session / لا توجد جلسة نشطة');
+      }
+    } catch (err) {
+      logStep('getSession failed: ' + err.message, 'فشل فحص الجلسة: ' + err.message);
+      console.warn('getSession failed:', err);
+    }
+
+    // Step 2: Exchange code ONCE if no session
+    if (!user && code && !exchangeAttempted) {
+      exchangeAttempted = true;
+      logStep('Exchanging code for session… / جارٍ تبادل الكود…');
       try {
         const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
-        if (e1) {
-          console.error('OAuth exchange failed:', e1);
-        } else if (data?.user) {
+        if (!e1 && data?.user) {
           user = data.user;
+          logStep('Code exchange succeeded / تم تبادل الكود بنجاح');
+        } else if (e1) {
+          logStep('Code exchange failed: ' + e1.message, 'فشل تبادل الكود: ' + e1.message);
+          console.error('OAuth exchange failed:', e1);
         }
       } catch (err) {
+        logStep('Code exchange threw: ' + err.message, 'خطأ في التبادل: ' + err.message);
         console.warn('exchangeCodeForSession threw:', err);
       }
+    } else if (!user && !code) {
+      logStep('No code in URL / لا يوجد كود في الرابط');
     }
 
+    // Final result
     if (!user) {
-      setStatus('Signing you in…', 'Confirming your session.');
-      try {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s?.user) user = s.user;
-      } catch (err) {
-        console.warn('getSession failed:', err);
-      }
-    }
-
-    if (!user) {
-      const t = hashTokens();
-      if (t.at) {
-        try {
-          const { data } = await supabase.auth.setSession({ access_token: t.at, refresh_token: t.rt || '' });
-          if (data?.user) user = data.user;
-        } catch (err) {
-          console.warn('setSession failed:', err);
-        }
-      }
-    }
-
-    if (!user) {
-      // Let the watchdog finish the job; it will redirect to the dashboard.
+      clearTimeout(watchdog);
+      logStep('Login failed. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
+      setStatus('Login not completed', 'Could not complete sign in. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
       return;
     }
 
-    const meta = user.user_metadata || {};
-    if (!meta.subscription) {
-      supabase.auth.updateUser({
-        data: {
-          subscription: 'trial',
-          subStart: NOW,
-          subEnd: NOW + 30 * 86400000,
-          subTier: 'free_trial',
-        },
-      }).catch((err) => console.warn('metadata update failed:', err));
-    }
-
-    setStatus('Signing you in…', 'Redirecting to your dashboard.');
+    clearTimeout(watchdog);
+    logStep('Login successful! Redirecting… / تم الدخول بنجاح! جارٍ التوجيه…');
+    setStatus('Signing you in…', 'Redirecting to your dashboard.', 'جارٍ التوجيه للوحة التحكم…');
     persistLogin(user);
+  </script>
+  <script>
+  (function(){
+    function setOffline(on){
+      var b=document.getElementById('offlineBanner');
+      if(b) b.classList.toggle('hidden', !on);
+    }
+    window.addEventListener('online', ()=>setOffline(false));
+    window.addEventListener('offline', ()=>setOffline(true));
+    setOffline(!navigator.onLine);
+  })();
   </script>
 </body>
 </html>
