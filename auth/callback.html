@@ -59,6 +59,17 @@
       setStatus(null, null, msg);
     }
 
+    // Where to land after login. login.js passes ?return=<page> so a visitor
+    // who came from onboarding/activate lands back there instead of always
+    // being dumped into the app. An allowlist (not a regex) is the open-redirect
+    // guard: anything else — an absolute URL, a protocol-relative //evil.com,
+    // a subpath — silently falls back to app.html.
+    const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.html'];
+    function returnTarget() {
+      const want = new URLSearchParams(location.search).get('return');
+      return RETURN_ALLOWED.includes(want) ? want : 'app.html';
+    }
+
     function persistLogin(user) {
       if (done) return;
       done = true;
@@ -75,7 +86,7 @@
         loginAt: NOW,
       }));
       localStorage.setItem('dp_user_email', user.email || '');
-      window.location.replace(new URL('../app.html', import.meta.url).href);
+      window.location.replace(new URL('../' + returnTarget(), import.meta.url).href);
     }
 
     // Create Supabase client with detectSessionInUrl disabled to avoid auto-detect race
