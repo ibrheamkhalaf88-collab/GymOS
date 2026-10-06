@@ -53,11 +53,12 @@ test("expired licence renders the 'free trial ended' gate with a code button", (
   const html = gate.textContent;
   assert.match(html, /Free trial ended/);
   assert.match(html, /انتهت الفترة المجانية/);
-  // the actual ask: a way to put the activation code in
-  const links = [...gate.querySelectorAll('a[href="activate.html"]')];
-  assert.ok(links.length >= 1, "must offer the activation-code path");
-  assert.match(links[0].textContent, /Enter activation code/);
-  assert.match(links[0].textContent, /ضع كود التفعيل/);
+  // the actual ask: a way to put the activation code in — v1.4.0 (1fca117)
+  // moved it from a page link into the modal’s inline six-digit form.
+  assert.ok(gate.querySelector('form#activationFormInline'),
+    "must offer the activation-code path");
+  assert.ok(gate.querySelectorAll('.digit-input').length >= 6,
+    "six-digit code entry");
 });
 
 test("expired gate states what still works and what is paused", () => {

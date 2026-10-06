@@ -218,6 +218,10 @@ function gateContent(a) {
         <button type="button" id="toggleManualBtn" class="flex-1 py-2 text-xs uppercase tracking-widest font-headline opacity-70 hover:opacity-100 transition-opacity" style="color:#c7c6c6; background: transparent; border: none;">Show manual entry / إدخال يدوي</button>
       </div>
     </form>
+    ${isLocked ? `<a href="activate.html#trial" style="display:block;text-align:center;margin-top:10px;background:transparent;color:${INK};font-weight:700;padding:13px;border-radius:12px;text-decoration:none;border:1px solid #333527;font-size:13.5px">
+      Start a 30-day free trial
+      <span style="display:block;font-size:11px;font-weight:600;opacity:.7" dir="rtl">ابدأ تجربة مجانية ٣٠ يوم</span>
+    </a>` : ""}
     <p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
       Need a code? Contact us on WhatsApp
       <span dir="rtl" style="display:block">تحتاج كود؟ تواصل معنا على واتساب</span>

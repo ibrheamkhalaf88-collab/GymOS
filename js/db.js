@@ -464,6 +464,18 @@ export const codesDb = {
 
   async saveGym(code, data) {
     if (!onlineMode()) return false;
+    // The server keys this write by the JWT's code and ignores the body's code.
+    // If the stored token belongs to a DIFFERENT code (stale licence after a
+    // switch), the push would silently land in the old account's cloud row.
+    try {
+      const parts = (localStorage.getItem("dp_jwt") || "").split(".");
+      const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
+      const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
+      if (payload.code && code && payload.code !== code) {
+        console.warn("[GymOS] saveGym blocked: token belongs to a different code");
+        return false;
+      }
+    } catch { /* unreadable token — the server remains the authority */ }
     try { await api("/api/gym", { method: "PUT", auth: true, body: data }); return true; }
     catch { return false; }
   },

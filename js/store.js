@@ -211,7 +211,11 @@ function queueCloudSave() {
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) { localStorage.removeItem(PENDING_KEY); return; }
       const dump = cloudDump();
-      await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
+      // saveGym resolves `false` instead of throwing on failure — only a
+      // confirmed push may clear the pending flag (a silent false here used
+      // to show "synced" while the data never left this device).
+      const ok = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
+      if (!ok) { setSyncState("error"); return; }
       markSaved();
     } catch (err) {
       setSyncState("error"); // pending flag stays set → retried by sync loop / online event
@@ -306,7 +310,10 @@ async function syncNow() {
     const push = {};
     COLLECTIONS.forEach((c) => { if (c in merged) push[c] = merged[c]; });
     push._tombstones = mergedTomb;
-    await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    // Same honesty rule as queueCloudSave: saveGym returns false on failure,
+    // and clearing dp_pending_sync without a confirmed push is silent data loss.
+    const ok = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    if (!ok) { setSyncState("error"); return; }
     markSaved();
   } catch (e) {
     setSyncState("error");

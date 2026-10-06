@@ -153,9 +153,16 @@ function render() {
 
 function finish() {
   localStorage.setItem(KEY_SEEN, "1");
-  // Always go to login page after onboarding. Login page handles auth,
-  // then app.html checks subscription/trial status and shows activation modal if needed.
-  location.replace("login.html");
+  // A user who already signed in (valid session inside the last 30 days)
+  // skips the form and goes straight to the app. Everyone else lands on
+  // LOGIN (sign in / create account / Google) — they have no activation
+  // code, so the activation page is the wrong first stop after onboarding.
+  let isActive = false;
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    isActive = !!(u && u.loginAt && Date.now() - u.loginAt < 30 * 24 * 60 * 60 * 1000);
+  } catch { /* malformed session → treat as inactive */ }
+  location.replace(isActive ? "app.html" : "login.html");
 }
 
 // Routing: returning users skip onboarding, go straight to login

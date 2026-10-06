@@ -16,6 +16,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(root, p), 'utf8');
 
 const adminHtml = read('admin.html');
+// The client-side coupon logic moved out of admin.html into js/admin-panel.js
+// during the panel overhaul — these tests follow it to its new home.
+const adminPanelSrc = read('js/admin-panel.js');
 const api = read('supabase/functions/gymos-api/index.ts');
 const migration = read('supabase/migrations/0005_coupons.sql');
 
@@ -45,9 +48,9 @@ test('client and server map each day-based kind to the same tier and days', () =
   // Server side.
   const tier = api.match(/function couponTier\([\s\S]*?\n\}/)[0];
   const days = api.match(/function couponDays\([\s\S]*?\n\}/)[0];
-  // Client side.
-  const clientTier = adminHtml.match(/const couponTierOf = [^\n]*/)[0];
-  const clientDays = adminHtml.match(/const couponDaysOf = [^\n]*/)[0];
+  // Client side — lives in js/admin-panel.js since the panel overhaul.
+  const clientTier = adminPanelSrc.match(/function couponTierOf\(k\) \{[^}]*\}/)[0];
+  const clientDays = adminPanelSrc.match(/function couponDaysOf\(k\) \{[^}]*\}/)[0];
   for (const kind of ['days_14', 'days_30', 'days_365']) {
     assert.ok(tier.includes(kind) && clientTier.includes(kind), `${kind} missing from a tier map`);
     assert.ok(days.includes(kind) && clientDays.includes(kind), `${kind} missing from a days map`);
@@ -61,11 +64,11 @@ test('client and server map each day-based kind to the same tier and days', () =
 
 test('applying a coupon does not burn it; only redeem consumes it', () => {
   // The apply button must peek (GET) rather than redeem (POST).
-  const apply = adminHtml.match(/applyCouponBtn\.addEventListener\('click'[\s\S]*?\n {4}\}\);/)[0];
+  const apply = adminPanelSrc.match(/elements\.applyCouponBtn\.addEventListener\('click'[\s\S]*?\n\}\);/)[0];
   assert.ok(apply.includes('apiPeekCoupon'), 'apply must peek, not redeem');
   assert.ok(!apply.includes('apiRedeemCoupon'), 'apply must not consume the coupon');
   // And the save path is the only thing that claims it.
-  const submit = adminHtml.match(/userForm\.addEventListener\('submit'[\s\S]*?\n {4}\}\);/)[0];
+  const submit = adminPanelSrc.match(/elements\.userForm\.addEventListener\('submit'[\s\S]*?\n\}\);/)[0];
   assert.ok(submit.includes('apiRedeemCoupon'), 'saving the subscription must claim the coupon');
   assert.ok(submit.includes('apiReleaseCoupon'), 'a failed save must release the claim');
 });

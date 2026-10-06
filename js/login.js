@@ -38,6 +38,12 @@ function isFirstLogin() {
 async function autoActivateTrial(userEmail) {
   const shown = localStorage.getItem('dp_welcome_shown');
   if (shown) return false; // Already shown
+  // This device already has a licence (paid code, account-linked code or the
+  // server-minted trial from linkCloudIdentity). license.save() replaces the
+  // WHOLE record, so the local fallback below used to detach the device from
+  // its real cloud gym on a fresh device's first login — sync then pushed to
+  // a placeholder code, failed, and looked like "my data disappeared".
+  if (license.get()?.code) return false;
   
   localStorage.setItem('dp_welcome_shown', '1');
   
@@ -330,7 +336,17 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
         setLoading(false);
         return;
       }
-      // Network/transient error only → fall through to demo
+      // Network/transient error — but NEVER fall through to a demo account when
+      // a real identity already lives on this device: demoSignIn writes a
+      // different dp_current_user id, which hides the real data behind another
+      // namespace ("I logged in again and everything is gone").
+      const hasRealIdentity = localStorage.getItem('dp_current_user') || localStorage.getItem('dp_license')
+        || Object.keys(localStorage).some((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
+      if (hasRealIdentity) {
+        setMsg('لا يوجد اتصال بالإنترنت — أعد المحاولة / No internet connection — please try again');
+        setLoading(false);
+        return;
+      }
       console.warn('[login] Supabase unavailable, using demo fallback:', err?.message || err);
     }
   }
@@ -364,17 +380,19 @@ forgotLink.addEventListener('click', async (e) => {
     setMsg('Enter your email first / أدخل بريدك أولاً');
     return;
   }
-  setMsg('Reset link sent — check your inbox / تم إرسال رابط إعادة الضبط');
   try {
     let supabase = null;
     try { const { supabase: sb } = await import('./supabase-client.js'); supabase = sb; } catch { /* offline */ }
-    if (supabase) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${APP_BASE}reset-password.html` });
-      if (error) throw error;
-    }
+    if (!supabase) throw new Error('offline');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${APP_BASE}reset-password.html` });
+    if (error) throw error;
+    // Confirm AFTER the request actually went out, naming the user's own
+    // email so they know which inbox to check. The old line claimed "sent"
+    // before the request even left — a false success when offline.
+    setMsg(`✅ تم إرسال إيميل إلى بريدك (${email}) — تحقق من بريدك / Check your inbox`, '#CCFF00');
   } catch (err) {
     console.error(err);
-    setMsg('Could not send reset email — try again later');
+    setMsg('Could not send reset email — try again later / تعذر إرسال إيميل الاستعادة');
   }
 });
 

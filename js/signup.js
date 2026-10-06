@@ -191,6 +191,16 @@ form.addEventListener('submit', async (e) => {
   }
 
   if (!result) {
+    // NEVER invent a local lookalike account when a real identity already lives
+    // on this device (session, saved user or licence): the demo record uses a
+    // different id, so it would hide the real data behind another namespace.
+    const hasRealIdentity = localStorage.getItem('dp_current_user') || localStorage.getItem('dp_license')
+      || Object.keys(localStorage).some((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (hasRealIdentity) {
+      setMsg('لا يوجد اتصال بالإنترنت — أعد المحاولة / No internet connection — please try again');
+      setLoading(false);
+      return;
+    }
     result = await demoSignUp(email, password, name);
     if (!result.ok) {
       setMsg(result.error || 'Signup failed');
@@ -202,8 +212,13 @@ form.addEventListener('submit', async (e) => {
   // Success
   // Signup OK — 30-day free trial, then admin approves
 
-  // Store user for immediate login
-  localStorage.setItem('dp_current_user', JSON.stringify({ ...result.user, loginAt: Date.now() }));
+  // Store user for immediate login.
+  // The demo record carries passHash/plainPassword — NEVER persist a password
+  // inside dp_current_user (any script on this origin can read it).
+  const safeUser = { ...result.user };
+  delete safeUser.passHash;
+  delete safeUser.plainPassword;
+  localStorage.setItem('dp_current_user', JSON.stringify({ ...safeUser, loginAt: Date.now() }));
   localStorage.setItem('dp_user_email', result.user.email);
 
   // Mint/adopt the server code for this account right away — without it the

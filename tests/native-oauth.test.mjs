@@ -31,9 +31,10 @@ test("login + signup: native branch opens the system browser, web keeps in-page 
   for (const [name, src] of [["login", login], ["signup", signup]]) {
     assert.match(src, /from '\.\/native-oauth\.js'/, `${name}.js imports native-oauth`);
     assert.match(src, /if \(isNativeApp\(\)\)/, `${name}.js has the native branch`);
-    assert.match(src, /await startNativeGoogleOAuth\(\)/, `${name}.js starts the Custom Tab flow`);
+    assert.match(src, /await startNativeGoogleOAuth\(/, `${name}.js starts the Custom Tab flow`);
     assert.match(src, /armNativeOAuthReturn\(\)/, `${name}.js arms the deep-link listener`);
-    assert.match(src, /redirectTo: `\$\{APP_BASE\}auth\/callback\.html`/, `${name}.js keeps the web redirect`);
+    // The web redirect may carry the allowlisted ?return= param after the path.
+    assert.match(src, /redirectTo: `\$\{APP_BASE\}auth\/callback\.html(\?[^`]*)?`/, `${name}.js keeps the web redirect`);
   }
 });
 

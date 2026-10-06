@@ -102,6 +102,35 @@ function showDownloadingOverlay() {
     '</div>';
 }
 
+function cmpVersion(a, b) {
+  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x > y) return 1; if (x < y) return -1;
+  }
+  return 0;
+}
+
+function sanitizeUrl(url) {
+  if (!url) return "#";
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
+  } catch {}
+  return "#";
+}
+
+function showUpdateOverlay(apkUrl) {
+  const safeUrl = sanitizeUrl(apkUrl);
+  document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
+    '<div style="font-size:72px;color:#ccff00">⬇</div>' +
+    '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
+    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
+    '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
+    '<p style="font-size:11px;color:#777;margin:8px 0 0">Update / حدّث التطبيق</p>' +
+    '</div>';
+}
+
 // ---------- Guards ----------
 // Supabase session, used for the cloud-sync entitlement. App access itself is
 // gated separately by installAccess() in access.js: an expired trial or a
@@ -2482,14 +2511,12 @@ function viewProfile() {
     // bounces the user back to activation after they clean their data.
     // (store.resetAll tombstones every item first so the cloud copy is wiped
     // on the next push instead of resurrecting the deleted rows.)
-    const KEEP_PREFIX = ["dp_license", "dp_current_user", "dp_user_", "dp_jwt", "dp_device_id", "dp_cloud", "dp_gym_name", "i18n"];
-    store.resetAll();
-    Object.keys(localStorage).forEach((k) => {
-      if (!k.startsWith("dp_") && !k.startsWith("i18n")) return;
-      if (k.includes("tomb") || k.endsWith("_seeded")) return; // tombstones = the cloud wipe; _seeded stops demo data from coming back
-      if (KEEP_PREFIX.some((p) => k.startsWith(p))) return;
-      localStorage.removeItem(k);
-    });
+    store.resetAll(); // this account's collections only (tombstoned first → cloud copy wiped too)
+    // NEVER DELETE USER DATA AUTOMATICALLY: the old sweep removed every dp_* key it
+    // failed to recognise — including OTHER accounts' namespaces (dp_<uid>_members)
+    // with no tombstone, plus dp_lang / dp_plan_prices / dp_audit_log (its KEEP_PREFIX
+    // entry "i18n" never matched the real key dp_lang). Only demo/cache leftovers go.
+    ["dp_demo_codes", "dp_demo_users", "dp_coupons", "dp_codes_cache"].forEach((k) => localStorage.removeItem(k));
     sessionStorage.clear();
     // Push the wiped state before reloading (stopSync paused the loop).
     try { await store.syncNow(); } catch {}
