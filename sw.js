@@ -44,7 +44,14 @@ const put = (cache, req, res) => {
 };
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // no-cache: revalidate with the server so a deploy can never be
+  // shadowed by HTTP-cached copies of the previous release.
+  e.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: "no-cache" }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -66,7 +73,7 @@ self.addEventListener("fetch", (e) => {
   // Pages: network-first so updates land immediately, fall back offline
   if (url.pathname.endsWith(".html") || url.pathname === "/") {
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: "no-cache" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => put(c, e.request, copy));
@@ -83,7 +90,7 @@ self.addEventListener("fetch", (e) => {
   // users too, with cache fallback for offline.
   if (/\.(js|css)$/.test(url.pathname)) {
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: "no-cache" })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => put(c, e.request, copy));
