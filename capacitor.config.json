@@ -7,5 +7,8 @@
   },
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "AutoUpdater": {}
   }
 }

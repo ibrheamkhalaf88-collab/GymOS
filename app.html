@@ -8,10 +8,18 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml" />
   <meta name="theme-color" content="#000000" />
+  <!-- Preload Material Symbols font FIRST to prevent FOUT -->
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-400.ttf">
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-500.ttf">
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-600.ttf">
+  <link rel="preload" as="font" type="font/ttf" crossorigin href="vendor/fonts/MaterialSymbolsOutlined-700.ttf">
+  <!-- Material Symbols LOCAL -->
+  <link href="vendor/material-symbols.css" rel="stylesheet" />
+  <!-- Google Fonts for text - non-blocking -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'"/>
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"/></noscript>
   <script src="vendor/tailwind.js" defer></script>
   <script src="js/tailwind-config.js" defer></script>
   <link rel="stylesheet" href="css/theme.css" />
@@ -106,7 +114,25 @@
   </button>
 
   <script>
-    (function(){ function setOffline(on){ document.getElementById('offlineBanner').classList.toggle('hidden', !on); } window.addEventListener('online', ()=>setOffline(false)); window.addEventListener('offline', ()=>setOffline(true)); setOffline(!navigator.onLine); window.addEventListener('load', ()=>{ var o=document.getElementById('loadingOverlay'); if(o) setTimeout(()=>o.remove(), 400); }); })();
+    (function(){ function setOffline(on){ document.getElementById('offlineBanner').classList.toggle('hidden', !on); } window.addEventListener('online', ()=>setOffline(false)); window.addEventListener('offline', ()=>setOffline(true)); setOffline(!navigator.onLine); })();
+  </script>
+  <!-- Font loading detection for Material Symbols -->
+  <script>
+    (function() {
+      if ('fonts' in document) {
+        document.fonts.ready.then(function() {
+          document.querySelectorAll('.material-symbols-outlined').forEach(function(el) {
+            el.style.visibility = 'visible';
+          });
+        });
+      } else {
+        setTimeout(function() {
+          document.querySelectorAll('.material-symbols-outlined').forEach(function(el) {
+            el.style.visibility = 'visible';
+          });
+        }, 500);
+      }
+    })();
   </script>
   <script src="vendor/supabase-js.js"></script>
   <script type="module" src="js/app.js"></script>

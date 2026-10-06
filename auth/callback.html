@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Digital Pulse — Authentication</title>
+  <title>Digital Pulse ظ¤ Authentication</title>
   <meta name="theme-color" content="#000000" />
   <script src="../vendor/tailwind.js"></script>
   <script src="../js/tailwind-config.js"></script>
@@ -19,9 +19,6 @@
   </style>
 </head>
 <body class="font-body min-h-screen flex flex-col antialiased cyber-grid items-center justify-center" style="color: #e2e4cf;">
-  <div id="offlineBanner" class="offline-banner hidden" role="status" aria-live="polite">
-  Offline — لا يوجد اتصال · تعرض البيانات المحلية
-</div>
 
   <div class="w-full max-w-md p-8 text-center">
     <div class="w-16 h-16 mx-auto mb-6 rounded-full border border-[#8e9379] flex items-center justify-center" style="background-color:#333627;">
@@ -29,24 +26,24 @@
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
       </svg>
     </div>
-    <h2 class="font-headline text-xl uppercase tracking-widest mb-2" id="cbStatus">Signing you in…</h2>
+    <h2 class="font-headline text-xl uppercase tracking-widest mb-2" id="cbStatus">Signing you inظخ</h2>
     <p class="text-sm text-muted mb-6" id="cbSub">Redirecting to your dashboard.</p>
     <div class="flex justify-center">
       <div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div>
     </div>
-    <p class="text-xs text-muted mt-4" id="cbDebug"></p>
   </div>
 
-  <!-- Handle the OAuth callback — runs immediately -->
+  <!-- Handle the OAuth callback ظ¤ runs immediately -->
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
+    import { supabase } from '../js/supabase-client.js';
+    import { APP_BASE } from '../js/config.js';
+
     const statusEl = document.getElementById('cbStatus');
     const subEl = document.getElementById('cbSub');
-    const debugEl = document.getElementById('cbDebug');
-    const setStatus = (t, s, d) => {
+    const setStatus = (t, s) => {
       if (t) statusEl.textContent = t;
       if (s) subEl.textContent = s;
-      if (d) debugEl.textContent = d;
     };
 
     const REF = 'mwfbgucayjgbbvcyelbo';
@@ -54,20 +51,21 @@
     const NOW = Date.now();
     let done = false;
 
-    function logStep(msg) {
-      console.log('[callback]', msg);
-      setStatus(null, null, msg);
-    }
-
-    // Where to land after login. login.js passes ?return=<page> so a visitor
-    // who came from onboarding/activate lands back there instead of always
-    // being dumped into the app. An allowlist (not a regex) is the open-redirect
-    // guard: anything else — an absolute URL, a protocol-relative //evil.com,
-    // a subpath — silently falls back to app.html.
+    // ?return= comes straight from the URL, so it must never be resolved against
+    // the origin: the old `new URL(returnUrl.startsWith('/') ? returnUrl : '/' +
+    // returnUrl, origin)` sent the user to https://evil.com for
+    // ?return=//evil.com ظ¤ an open redirect on the one page that just handed them
+    // a valid session. Only the app's own pages are accepted now; every other
+    // value (absolute URL, //host, ../x) falls back to app.html.
     const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.html'];
-    function returnTarget() {
-      const want = new URLSearchParams(location.search).get('return');
-      return RETURN_ALLOWED.includes(want) ? want : 'app.html';
+    function resolveReturnUrl() {
+      const want = new URLSearchParams(window.location.search).get('return');
+      const page = RETURN_ALLOWED.includes(want) ? want : 'app.html';
+      // Resolve against THIS page (…/GymOS/auth/callback.html), not the origin
+      // root: '/app.html' pointed at https://<user>.github.io/app.html and 404'd
+      // because the site lives under /GymOS/. '../' works on GitHub Pages, on
+      // localhost and inside the APK (its origin is https://localhost).
+      return new URL('../' + page, window.location.href).href;
     }
 
     function persistLogin(user) {
@@ -86,174 +84,173 @@
         loginAt: NOW,
       }));
       localStorage.setItem('dp_user_email', user.email || '');
-      window.location.replace(new URL('../' + returnTarget(), import.meta.url).href);
+
+      // Redirect to the allowlisted return page (app.html by default).
+      window.location.replace(resolveReturnUrl());
     }
 
-    // Everything from here down used to run at module top level, but four
-    // `return;` statements make `return` illegal there, so the whole
-    // <script type="module"> was a SyntaxError ("Illegal return statement")
-    // and NONE of this file ever ran — Google sign-in hung on the spinner
-    // forever. One async function makes those returns legal and keeps the
-    // top-level awaits working. (Verified with node --check on the module.)
-    async function handleCallback() {
-      // Create Supabase client with detectSessionInUrl disabled to avoid auto-detect race
-      const { appConfig } = await import('../js/config.js');
-      const createClientFn = window.supabase?.createClient;
-      let supabase = null;
-      try {
-        if (createClientFn && appConfig?.supabaseUrl && appConfig?.supabaseAnonKey) {
-          supabase = createClientFn(appConfig.supabaseUrl, appConfig.supabaseAnonKey, {
-            auth: {
-              autoRefreshToken: true,
-              persistSession: true,
-              detectSessionInUrl: false,
-              storage: window.localStorage,
-              flowType: 'pkce',
-            },
-          });
-        } else {
-          const mod = await import('../js/supabase-client.js');
-          supabase = mod.supabase;
-        }
-      } catch (err) {
-        console.error('[callback] failed to init supabase:', err);
-        setStatus('Login failed', 'Supabase init failed', 'فشل تهيئة المصادقة');
+    // Failsafe watchdog ظ¤ if main flow doesn't complete in 10s, try to recover from hash (legacy implicit flow)
+    setTimeout(() => {
+      if (done) return;
+      // Only attempt hash recovery for legacy implicit flow (not PKCE)
+      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
+      const at = hash.get('access_token') || hash.get('token');
+      if (!at) {
+        setStatus('Login not completed', 'No session found. Please return and try again.');
         return;
       }
-
-      function decodeJwt(token) {
-        try {
-          const body = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-          return JSON.parse(decodeURIComponent(escape(atob(body))));
-        } catch (err) {
-          return {};
-        }
-      }
-
-      function persistSessionIntoLibrary(accessToken, refreshToken, expiresIn) {
-        try {
-          const payload = decodeJwt(accessToken);
-          const session = {
-            access_token: accessToken,
-            token_type: 'bearer',
-            expires_in: Number(expiresIn) || 3600,
-            expires_at: NOW + (Number(expiresIn) || 3600) * 1000,
-            refresh_token: refreshToken || '',
-            user: {
-              id: payload.sub || '',
-              aud: 'authenticated',
-              role: 'authenticated',
-              email: payload.email || '',
-              email_confirmed_at: NOW,
-              user_metadata: {},
-              app_metadata: { provider: 'google' },
-            },
-          };
-          localStorage.setItem(SB_KEY, JSON.stringify(session));
-        } catch (err) {
-          console.warn('persistSessionIntoLibrary failed:', err);
-        }
-      }
-
-      function hashTokens() {
-        const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
-        return {
-          at: hash.get('access_token') || hash.get('token'),
-          rt: hash.get('refresh_token'),
-          expiresIn: hash.get('expires_in'),
-          email: hash.get('email'),
-          name: hash.get('name'),
+      try {
+        // Decode JWT to get user info
+        const body = at.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(decodeURIComponent(escape(atob(body))));
+        // Store session for library compatibility
+        const session = {
+          access_token: at,
+          token_type: 'bearer',
+          expires_in: Number(hash.get('expires_in')) || 3600,
+          expires_at: NOW + (Number(hash.get('expires_in')) || 3600) * 1000,
+          refresh_token: hash.get('refresh_token') || '',
+          user: {
+            id: payload.sub || '',
+            aud: 'authenticated',
+            role: 'authenticated',
+            email: payload.email || '',
+            email_confirmed_at: NOW,
+            user_metadata: { name: hash.get('name') || '' },
+            app_metadata: { provider: 'google' },
+          },
         };
+        localStorage.setItem(SB_KEY, JSON.stringify(session));
+        persistLogin({
+          id: payload.sub || '',
+          email: payload.email || '',
+          user_metadata: { name: hash.get('name') || '' },
+        });
+      } catch (err) {
+        console.error('failsafe login failed:', err);
+        setStatus('Login not completed', 'Could not read the session. Close and try again.');
       }
+    }, 10000);
 
-      // Watchdog: show error on timeout, do NOT create synthetic session
-      const watchdog = setTimeout(() => {
-        if (done) return;
-        setStatus('Login not completed', 'Sign-in timed out. Please try again.', 'انتهت مهلة تسجيل الدخول — جرّب مرة ثانية');
-      }, 8000);
-
+    // Everything from here down used to run at module top level, but the
+    // `if (!supabase)` and `if (error)` guards below both `return`, and a
+    // top-level `return` is illegal in <script type="module">: the whole
+    // script was a SyntaxError ("Illegal return statement"), so nothing here
+    // ever ran and Google sign-in hung on the spinner forever. One async
+    // function makes those returns legal and keeps everything else as-is.
+    async function handleCallback() {
       const params = new URLSearchParams(location.search);
       const code = params.get('code');
       const error = params.get('error');
-      const errorDesc = params.get('error_description');
 
       if (!supabase) {
-        setStatus('Login failed', 'Supabase is not configured in this build.', 'Supabase غير مُعد');
+        setStatus('Login failed', 'Supabase is not configured in this build.');
         return;
       }
 
       if (error) {
-        const safeMsg = (errorDesc || error || '').toString().replace(/[?&#].*$/, '').slice(0, 200);
-        setStatus('Login failed', 'Please try again. (' + safeMsg + ')', 'خطأ: ' + safeMsg);
-        console.error('OAuth callback error param:', error, errorDesc);
+        setStatus('Login failed', 'Please try again. (' + error + ')');
+        console.error('OAuth callback error param:', error);
         return;
       }
 
-      let user = null;
-      let exchangeAttempted = false;
-
-      // Step 1: Check existing session first
-      logStep('Checking existing session… / جارٍ التحقق من الجلسة الحالية…');
-      try {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s?.user) {
-          user = s.user;
-          logStep('Session found / تم العثور على جلسة');
-        } else {
-          logStep('No active session / لا توجد جلسة نشطة');
-        }
-      } catch (err) {
-        logStep('getSession failed: ' + err.message, 'فشل فحص الجلسة: ' + err.message);
-        console.warn('getSession failed:', err);
-      }
-
-      // Step 2: Exchange code ONCE if no session
-      if (!user && code && !exchangeAttempted) {
-        exchangeAttempted = true;
-        logStep('Exchanging code for session… / جارٍ تبادل الكود…');
+      // Main flow: Supabase automatically handles PKCE code exchange on page load.
+      // Just wait for the session to be established, then persist user data and redirect.
+      async function completeLogin() {
         try {
-          const { data, error: e1 } = await supabase.auth.exchangeCodeForSession(code);
-          if (!e1 && data?.user) {
-            user = data.user;
-            logStep('Code exchange succeeded / تم تبادل الكود بنجاح');
-          } else if (e1) {
-            logStep('Code exchange failed: ' + e1.message, 'فشل تبادل الكود: ' + e1.message);
-            console.error('OAuth exchange failed:', e1);
+          setStatus('Signing you inظخ', 'Verifying sessionظخ');
+        
+          // Give Supabase a moment to auto-exchange the code (it does this on page load)
+          await new Promise(r => setTimeout(r, 100));
+        
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+          if (sessionError) {
+            console.error('getSession error:', sessionError);
+            throw sessionError;
           }
+        
+          if (!session?.user) {
+            // If no session yet, try explicit exchange (for cases where auto-exchange didn't run)
+            if (code) {
+              setStatus('Signing you inظخ', 'Exchanging codeظخ');
+              const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+              if (exchangeError) {
+                console.error('OAuth exchange failed:', exchangeError);
+                throw exchangeError;
+              }
+              if (data?.user) {
+                await completeWithUser(data.user);
+                return;
+              }
+            }
+            throw new Error('No session after OAuth redirect');
+          }
+        
+          await completeWithUser(session.user);
         } catch (err) {
-          logStep('Code exchange threw: ' + err.message, 'خطأ في التبادل: ' + err.message);
-          console.warn('exchangeCodeForSession threw:', err);
+          console.error('Callback login failed:', err);
+          setStatus('Login failed', 'Could not complete sign in. Please try again.');
+          // Don't redirect on error ظ¤ let user retry
         }
-      } else if (!user && !code) {
-        logStep('No code in URL / لا يوجد كود في الرابط');
       }
 
-      // Final result
-      if (!user) {
-        clearTimeout(watchdog);
-        logStep('Login failed. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
-        setStatus('Login not completed', 'Could not complete sign in. Please try again.', 'فشل تسجيل الدخول — جرّب مرة ثانية');
-        return;
+      async function completeWithUser(user) {
+        if (done) return;
+        done = true;
+      
+        const meta = user.user_metadata || {};
+      
+        // Ensure trial metadata exists for new users
+        if (!meta.subscription) {
+          try {
+            await supabase.auth.updateUser({
+              data: {
+                subscription: 'trial',
+                subStart: NOW,
+                subEnd: NOW + 30 * 86400000,
+                subTier: 'free_trial',
+              },
+            });
+          } catch (err) {
+            console.warn('metadata update failed:', err);
+          }
+        }
+      
+        // Persist user data for app access
+        localStorage.setItem('dp_current_user', JSON.stringify({
+          id: user.id,
+          email: user.email,
+          name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
+          status: 'active',
+          subscription: meta.subscription || 'trial',
+          subStart: meta.subStart || NOW,
+          subEnd: meta.subEnd || NOW + 30 * 86400000,
+          subTier: meta.subTier || 'free_trial',
+          loginAt: NOW,
+        }));
+        localStorage.setItem('dp_user_email', user.email || '');
+      
+        // Ensure Supabase session is persisted in localStorage (it should be automatic, but verify)
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            // Session exists in Supabase client ظ¤ it's already in localStorage with correct key
+            console.log('[callback] Supabase session confirmed');
+          }
+        } catch {}
+      
+        setStatus('Signing you inظخ', 'Redirecting to your dashboard.');
+
+        // Same allowlisted target as persistLogin() above.
+        window.location.replace(resolveReturnUrl());
       }
 
-      clearTimeout(watchdog);
-      logStep('Login successful! Redirecting… / تم الدخول بنجاح! جارٍ التوجيه…');
-      setStatus('Signing you in…', 'Redirecting to your dashboard.', 'جارٍ التوجيه للوحة التحكم…');
-      persistLogin(user);
+      // Start the login completion flow
+      completeLogin();
     }
 
     handleCallback();
-  </script>
-  <script>
-  (function(){
-    function setOffline(on){
-      var b=document.getElementById('offlineBanner');
-      if(b) b.classList.toggle('hidden', !on);
-    }
-    window.addEventListener('online', ()=>setOffline(false));
-    window.addEventListener('offline', ()=>setOffline(true));
-    setOffline(!navigator.onLine);
-  })();
   </script>
 </body>
 </html>

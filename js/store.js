@@ -7,8 +7,10 @@
 import { requireWrite } from "./access.js";
 
 const PREFIX = "dp_";
-const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications"];
+const COLLECTIONS = ["members", "devices", "trainers", "ledger", "checkins", "notifications", "audit_log"];
 const TOMB_KEY = "dp_tombstones";
+const AUDIT_KEY = "dp_audit_log";
+const AUDIT_MAX = 5000; // احتفظ بـ 5000 عملية كحد أقصى
 
 const listeners = new Map();
 let _suppressCloud = false;
@@ -66,6 +68,53 @@ function readTomb() {
 function writeTomb(t) { localStorage.setItem(memTombKey(), JSON.stringify(t)); }
 function tsOf(it) { return Number(it && it.updatedAt) || Number(it && it.createdAt) || 0; }
 
+// ---------- Audit Log ----------
+function readAudit() {
+  try { return JSON.parse(localStorage.getItem(AUDIT_KEY)) || []; }
+  catch { return []; }
+}
+function writeAudit(list) { localStorage.setItem(AUDIT_KEY, JSON.stringify(list)); }
+
+function currentUserIdentity() {
+  try {
+    const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+    if (u) return { id: u.id, name: u.name, email: u.email };
+  } catch {}
+  return { id: "unknown", name: "Unknown", email: "" };
+}
+
+function auditLog(action, collection, itemId, details = {}) {
+  const user = currentUserIdentity();
+  const log = {
+    id: uid("audit"),
+    ts: Date.now(),
+    action,           // "create" | "update" | "delete"
+    collection,       // "members" | "devices" | "trainers" | "ledger" | "checkins"
+    itemId,
+    userId: user.id,
+    userName: user.name,
+    userEmail: user.email,
+    details,          // { before: {...}, after: {...}, fields: ["name", "phone"] }
+  };
+  const logs = readAudit();
+  logs.unshift(log);
+  if (logs.length > AUDIT_MAX) logs.length = AUDIT_MAX;
+  writeAudit(logs);
+  return log;
+}
+
+function getAuditLog(options = {}) {
+  let logs = readAudit();
+  if (options.collection) logs = logs.filter(l => l.collection === options.collection);
+  if (options.itemId) logs = logs.filter(l => l.itemId === options.itemId);
+  if (options.userId) logs = logs.filter(l => l.userId === options.userId);
+  if (options.action) logs = logs.filter(l => l.action === options.action);
+  if (options.since) logs = logs.filter(l => l.ts >= options.since);
+  if (options.until) logs = logs.filter(l => l.ts <= options.until);
+  if (options.limit) logs = logs.slice(0, options.limit);
+  return logs;
+}
+
 function write(col, list) {
   localStorage.setItem(memColKey(col), JSON.stringify(list));
   emit(col, list);
@@ -100,7 +149,32 @@ function syncStatus() {
     : _syncing ? "syncing"
     : _syncState === "error" ? "error"
     : pending ? "pending" : "ok";
-  return { state, pending, lastOk: _lastSyncOk };
+  return { state, pending, lastOk: _lastSyncOk, enabled };
+}
+
+function syncStatusDetailed() {
+  const base = syncStatus();
+  if (!base.enabled && base.state !== "off") return base;
+  
+  // Count pending items by collection
+  const pendingCounts = {};
+  COLLECTIONS.forEach(c => {
+    if (c === "audit_log") return;
+    const list = read(c);
+    // Items with updatedAt > lastSyncOk are pending
+    const pending = list.filter(item => item.updatedAt && item.updatedAt > _lastSyncOk).length;
+    if (pending > 0) pendingCounts[c] = pending;
+  });
+  
+  const totalPending = Object.values(pendingCounts).reduce((a, b) => a + b, 0);
+  
+  return {
+    ...base,
+    pendingCounts,
+    totalPending,
+    lastSyncOk: _lastSyncOk,
+    lastSyncOkFormatted: _lastSyncOk ? new Date(_lastSyncOk).toLocaleString("ar-EG") : "—",
+  };
 }
 
 function markSaved() {
@@ -366,6 +440,8 @@ export const store = {
     list.unshift(item);
     write(col, list);
 
+    auditLog("create", col, item.id, { after: item });
+
     // Auto ledger entry when a paying member joins
     if (col === "members" && Number(data.paidAmount) > 0) {
       this.insert("ledger", {
@@ -384,20 +460,25 @@ export const store = {
     const list = this.all(col);
     const i = list.findIndex((x) => x.id === id);
     if (i === -1) throw new Error("Item not found");
+    const before = { ...list[i] };
+    const changedFields = Object.keys(patch).filter(k => patch[k] !== before[k]);
     list[i] = { ...list[i], ...patch, updatedAt: Date.now() };
     write(col, list);
+    auditLog("update", col, id, { before, after: list[i], fields: changedFields });
     return list[i];
   },
 
   remove(col, id) {
     if (!requireWrite(`delete ${col}`)) return false;
     const list = this.all(col);
+    const item = list.find((x) => x.id === id);
     const filtered = list.filter((x) => x.id !== id);
     const t = readTomb();
     t[col] = t[col] || {};
     t[col][id] = Date.now();
     writeTomb(t);
     write(col, filtered);
+    if (item) auditLog("delete", col, id, { before: item });
     return true;
   },
 
@@ -444,6 +525,9 @@ export const store = {
   stopSync,
   syncNow,
   syncStatus,
+  syncStatusDetailed,
+  auditLog: auditLog,
+  getAuditLog: getAuditLog,
 
   // ---------- Derived stats ----------
   stats() {

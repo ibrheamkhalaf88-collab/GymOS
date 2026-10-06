@@ -12,7 +12,17 @@
   <link rel="stylesheet" href="css/theme.css" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
-    body { min-height: max(884px, 100dvh); }
+    :root {
+      --header-h: 80px;
+      --footer-h: 72px;
+    }
+
+    body {
+      min-height: 100dvh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
 
     /* Cyber grid background */
     .cyber-grid {
@@ -34,9 +44,9 @@
       border: 1px solid #333333;
       color: #e2e4cf;
       border-radius: 0.75rem;
-      padding: 1rem 1.125rem;
+      padding: 0.875rem 1rem;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.0625rem;
+      font-size: 1rem;
       font-weight: 500;
       transition: all 0.2s ease;
       outline: none;
@@ -54,11 +64,11 @@
       justify-content: center;
       gap: 0.5rem;
       width: 100%;
-      padding: 0.875rem 1.5rem;
+      padding: 0.75rem 1.25rem;
       background-color: #CCFF00;
       color: #000000;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.125rem;
+      font-size: 0.9375rem;
       font-weight: 700;
       border: none;
       border-radius: 0.75rem;
@@ -76,13 +86,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.625rem;
+      gap: 0.5rem;
       width: 100%;
-      padding: 0.875rem 1.5rem;
+      padding: 0.75rem 1.25rem;
       background-color: transparent;
       color: #CCFF00;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 1.0625rem;
+      font-size: 0.9375rem;
       font-weight: 600;
       border: 1px solid rgba(204, 255, 0, 0.4);
       border-radius: 0.75rem;
@@ -95,14 +105,80 @@
     .auth-alt-btn:active { transform: scale(0.98); }
 
     /* Icons inside buttons */
-    .auth-btn svg, .auth-alt-btn svg { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+    .auth-btn svg, .auth-alt-btn svg { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }
 
-    /* Responsive adjustments */
-    @media (min-width: 640px) {
-      .auth-card { max-width: 440px; }
+    /* Layout: header fixed, main fills remaining, footer fixed */
+    header { flex: 0 0 var(--header-h); }
+    footer { flex: 0 0 var(--footer-h); }
+    main {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
+
+    /* Card fills width, max constraint, fluid padding */
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      padding: clamp(1.25rem, 4vw, 2rem);
+    }
+
+    /* Branding block - reduced vertical space */
+    .branding-block {
+      margin-bottom: clamp(1.5rem, 3vw, 2rem);
+    }
+    .branding-block .logo-circle {
+      width: clamp(48px, 12vw, 56px);
+      height: clamp(48px, 12vw, 56px);
+      margin-bottom: clamp(0.75rem, 2vw, 1.25rem);
+    }
+    .branding-block h2 { font-size: clamp(1.5rem, 4vw, 1.75rem); }
+    .branding-block .arabic-text { font-size: clamp(1.125rem, 3vw, 1.25rem); }
+    .branding-block p { font-size: clamp(0.8125rem, 2.5vw, 0.875rem); }
+
+    /* Form spacing - tighter */
+    .form-field { margin-bottom: clamp(0.75rem, 2vw, 1rem); }
+    .form-field label { margin-bottom: 0.375rem; font-size: 0.75rem; }
+    .form-field .forgot-link { font-size: 0.75rem; }
+
+    /* Divider */
+    .divider { margin: clamp(0.75rem, 2vw, 1rem) 0; }
+    .divider span { font-size: 0.75rem; padding: 0 1rem; }
+
+    /* Links row */
+    .links-row { gap: clamp(0.5rem, 1.5vw, 0.75rem); font-size: 0.8125rem; margin-top: clamp(0.5rem, 1.5vw, 0.75rem); }
+
+    /* Message area */
+    .msg-area { min-height: 1.5rem; margin-top: clamp(0.5rem, 1.5vw, 0.75rem); }
+
+    /* Responsive max-width */
     @media (min-width: 768px) {
-      .auth-card { max-width: 480px; }
+      .auth-card { max-width: 480px; padding: 2rem 2.5rem; }
+    }
+    @media (min-width: 1024px) {
+      .auth-card { max-width: 500px; }
+    }
+
+    /* Landscape phone: even tighter */
+    @media (max-height: 500px) and (orientation: landscape) {
+      :root { --header-h: 64px; --footer-h: 56px; }
+      header { flex: 0 0 var(--header-h); }
+      footer { flex: 0 0 var(--footer-h); }
+      .branding-block { margin-bottom: 1rem; }
+      .branding-block .logo-circle { width: 44px; height: 44px; margin-bottom: 0.5rem; }
+      .branding-block h2 { font-size: 1.25rem; }
+      .branding-block .arabic-text { font-size: 1rem; }
+      .form-field { margin-bottom: 0.625rem; }
+      .auth-btn, .auth-alt-btn { padding: 0.625rem 1rem; }
+    }
+
+    /* Virtual keyboard open - allow scroll */
+    @supports (height: 100dvh) {
+      body { height: 100dvh; }
     }
   </style>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -114,10 +190,10 @@
   <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
 </head>
-<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+<body class="font-body antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
 
   <!-- HEADER (consistent on all auth pages) -->
-  <header class="flex justify-center items-center h-20 w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
+  <header class="flex justify-center items-center w-full z-50 border-b border-[#444933] shadow-sm" style="background-color:#000;">
     <div class="flex flex-col items-center text-center">
       <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Enter Your Credentials</span>
       <span class="arabic-text text-xs opacity-60" dir="rtl">أدخل بياناتك الشخصية</span>
@@ -125,35 +201,35 @@
   </header>
 
   <!-- MAIN -->
-  <main class="flex-grow flex items-center justify-center p-4 sm:p-6 md:p-8">
-    <div class="auth-card w-full border border-[#444933] rounded-xl p-6 sm:p-8 shadow-2xl relative overflow-hidden glow-volt" style="background-color: rgb(0, 0, 0);">
+  <main>
+    <div class="auth-card border border-[#444933] rounded-xl shadow-2xl relative overflow-hidden glow-volt" style="background-color: rgb(0, 0, 0);">
 
       <!-- Decorative accent bar -->
       <div class="absolute top-0 left-0 w-1 h-full" style="background-color: #CCFF00;"></div>
 
       <!-- Branding block -->
-      <div class="flex flex-col items-center text-center mb-8">
-        <div class="w-14 h-14 rounded-full border-2 border-[#444933] flex items-center justify-center mb-5" style="background-color:#333627;">
+      <div class="branding-block flex flex-col items-center text-center">
+        <div class="logo-circle w-14 h-14 rounded-full border-2 border-[#444933] flex items-center justify-center" style="background-color:#333627;">
           <svg class="h-7 w-7 text-[#CCFF00]" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2L2 7l10 5 10-5-10-7zm0 9l2.5-1.25L12 7.5l-2.5 3.75L12 11zm0 2.5l-5-2.5-5 2.5V11l5 2.5 5-2.5v-1.5z"/>
           </svg>
         </div>
         <div class="bilingual-block mb-3">
-          <h2 class="font-headline uppercase tracking-tighter text-2xl">Welcome Back</h2>
-          <h2 class="font-headline uppercase tracking-tighter arabic-text text-xl" dir="rtl" style="color:#c4c9ac;">مرحباً بعودتك</h2>
+          <h2 class="font-headline uppercase tracking-tighter">Welcome Back</h2>
+          <h2 class="font-headline uppercase tracking-tighter arabic-text" dir="rtl" style="color:#c4c9ac;">مرحباً بعودتك</h2>
         </div>
-        <p class="text-sm font-medium max-w-xs mx-auto" style="color:#c4c9ac;">
+        <p class="font-medium max-w-xs mx-auto" style="color:#c4c9ac;">
           Sign in with your email or Google account.
         </p>
-        <p class="arabic-text text-sm mt-1" dir="rtl" style="color:#c4c9ac;">سجل دخولك عبر بريدك الإلكتروني أو بحساب جوجل.</p>
+        <p class="arabic-text mt-1" dir="rtl" style="color:#c4c9ac;">سجل دخولك عبر بريدك الإلكتروني أو بحساب جوجل.</p>
       </div>
 
       <!-- FORM -->
-      <form class="space-y-4" id="loginForm" autocomplete="off" novalidate>
+      <form id="loginForm" autocomplete="off" novalidate>
 
         <!-- Email or activation code -->
-        <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-1.5" style="color:#c4c9ac;">
+        <div class="form-field">
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">
             Email or code / البريد أو كود التفعيل
           </label>
           <input id="email" type="text" required autocomplete="username"
@@ -161,12 +237,12 @@
         </div>
 
         <!-- Password with forgot link -->
-        <div>
-          <div class="flex justify-between items-center mb-1.5">
+        <div class="form-field">
+          <div class="flex justify-between items-center">
             <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">
               Password / كلمة السر
             </label>
-            <a href="reset-password.html" id="forgotLink" class="text-xs text-[#CCFF00] hover:underline transition-colors">
+            <a href="reset-password.html" id="forgotLink" class="forgot-link text-xs text-[#CCFF00] hover:underline transition-colors">
               Forgot password?
             </a>
           </div>
@@ -186,7 +262,7 @@
         </button>
 
         <!-- Divider -->
-        <div class="relative flex items-center my-3">
+        <div class="divider relative flex items-center">
           <div class="flex-1 h-px bg-[#333333]"></div>
           <span class="px-4 text-xs uppercase tracking-widest opacity-50" style="color:#c4c9ac;">or continue with</span>
           <div class="flex-1 h-px bg-[#333333]"></div>
@@ -204,24 +280,24 @@
           <span class="font-arabic normal-case">متابعة بـ Google</span>
         </button>
 
-        <!-- Create account link (consistent) -->
-        <p class="text-center text-sm mt-2" style="color:#c7c6c6;">
-          Don't have an account?
-          <a href="signup.html" class="text-[#CCFF00] font-headline hover:underline ml-1 transition-colors">
-            Create Account / إنشاء حساب
-          </a>
-        </p>
-
-        <!-- Activation-code users have no email/password — don't leave them stranded -->
-        <p class="text-center text-sm mt-1" style="color:#8e9379;">
-          Have an activation code?
-          <a href="activate.html" class="text-[#CCFF00] font-headline hover:underline ml-1 transition-colors">
-            Activate here / فعّل الكود من هنا
-          </a>
-        </p>
+        <!-- Links row -->
+        <div class="links-row flex flex-col items-center gap-2">
+          <p style="color:#c7c6c6;">
+            Don't have an account?
+            <a href="signup.html" class="text-[#CCFF00] font-headline hover:underline ml-1 transition-colors">
+              Create Account / إنشاء حساب
+            </a>
+          </p>
+          <p style="color:#8e9379;">
+            Have an activation code?
+            <a href="activate.html" class="text-[#CCFF00] font-headline hover:underline ml-1 transition-colors">
+              Activate here / فعّل الكود من هنا
+            </a>
+          </p>
+        </div>
 
         <!-- Message area -->
-        <div class="min-h-6 flex flex-col items-center gap-1">
+        <div class="msg-area min-h-6 flex flex-col items-center gap-1">
           <p id="loginMsg" class="text-sm text-center" style="color:#ff3366;"></p>
           <button id="resendConfirmBtn" type="button" class="hidden text-xs text-[#CCFF00] hover:underline">
             أعد إرسال إيميل التأكيد / Resend confirmation email

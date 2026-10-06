@@ -3,15 +3,41 @@
 // codes database (Firestore) or demo store, then save locally.
 // ============================================================
 
-import { codesDb, setJwt } from "./db.js";
+import { codesDb, setJwt, getJwt } from "./db.js";
 import { license, deviceName } from "./license.js";
 import { showToast, openModal } from "./ui.js";
 import { appConfig } from "./config.js";
 import { store } from "./store.js";
+import { supabase } from "./supabase-client.js";
 
 if (license.isActive()) { location.replace("app.html"); }
 
 const $ = (sel, root = document) => root.querySelector(sel);
+
+// Check if user is logged in (required for trial and requesting codes)
+async function requireLogin() {
+  // Check for valid JWT (activation code user)
+  const jwt = getJwt();
+  if (jwt) return true;
+  
+  // Check for Supabase session (email/password or Google user)
+  try {
+    const { data: { session } } = await supabase?.auth.getSession?.() ?? { data: { session: null } };
+    if (session?.user?.email) return true;
+  } catch {}
+  
+  // Check for demo mode session
+  if (sessionStorage.getItem("dp_demo_admin") === "1" || localStorage.getItem("dp_current_user")) {
+    return true;
+  }
+  
+  return false;
+}
+
+function redirectToLogin(reason = "login_required") {
+  const returnUrl = encodeURIComponent(location.href);
+  location.href = `login.html?reason=${reason}&return=${returnUrl}`;
+}
 
 // The access gate deep-links here as activate.html#trial when a user has no
 // licence at all. Scroll to the trial button and make it obvious which one it is.
@@ -28,11 +54,74 @@ if (location.hash === "#trial") {
 // ---- Header info ----
 const isOnline = codesDb.mode() === "online";
 
+// ---- Display User Email ----
+async function displayUserEmail() {
+  const banner = document.getElementById("userEmailBanner");
+  const emailDisplay = document.getElementById("userEmailDisplay");
+  if (!banner || !emailDisplay) return;
+  
+  let email = null;
+  
+  // 1. Check for activation code user (JWT)
+  const jwt = getJwt();
+  if (jwt) {
+    try {
+      const payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (payload.email) email = payload.email;
+    } catch {}
+  }
+  
+  // 2. Check for Supabase session (email/password or Google user)
+  if (!email) {
+    try {
+      const { data: { session } } = await supabase?.auth.getSession?.() ?? { data: { session: null } };
+      if (session?.user?.email) email = session.user.email;
+    } catch {}
+  }
+  
+  // 3. Check for demo mode session
+  if (!email) {
+    try {
+      const user = JSON.parse(localStorage.getItem("dp_current_user") || "null");
+      if (user?.email) email = user.email;
+    } catch {}
+  }
+  
+  // 4. Check for license owner
+  if (!email) {
+    const lic = license.get();
+    if (lic?.owner) email = lic.owner;
+  }
+  
+  if (email) {
+    emailDisplay.textContent = email;
+    banner.classList.remove("hidden");
+  }
+}
+
+// Display user email on load
+displayUserEmail();
+
 const supportLink = document.getElementById("supportLink");
 supportLink.textContent = appConfig.supportPhone;
 supportLink.href = `tel:${appConfig.supportPhone.replace(/\s/g, "")}`;
-document.getElementById("requestBtn").href =
-  `https://wa.me/${appConfig.supportWhatsApp}?text=${encodeURIComponent("Hello, I would like to buy a Digital Pulse activation code. / مرحباً، أريد شراء كود تفعيل Digital Pulse")}`;
+
+// ---- Request Code Button (WhatsApp) ----
+const requestBtn = document.getElementById("requestBtn");
+if (requestBtn) {
+  requestBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const loggedIn = await requireLogin();
+    if (!loggedIn) {
+      showToast("يجب تسجيل الدخول أولاً لطلب كود / Please login first to request a code", "err");
+      setTimeout(() => redirectToLogin("request_code"), 1500);
+      return;
+    }
+    // User is logged in, open WhatsApp
+    const msg = encodeURIComponent("Hello, I would like to buy a Digital Pulse activation code. / مرحباً، أريد شراء كود تفعيل Digital Pulse");
+    window.open(`https://wa.me/${appConfig.supportWhatsApp}?text=${msg}`, "_blank", "noopener");
+  });
+}
 
 // ---- Digit inputs behaviour ----
 const inputs = [...document.querySelectorAll(".digit-input")];
@@ -100,6 +189,13 @@ function setError(text) {
 // ---- Free 30-day trial (once per device — server-issued when online) ----
 const TRIAL_FLAG = "dp_trial_used";
 document.getElementById("trialBtn").addEventListener("click", async () => {
+  const loggedIn = await requireLogin();
+  if (!loggedIn) {
+    showToast("يجب تسجيل الدخول أولاً للحصول على التجربة المجانية / Please login first for free trial", "err");
+    setTimeout(() => redirectToLogin("trial"), 1500);
+    return;
+  }
+  
   if (localStorage.getItem(TRIAL_FLAG) === "1") {
     setError("🎁 Trial already used on this device — grab a code from us! / التجربة المجانية استُهلكت على هذا الجهاز");
     msg.style.color = "#ff3366";

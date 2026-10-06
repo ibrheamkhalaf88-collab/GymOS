@@ -1,117 +1,486 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Digital Pulse — Admin Dashboard</title>
-  <meta name="description" content="Manage users, subscriptions, and coupons" />
+  <meta name="description" content="Manage users, subscriptions, activation codes & coupons" />
   <meta name="theme-color" content="#000000" />
   <link rel="manifest" href="manifest.webmanifest" />
   <script src="vendor/tailwind.js"></script>
   <script src="js/tailwind-config.js"></script>
   <link rel="stylesheet" href="css/theme.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
-    body { min-height: max(884px, 100dvh); }
+    :root {
+      --bg: #000000;
+      --bg-elevated: #0a0a0a;
+      --bg-card: #0d0d0d;
+      --border: #2a2a2a;
+      --border-bright: #444933;
+      --text: #e2e4cf;
+      --text-muted: #8b917a;
+      --accent: #CCFF00;
+      --accent-dim: #B8E600;
+      --danger: #ff3366;
+      --danger-dim: #cc2952;
+      --warning: #ff9800;
+      --info: #8888ff;
+      --success: #25D366;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 40px rgba(204, 255, 0, 0.15);
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    
+    body {
+      min-height: 100dvh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Manrope', 'Tajawal', sans-serif;
+    }
+
     .cyber-grid {
       background-image:
-        linear-gradient(to right, rgba(68, 73, 51, 0.12) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(68, 73, 51, 0.12) 1px, transparent 1px);
-      background-size: 40px 40px;
+        linear-gradient(to right, rgba(68, 73, 51, 0.08) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(68, 73, 51, 0.08) 1px, transparent 1px);
+      background-size: 48px 48px;
     }
-    .glow-volt { box-shadow: 0 0 60px rgba(204, 255, 0, 0.12); }
 
-    .admin-table { width: 100%; border-collapse: collapse; }
-    .admin-table th, .admin-table td {
-      padding: 0.75rem 1rem;
-      text-align: left;
-      border-bottom: 1px solid #333333;
+    .font-headline { font-family: 'Space Grotesk', sans-serif; }
+    .font-body { font-family: 'Manrope', 'Tajawal', sans-serif; }
+    .arabic-text { font-family: 'Tajawal', sans-serif; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-bright); }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .admin-table th {
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: var(--shadow-glow); }
+      50% { box-shadow: 0 0 60px rgba(204, 255, 0, 0.25); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
+    .animate-slide-in-right { animation: slideInRight 0.3s ease-out forwards; }
+    .animate-pulse-glow { animation: pulseGlow 2s ease-in-out infinite; }
+
+    /* Card with black border */
+    .admin-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+    }
+    .admin-card:hover { border-color: var(--border-bright); }
+
+    .admin-card-glow {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-glow), var(--shadow);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.75rem;
+      font-size: 0.8125rem;
       font-weight: 600;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #c4c9ac;
-      background-color: #0d0d0d;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
     }
-    .admin-table tr:hover td { background-color: rgba(204, 255, 0, 0.03); }
-    .admin-table td { font-size: 0.9rem; color: #e2e4cf; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent-dim); transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg-card); border-color: var(--border-bright); }
+
+    .btn-success {
+      background: rgba(37, 211, 102, 0.1);
+      color: var(--success);
+      border-color: rgba(37, 211, 102, 0.3);
+    }
+    .btn-success:hover:not(:disabled) { background: rgba(37, 211, 102, 0.2); border-color: var(--success); }
+
+    .btn-danger {
+      background: rgba(255, 51, 102, 0.1);
+      color: var(--danger);
+      border-color: rgba(255, 51, 102, 0.3);
+    }
+    .btn-danger:hover:not(:disabled) { background: rgba(255, 51, 102, 0.2); border-color: var(--danger); }
+
+    .btn-warning {
+      background: rgba(255, 152, 0, 0.1);
+      color: var(--warning);
+      border-color: rgba(255, 152, 0, 0.3);
+    }
+    .btn-warning:hover:not(:disabled) { background: rgba(255, 152, 0, 0.2); border-color: var(--warning); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: transparent;
+    }
+    .btn-ghost:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,0.03); }
+
+    .btn-sm { padding: 0.375rem 0.875rem; font-size: 0.75rem; gap: 0.375rem; }
+    .btn-lg { padding: 0.875rem 1.75rem; font-size: 0.875rem; gap: 0.5rem; }
+
+    /* Inputs */
+    .input {
+      width: 100%;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: var(--transition);
+      outline: none;
+    }
+    .input::placeholder { color: var(--text-muted); opacity: 0.6; }
+    .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(204, 255, 0, 0.1); }
+    .input:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    select.input { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b917a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.5rem; }
+
+    /* Badges */
     .badge {
-      display: inline-block;
-      padding: 0.2rem 0.6rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.75rem;
       border-radius: 9999px;
-      font-size: 0.7rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      border: 1px solid;
     }
-    .badge-active { background-color: rgba(204, 255, 0, 0.15); color: #CCFF00; }
-    .badge-trial { background-color: rgba(100, 100, 255, 0.15); color: #8888ff; }
-    .badge-expired { background-color: rgba(255, 51, 102, 0.15); color: #ff3366; }
-    .badge-none { background-color: rgba(100, 100, 100, 0.15); color: #666666; }
+    .badge-success { background: rgba(37, 211, 102, 0.15); color: var(--success); border-color: rgba(37, 211, 102, 0.3); }
+    .badge-warning { background: rgba(255, 152, 0, 0.15); color: var(--warning); border-color: rgba(255, 152, 0, 0.3); }
+    .badge-danger { background: rgba(255, 51, 102, 0.15); color: var(--danger); border-color: rgba(255, 51, 102, 0.3); }
+    .badge-info { background: rgba(136, 136, 255, 0.15); color: var(--info); border-color: rgba(136, 136, 255, 0.3); }
+    .badge-neutral { background: rgba(139, 145, 122, 0.15); color: var(--text-muted); border-color: rgba(139, 145, 122, 0.3); }
 
-    .btn-sm {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      padding: 0.35rem 0.7rem;
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      padding: 0.75rem 1rem;
+      text-align: left;
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.75rem;
+      font-size: 0.6875rem;
       font-weight: 600;
-      border: none;
-      border-radius: 0.4rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
     }
-    .btn-activate {
-      background-color: rgba(204, 255, 0, 0.1);
-      color: #CCFF00;
-      border: 1px solid rgba(204, 255, 0, 0.3);
-    }
-    .btn-activate:hover { background-color: rgba(204, 255, 0, 0.2); }
-    .btn-deactivate {
-      background-color: rgba(255, 51, 102, 0.1);
-      color: #ff3366;
-      border: 1px solid rgba(255, 51, 102, 0.3);
-    }
-    .btn-deactivate:hover { background-color: rgba(255, 51, 102, 0.2); }
+    .data-table td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    .data-table tbody tr { transition: var(--transition); }
+    .data-table tbody tr:hover { background: rgba(204, 255, 0, 0.02); }
+    .data-table tbody tr:last-child td { border-bottom: none; }
 
-    .preset-chip {
-      padding: 0.3rem 0.65rem;
-      border: 1px solid #444933;
-      border-radius: 0.5rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      cursor: pointer;
-      color: #c4c9ac;
-      background-color: #171717;
-      transition: all 0.15s ease;
+    /* Status dots */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
     }
-    .preset-chip:hover { color: #000; background-color: #CCFF00; border-color: #CCFF00; }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .status-dot.offline { background: var(--text-muted); }
+    .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+    .status-dot.danger { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
+    /* Modal */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      z-index: 100;
-      background-color: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
     }
+    .modal-overlay:not(.hidden) { opacity: 1; visibility: visible; }
     .modal-card {
-      background-color: #0d0d0d;
-      border: 1px solid #444933;
-      border-radius: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
       padding: 1.5rem;
       width: 100%;
-      max-width: 480px;
-      box-shadow: 0 0 40px rgba(204, 255, 0, 0.15);
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow), var(--shadow-glow);
+      transform: scale(0.95) translateY(20px);
+      transition: transform 0.2s ease;
+    }
+    .modal-overlay:not(.hidden) .modal-card { transform: scale(1) translateY(0); }
+
+    /* Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .toast {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1.25rem;
+      border-radius: var(--radius);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      border: 1px solid;
+      box-shadow: var(--shadow);
+      animation: slideInRight 0.3s ease-out;
+    }
+    .toast.success { background: rgba(37, 211, 102, 0.1); color: var(--success); border-color: rgba(37, 211, 102, 0.3); }
+    .toast.error { background: rgba(255, 51, 102, 0.1); color: var(--danger); border-color: rgba(255, 51, 102, 0.3); }
+    .toast.info { background: rgba(136, 136, 255, 0.1); color: var(--info); border-color: rgba(136, 136, 255, 0.3); }
+    .toast.warning { background: rgba(255, 152, 0, 0.1); color: var(--warning); border-color: rgba(255, 152, 0, 0.3); }
+
+    /* Tabs */
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Section cards */
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-elevated);
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text);
+    }
+    .section-title .icon { color: var(--accent); }
+    .section-count {
+      padding: 0.25rem 0.625rem;
+      background: rgba(204, 255, 0, 0.1);
+      color: var(--accent);
+      border-radius: 9999px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+    }
+
+    /* Stat cards */
+    .stat-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: var(--transition);
+    }
+    .stat-card:hover { border-color: var(--border-bright); }
+    .stat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      font-size: 1.25rem;
+    }
+    .stat-info { display: flex; flex-direction: column; gap: 0.125rem; }
+    .stat-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; }
+    .stat-value { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 700; line-height: 1; }
+
+    /* Action buttons in table */
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+      padding: 0.5rem 0.875rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-radius: var(--radius-sm);
+      border: 1px solid;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Confirmation dialog */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+    .confirm-overlay:not(.hidden) { opacity: 1; visibility: visible; }
+    .confirm-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-bright);
+      border-radius: 16px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow), var(--shadow-glow);
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+    .confirm-overlay:not(.hidden) .confirm-card { transform: scale(1); }
+    .confirm-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      font-size: 1.5rem;
+    }
+    .confirm-title { text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 1.125rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .confirm-message { text-align: center; color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem; }
+    .confirm-actions { display: flex; gap: 0.75rem; justify-content: center; }
+
+    /* Result display */
+    .result-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .result-code {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      flex: 1;
+      text-align: center;
+      user-select: all;
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.4; }
+    .empty-state-title { font-family: 'Space Grotesk', sans-serif; font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text); }
+    .empty-state-text { font-size: 0.875rem; max-width: 280px; }
+
+    /* Loading skeleton */
+    .skeleton { background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--border) 50%, var(--bg-elevated) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: var(--radius-sm); }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* Focus visible */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
   </style>
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -119,1201 +488,453 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Digital Pulse" />
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
-  <link rel="apple-touch-icon" sizes="192x192" href="assets/icons/icon-192.png" />
-  <link rel="apple-touch-icon" sizes="512x512" href="assets/icons/icon-512.png" />
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
 </head>
-<body class="font-body min-h-screen flex flex-col antialiased cyber-grid" style="background-color: rgb(0, 0, 0); color: #e2e4cf;">
+<body class="font-body min-h-screen flex flex-col antialiased cyber-grid">
 
-  <!-- Top header -->
-  <header class="flex justify-between items-center h-16 w-full z-50 border-b border-[#444933]" style="background-color:#000;">
+  <!-- Toast Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Confirmation Dialog -->
+  <div id="confirmOverlay" class="confirm-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="confirm-card">
+      <div id="confirmIcon" class="confirm-icon"></div>
+      <h3 id="confirmTitle" class="confirm-title"></h3>
+      <p id="confirmMessage" class="confirm-message"></p>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="btn btn-secondary btn-sm">Cancel / إلغاء</button>
+        <button id="confirmOk" class="btn btn-sm"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Header -->
+  <header class="flex justify-between items-center h-16 w-full z-50 border-b border-[var(--border-bright)]" style="background: var(--bg);">
     <div class="flex items-center gap-3">
-      <span class="font-headline text-sm tracking-widest uppercase" style="color:#C3F400;">Admin Dashboard</span>
-      <span class="arabic-text text-xs opacity-60" dir="rtl">لوحة المدير</span>
+      <div class="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center">
+        <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <span class="font-headline text-sm tracking-widest uppercase" style="color: var(--accent);">Admin Dashboard</span>
+        <span class="arabic-text text-xs opacity-60 block" dir="rtl">لوحة التحكم</span>
+      </div>
     </div>
     <div class="flex items-center gap-3">
-      <span class="hidden sm:inline text-xs opacity-60" style="color:#c4c9ac;">Online / مباشر — أونلاين</span>
-      <span id="modeBadge" class="text-[10px] font-headline tracking-widest uppercase px-2 py-1 rounded border" style="color:#8888ff;border-color:#8888ff55;">DEMO</span>
-      <span id="adminEmailDisplay" class="text-sm opacity-70"></span>
-      <button id="adminLogoutBtn" class="text-xs text-[#ff3366] hover:underline">Logout / خروج</button>
+      <span id="modeBadge" class="text-[10px] font-headline tracking-widest uppercase px-2 py-1 rounded border" style="color: var(--info); border-color: rgba(136,136,255,0.3);">OFFLINE / محلي</span>
+      <span id="adminEmailDisplay" class="text-sm opacity-70 hidden sm:inline"></span>
+      <button id="adminLogoutBtn" class="btn btn-ghost btn-sm text-xs" style="color: var(--danger);">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="hidden sm:inline">Logout</span>
+      </button>
     </div>
   </header>
 
-  <!-- Stats bar -->
-  <div class="flex flex-wrap items-center gap-4 p-4 border-b border-[#444933]" style="background-color:#0a0a0a;">
-    <div class="flex items-center gap-2">
-      <span class="text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">Total Users:</span>
-      <span id="statTotal" class="font-headline text-lg" style="color:#CCFF00;">0</span>
+  <!-- Stats Bar -->
+  <div class="flex flex-wrap items-center gap-3 p-4 border-b border-[var(--border-bright)]" style="background: var(--bg-elevated);">
+    <div class="stat-card" style="border-color: rgba(204,255,0,0.3);">
+      <div class="stat-icon" style="background: rgba(204,255,0,0.15); color: var(--accent);">👥</div>
+      <div class="stat-info">
+        <span class="stat-label arabic-text">إجمالي المستخدمين</span>
+        <span id="statTotal" class="stat-value" style="color: var(--accent);">0</span>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">Active:</span>
-      <span id="statActive" class="font-headline text-lg" style="color:#CCFF00;">0</span>
+    <div class="stat-card" style="border-color: rgba(37,211,102,0.3);">
+      <div class="stat-icon" style="background: rgba(37,211,102,0.15); color: var(--success);">✅</div>
+      <div class="stat-info">
+        <span class="stat-label arabic-text">نشطين</span>
+        <span id="statActive" class="stat-value" style="color: var(--success);">0</span>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">Trial:</span>
-      <span id="statTrial" class="font-headline text-lg" style="color:#8888ff;">0</span>
+    <div class="stat-card" style="border-color: rgba(136,136,255,0.3);">
+      <div class="stat-icon" style="background: rgba(136,136,255,0.15); color: var(--info);">🧪</div>
+      <div class="stat-info">
+        <span class="stat-label arabic-text">فترة تجريبية</span>
+        <span id="statTrial" class="stat-value" style="color: var(--info);">0</span>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-xs uppercase tracking-widest opacity-60" style="color:#c4c9ac;">Expired:</span>
-      <span id="statExpired" class="font-headline text-lg" style="color:#ff3366;">0</span>
+    <div class="stat-card" style="border-color: rgba(255,51,102,0.3);">
+      <div class="stat-icon" style="background: rgba(255,51,102,0.15); color: var(--danger);">⏰</div>
+      <div class="stat-info">
+        <span class="stat-label arabic-text">منتهية</span>
+        <span id="statExpired" class="stat-value" style="color: var(--danger);">0</span>
+      </div>
     </div>
-
-    <div class="ml-auto flex gap-2">
-      <button id="refreshBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
-        Refresh / تحديث
+    <div class="ml-auto flex gap-2 flex-wrap">
+      <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh data">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        <span>تحديث</span>
       </button>
-      <button id="addCodeBtn" class="btn-sm bg-[#CCFF00] text-black hover:bg-[#B8E600]">
-        + New Code / كود تفعيل
+      <button id="addUserBtn" class="btn btn-primary btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>مستخدم جديد</span>
       </button>
-      <button id="addCouponBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
-        + Coupon / كوبون
+      <button id="addCodeBtn" class="btn btn-success btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 12h12"/><path d="M12 6v12"/></svg>
+        <span>كود تفعيل</span>
+      </button>
+      <button id="addCouponBtn" class="btn btn-secondary btn-sm">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 5v14H5V5h14m0-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
+        <span>كوبون</span>
       </button>
     </div>
   </div>
 
-  <!-- Activation codes -->
-  <div class="p-4 border-b border-[#444933]" style="background-color:#0a0a0a;">
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-      <h3 class="font-headline text-sm uppercase tracking-widest" style="color:#c4c9ac;">
-        Activation Codes / أكواد التفعيل
-        <span id="codeCountBadge" class="text-[10px] px-2 py-0.5 rounded" style="background:rgba(204,255,0,0.1);color:#CCFF00;"></span>
-      </h3>
-      <div class="flex gap-2 flex-wrap">
-        <input id="codeSearchInput" type="text" placeholder="بحث بكود..." class="auth-input w-36 text-xs" style="background-color:#171717;" />
-        <select id="codeStatusFilter" class="auth-input w-auto text-xs" style="background-color:#171717; cursor:pointer;">
+  <!-- Main Content -->
+  <main class="flex-1 overflow-auto p-4 md:p-6 space-y-4">
+
+    <!-- Search & Filter -->
+    <div class="admin-card animate-fade-in-up">
+      <div class="flex flex-wrap items-center gap-4 p-4">
+        <div class="flex-1 min-w-[200px] relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="searchInput" type="text" placeholder="Search by name or email... / البحث بالاسم أو البريد" class="input pl-10" style="background: var(--bg);" />
+        </div>
+        <select id="statusFilter" class="input w-auto min-w-[180px]" style="background: var(--bg);">
           <option value="all">All / الكل</option>
-          <option value="active" selected>Ready / جاهز</option>
-          <option value="used">Used / مفعّل</option>
-          <option value="revoked">Revoked / ملغي</option>
+          <option value="active">✅ Active / نشط</option>
+          <option value="trial">🧪 Trial / تجريبي</option>
+          <option value="trial_expired">⏳ Pending Activation / بانتظار التفعيل</option>
+          <option value="expired">⏰ Expired / منتهي</option>
+          <option value="suspended">🚫 Suspended / موقوف</option>
         </select>
-        <button id="toggleCodesBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
-          Show / عرض
+      </div>
+    </div>
+
+    <!-- Users Table Section -->
+    <section class="section-card animate-fade-in-up" style="animation-delay: 0.05s;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="icon">👥</span>
+          Users / المستخدمين
+          <span id="usersCount" class="section-count">0</span>
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table" id="usersTable">
+          <thead>
+            <tr>
+              <th style="width: 40%;">User / المستخدم</th>
+              <th style="width: 25%;">Email / البريد</th>
+              <th style="width: 15%;">Plan / الباقة</th>
+              <th style="width: 12%;">Expires / الانتهاء</th>
+              <th style="width: 8%;">Status / الحالة</th>
+              <th style="width: 20%; text-align: right;">Actions / إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr>
+              <td colspan="6">
+                <div class="empty-state">
+                  <span class="icon">⏳</span>
+                  <p class="empty-state-title">Loading users...</p>
+                  <p class="empty-state-text">جاري تحميل قائمة المستخدمين</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Activation Codes Section -->
+    <section class="section-card animate-fade-in-up" style="animation-delay: 0.1s;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="icon">🔑</span>
+          Activation Codes / أكواد التفعيل
+          <span id="codeCountBadge" class="section-count">0</span>
+        </h2>
+        <div class="flex items-center gap-2">
+          <button id="toggleCodesBtn" class="btn btn-secondary btn-sm">
+            <svg id="codesToggleIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <span id="codesToggleText">Show / عرض</span>
+          </button>
+        </div>
+      </div>
+      <div id="codeListWrap" class="hidden">
+        <div class="p-4 border-b border-[var(--border)] flex flex-wrap gap-2 items-center" style="background: var(--bg-elevated);">
+          <input id="codeSearchInput" type="text" placeholder="Search code or owner... / بحث بكود أو مالك" class="input w-48 sm:w-64 text-sm" style="background: var(--bg);" />
+          <select id="codeStatusFilter" class="input w-auto text-sm" style="background: var(--bg);">
+            <option value="all">All / الكل</option>
+            <option value="ready" selected>✅ Ready / جاهز</option>
+            <option value="used">📱 Used / مفعّل</option>
+            <option value="revoked">🚫 Revoked / ملغي</option>
+          </select>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table" style="min-width: 900px;">
+            <thead>
+              <tr>
+                <th style="width: 18%;">Code / الكود</th>
+                <th style="width: 15%;">Plan / الباقة</th>
+                <th style="width: 20%;">Owner / المالك</th>
+                <th style="width: 12%;">Devices / الأجهزة</th>
+                <th style="width: 15%;">Expires / الانتهاء</th>
+                <th style="width: 10%;">Status / الحالة</th>
+                <th style="width: 10%; text-align: right;">Actions / إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="codeListBody"></tbody>
+          </table>
+        </div>
+        <div id="codeLoadMoreWrap" class="p-4 border-t border-[var(--border)] text-center hidden" style="background: var(--bg-elevated);">
+          <button id="codeLoadMoreBtn" class="btn btn-secondary btn-sm">Load more / المزيد</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coupons Section -->
+    <section class="section-card animate-fade-in-up" style="animation-delay: 0.15s;">
+      <div class="section-header">
+        <h2 class="section-title">
+          <span class="icon">🎫</span>
+          Coupons / الكوبونات
+        </h2>
+        <button id="toggleCouponsBtn" class="btn btn-secondary btn-sm">
+          <svg id="couponsToggleIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <span id="couponsToggleText">Show / عرض</span>
         </button>
       </div>
-    </div>
-    <div id="codeListWrap" class="hidden overflow-x-auto">
-      <table class="w-full text-sm" style="min-width:880px;">
-        <thead>
-          <tr class="text-left" style="color:#8b917a;">
-            <th class="py-2 px-2">Code / الكود</th>
-            <th class="py-2 px-2">Plan / الباقة</th>
-            <th class="py-2 px-2">Owner / المالك</th>
-            <th class="py-2 px-2">Devices / أجهزة</th>
-            <th class="py-2 px-2">Expires / الانتهاء</th>
-            <th class="py-2 px-2">Status / الحالة</th>
-            <th class="py-2 px-2"></th>
-          </tr>
-        </thead>
-        <tbody id="codeListBody"></tbody>
-      </table>
-      <div id="codeListMore" class="text-center py-2 hidden">
-        <button id="codeLoadMoreBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Load more / المزيد</button>
+      <div id="couponListWrap" class="hidden">
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Code / الكود</th>
+                <th style="width: 25%;">Type / النوع</th>
+                <th style="width: 20%;">Status / الحالة</th>
+                <th style="width: 20%;">Used by / بواسطة</th>
+                <th style="width: 10%; text-align: right;">Action / إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="couponListBody"></tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- Coupons -->
-  <div class="p-4 border-b border-[#444933]" style="background-color:#0d0d0d;">
-    <div class="flex items-center justify-between mb-2">
-      <h3 class="font-headline text-sm uppercase tracking-widest" style="color:#c4c9ac;">
-        Coupons / الكوبونات
-      </h3>
-      <button id="toggleCouponsBtn" class="btn-sm bg-[#333333] text-[#e2e4cf] hover:bg-[#444444]">
-        Show / عرض
-      </button>
-    </div>
-    <div id="couponListWrap" class="hidden overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left" style="color:#8b917a;">
-            <th class="py-2 px-2">Code / الكود</th>
-            <th class="py-2 px-2">Type / النوع</th>
-            <th class="py-2 px-2">Status / الحالة</th>
-            <th class="py-2 px-2">Used by / بواسطة</th>
-            <th class="py-2 px-2"></th>
-          </tr>
-        </thead>
-        <tbody id="couponListBody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Search & filter -->
-  <div class="flex flex-wrap items-center gap-4 p-4 border-b border-[#444933]" style="background-color:#0d0d0d;">
-    <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-      <input id="searchInput" type="text" placeholder="Search by email or name..."
-        class="auth-input flex-1" style="background-color:#171717;" />
-    </div>
-    <select id="statusFilter" class="auth-input w-auto" style="background-color:#171717; cursor:pointer;">
-      <option value="all">All / الكل</option>
-      <option value="active">Active / نشط</option>
-      <option value="trial">Trial / تجربة</option>
-      <option value="trial_expired">Pending Activation / بانتظار التفعيل</option>
-      <option value="expired">Expired / منتهي</option>
-      <option value="suspended">Suspended / موقوف</option>
-    </select>
-  </div>
-
-  <!-- Users table -->
-  <div class="flex-1 overflow-auto">
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th>User</th>
-          <th>Email</th>
-          <th>Subscription</th>
-          <th>Expires</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="usersTableBody">
-        <tr><td colspan="6" class="text-center py-8 text-sm opacity-60">Loading users...</td></tr>
-      </tbody>
-    </table>
-  </div>
+  </main>
 
   <!-- Footer -->
-  <footer class="flex justify-center items-center py-4 border-t border-[#444933]" style="background-color:#000;">
-    <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
+  <footer class="flex justify-center items-center py-4 border-t border-[var(--border-bright)]" style="background: var(--bg);">
+    <p class="text-xs opacity-60 arabic-text" style="color: var(--text-muted);">© 2026 Digital Pulse — All rights reserved</p>
   </footer>
 
-  <!-- Create / Edit User Modal -->
-  <div id="userModal" class="modal-overlay hidden">
+  <!-- ===== MODALS ===== -->
+
+  <!-- User Modal (Create/Edit) -->
+  <div id="userModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
     <div class="modal-card">
-      <h3 id="userModalTitle" class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
-        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        <span id="userModalTitleText">Add User / إضافة مستخدم</span>
-      </h3>
-      <form id="userForm" class="space-y-4">
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="userModalTitle" class="font-headline text-xl" style="color: var(--accent);">
+          <span id="userModalTitleText">Add User / إضافة مستخدم</span>
+        </h3>
+        <button class="btn btn-ghost btn-sm" onclick="closeUserModal()" aria-label="Close">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form id="userForm" class="space-y-4" novalidate>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Full Name / الاسم الكامل</label>
-          <input id="userName" type="text" required class="auth-input" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Full Name / الاسم الكامل</label>
+          <input id="userName" type="text" required class="input" autocomplete="name" />
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Email / البريد</label>
-          <input id="userEmail" type="email" required class="auth-input" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Email / البريد الإلكتروني</label>
+          <input id="userEmail" type="email" required class="input" autocomplete="email" />
         </div>
         <div id="passwordRow">
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Password / كلمة السر (8+ chars)</label>
-          <input id="userPassword" type="password" required minlength="8" class="auth-input" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Password / كلمة المرور (8+ chars)</label>
+          <input id="userPassword" type="password" required minlength="8" class="input" autocomplete="new-password" />
         </div>
 
-        <div class="p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-2" style="color:#c4c9ac;">
-            Package Type / نوع الباقة
-          </label>
-          <select id="userSubType" class="auth-input" style="background-color:#171717; cursor:pointer;">
-            <option value="trial">Free Trial (14 days) / تجربة مجانية (14 يوم)</option>
-            <option value="monthly" selected>Monthly / شهر</option>
-            <option value="yearly">Yearly / سنة</option>
-            <option value="lifetime">Lifetime / مدى الحياة</option>
-            <option value="none">No subscription / بدون اشتراك</option>
+        <div class="p-4 rounded-xl border" style="background: var(--bg-elevated); border-color: var(--border);">
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-2 arabic-text" style="color: var(--text-muted);">Package Type / نوع الباقة</label>
+          <select id="userSubType" class="input mb-4" style="background: var(--bg);">
+            <option value="trial">🧪 Free Trial (14 days) / تجربة مجانية (14 يوم)</option>
+            <option value="monthly" selected>📅 Monthly / شهري</option>
+            <option value="yearly">📆 Yearly / سنوي</option>
+            <option value="lifetime">♾️ Lifetime / مدى الحياة</option>
+            <option value="none">❌ No subscription / بدون اشتراك</option>
           </select>
 
-          <label class="text-xs uppercase tracking-widest opacity-60 block mt-3 mb-1" style="color:#c4c9ac;">
-            Days Open / عدد الأيام
-          </label>
-          <div class="flex gap-2">
-            <input id="userDays" type="number" min="1" value="30" class="auth-input" style="background-color:#171717;" />
-            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(7)">+7</button>
-            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(30)">+30</button>
-            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(90)">+90</button>
-            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(180)">+180</button>
-            <button type="button" class="btn-sm bg-[#333333] text-[#e2e4cf]" onclick="window._setDays(365)">+365</button>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Days Open / عدد الأيام</label>
+          <div class="flex flex-wrap gap-2">
+            <input id="userDays" type="number" min="1" value="30" class="input w-24" style="background: var(--bg);" />
+            <button type="button" class="btn btn-secondary btn-sm" data-days="7">+7</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-days="30">+30</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-days="90">+90</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-days="180">+180</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-days="365">+365</button>
           </div>
-          <p id="subPreview" class="text-xs mt-2 font-mono" style="color:#CCFF00;"></p>
+          <p id="subPreview" class="text-xs mt-3 font-mono" style="color: var(--accent);"></p>
         </div>
 
-        <div id="couponSection" class="hidden p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Apply Coupon Code</label>
+        <div id="couponSection" class="hidden p-4 rounded-xl border" style="background: var(--bg-elevated); border-color: rgba(204,255,0,0.3);">
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-2 arabic-text" style="color: var(--text-muted);">Apply Coupon Code / تطبيق كوبون</label>
           <div class="flex gap-2">
-            <input id="couponCode" type="text" class="auth-input flex-1" placeholder="COUPON-XXXX" />
-            <button id="applyCouponBtn" type="button" class="btn-sm bg-[#CCFF00] text-black">Apply</button>
+            <input id="couponCode" type="text" class="input flex-1 uppercase" placeholder="COUPON-XXXX" style="background: var(--bg);" />
+            <button id="applyCouponBtn" type="button" class="btn btn-primary btn-sm whitespace-nowrap">Apply / تطبيق</button>
           </div>
-          <p id="couponResult" class="text-xs mt-1" style="color:#c4c9ac;"></p>
+          <p id="couponResult" class="text-xs mt-2" style="color: var(--text-muted);"></p>
         </div>
 
-        <div class="flex justify-end gap-2 mt-4">
-          <button type="button" id="cancelUserBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
-          <button type="submit" id="submitUserBtn" class="btn-sm bg-[#CCFF00] text-black">Create User / إنشاء</button>
+        <div class="flex justify-end gap-3 pt-2 border-t border-[var(--border)]">
+          <button type="button" id="cancelUserBtn" class="btn btn-secondary btn-sm">Cancel / إلغاء</button>
+          <button type="submit" id="submitUserBtn" class="btn btn-primary btn-sm">Create User / إنشاء مستخدم</button>
         </div>
       </form>
-      <p id="userModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
+      <p id="userModalMsg" class="text-sm text-center mt-4" style="color: var(--danger); min-height: 1.25rem;"></p>
     </div>
   </div>
 
   <!-- Activation Code Modal -->
-  <div id="codeModal" class="modal-overlay hidden">
+  <div id="codeModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
     <div class="modal-card">
-      <h3 class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
-        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-        New Activation Code / كود تفعيل جديد
-      </h3>
-      <form id="codeForm" class="space-y-4">
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="codeModalTitle" class="font-headline text-xl" style="color: var(--accent);">
+          <span>🔑 New Activation Code / كود تفعيل جديد</span>
+        </h3>
+        <button class="btn btn-ghost btn-sm" onclick="closeCodeModal()" aria-label="Close">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form id="codeForm" class="space-y-4" novalidate>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Custom Code (optional — leave empty to auto-generate)</label>
-          <input id="codeCustom" type="text" maxlength="6" class="auth-input uppercase" placeholder="اختياري: 6 أحرف" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Custom Code (optional) / كود مخصص (اختياري)</label>
+          <input id="codeCustom" type="text" maxlength="6" class="input uppercase" placeholder="6 chars / 6 أحرف" style="background: var(--bg); letter-spacing: 0.2em;" />
+          <p class="text-xs mt-1 arabic-text" style="color: var(--text-muted);">Leave empty to auto-generate / اتركه فارغاً للتوليد التلقائي</p>
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Plan / الباقة</label>
-          <select id="codeTier" class="auth-input" style="background-color:#171717; cursor:pointer;">
-            <option value="monthly" selected>Monthly +| شهر (60 يوم افتراضياً)</option>
-            <option value="yearly">Yearly / سنة (365 يوم)</option>
-            <option value="lifetime">Lifetime / مدى الحياة</option>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Plan / الباقة</label>
+          <select id="codeTier" class="input" style="background: var(--bg);">
+            <option value="monthly" selected>📅 Monthly / شهري (60 days default)</option>
+            <option value="yearly">📆 Yearly / سنوي (365 days)</option>
+            <option value="lifetime">♾️ Lifetime / مدى الحياة</option>
           </select>
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Days / عدد الأيام (0 أو فارغ = حسب الباقة)</label>
-          <div class="flex gap-2">
-            <input id="codeDays" type="number" min="0" value="60" class="auth-input" style="background-color:#171717;" />
-            <button type="button" class="preset-chip" onclick="window._setCodeDays(30)">30</button>
-            <button type="button" class="preset-chip" onclick="window._setCodeDays(60)">60</button>
-            <button type="button" class="preset-chip" onclick="window._setCodeDays(90)">90</button>
-            <button type="button" class="preset-chip" onclick="window._setCodeDays(365)">365</button>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Days / عدد الأيام (0 = auto by plan)</label>
+          <div class="flex flex-wrap gap-2">
+            <input id="codeDays" type="number" min="0" value="60" class="input w-28" style="background: var(--bg);" />
+            <button type="button" class="btn btn-secondary btn-sm" data-code-days="30">30</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-code-days="60">60</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-code-days="90">90</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-code-days="365">365</button>
           </div>
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Max Devices / حد الأجهزة</label>
-          <input id="codeDeviceLimit" type="number" min="1" max="20" value="3" class="auth-input" style="background-color:#171717;" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Max Devices / حد الأجهزة</label>
+          <input id="codeDeviceLimit" type="number" min="1" max="20" value="3" class="input w-28" style="background: var(--bg);" />
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Owner Email (optional — يربط الكود بحساب عميل)</label>
-          <input id="codeOwner" type="email" class="auth-input" placeholder="customer@example.com" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Owner Email (optional) / بريد المالك (اختياري)</label>
+          <input id="codeOwner" type="email" class="input" placeholder="customer@example.com" style="background: var(--bg);" />
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Note / ملاحظة (داخلية)</label>
-          <input id="codeNote" type="text" maxlength="140" class="auth-input" placeholder="مثال: دفع كاش عند الاستلام" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Note / ملاحظة داخلية</label>
+          <input id="codeNote" type="text" maxlength="140" class="input" placeholder="مثال: دفع كاش عند الاستلام" style="background: var(--bg);" />
         </div>
-        <div class="flex justify-end gap-2 mt-4">
-          <button type="button" id="cancelCodeBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
-          <button type="submit" id="submitCodeBtn" class="btn-sm bg-[#CCFF00] text-black">Create Code / إنشاء</button>
+
+        <div class="flex justify-end gap-3 pt-2 border-t border-[var(--border)]">
+          <button type="button" id="cancelCodeBtn" class="btn btn-secondary btn-sm">Cancel / إلغاء</button>
+          <button type="submit" id="submitCodeBtn" class="btn btn-primary btn-sm">Create Code / إنشاء الكود</button>
         </div>
       </form>
-      <p id="codeModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
-      <!-- shown only after successful creation -->
-      <div id="codeResult" class="hidden mt-4 p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
-        <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Code / الكود — أرسله للعميل</label>
-        <div class="flex items-center gap-2">
-          <span id="codeResultValue" class="font-headline text-2xl tracking-widest" style="color:#CCFF00;"></span>
-          <button type="button" id="codeCopyBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Copy / نسخ</button>
-          <a id="codeWaLink" href="#" target="_blank" rel="noopener" class="btn-sm" style="background:#0f2d1a;color:#25D366;border:1px solid rgba(37,211,102,0.4);">WhatsApp</a>
+
+      <p id="codeModalMsg" class="text-sm text-center mt-4" style="color: var(--danger); min-height: 1.25rem;"></p>
+
+      <!-- Result Display -->
+      <div id="codeResult" class="hidden mt-4 animate-fade-in-up">
+        <div class="result-box">
+          <svg class="w-6 h-6 flex-shrink-0" style="color: var(--success);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <label class="text-xs uppercase tracking-widest opacity-60 arabic-text" style="color: var(--text-muted);">Code to share / الكود للإرسال</label>
+          <span id="codeResultValue" class="result-code"></span>
+          <button id="codeCopyBtn" class="btn btn-secondary btn-sm flex-shrink-0" title="Copy to clipboard">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+          <a id="codeWaLink" href="#" target="_blank" rel="noopener" class="btn btn-success btn-sm flex-shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.454.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.148-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378 9.86 9.86 0 0 1-.452-.435 33.518 33.518 0 0 1-.64-.98 12.74 12.74 0 0 1 .233-2.146 9.74 9.74 0 0 1 1.23-2.54c.434-.67.974-1.195 1.607-1.59.633-.394 1.445-.993 1.837-1.23.392-.238.632-.475.723-.552.126-.108.464-.276.464-.653 0-.277-.384-.525-.736-.525-.288 0-.597.13-.795.35-.198.22-.433.518-.683.882-.25.364-.875 1.424-.875 2.654 0 2.78 2.512 3.876 2.687 3.946.174.07.51.07.708-.033.35-.173 1.14-.558 1.567-1.386.427-.828.524-1.24.39-1.425z"/></svg>
+            WhatsApp
+          </a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Reset Password Result Modal -->
-  <div id="pwModal" class="modal-overlay hidden">
+  <!-- Password Reset Result Modal -->
+  <div id="pwModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="pwModalTitle">
     <div class="modal-card">
-      <h3 class="font-headline text-xl mb-4" style="color:#CCFF00;">New Temporary Password / كلمة سر مؤقتة جديدة</h3>
-      <p class="text-xs opacity-70 mb-2" style="color:#c4c9ac;">أرسلها للعميل — ستظهر مرة واحدة فقط:</p>
-      <div class="flex items-center gap-2 p-3 rounded-lg border border-[#444933]" style="background-color:#171717;">
-        <span id="pwResultValue" class="font-headline text-xl tracking-widest" style="color:#CCFF00;"></span>
-        <button type="button" id="pwCopyBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Copy / نسخ</button>
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="pwModalTitle" class="font-headline text-xl" style="color: var(--accent);">
+          🔐 Temporary Password / كلمة مرور مؤقتة
+        </h3>
+        <button class="btn btn-ghost btn-sm" onclick="closePwModal()" aria-label="Close">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <div class="flex justify-end mt-4">
-        <button type="button" id="pwCloseBtn" class="btn-sm bg-[#CCFF00] text-black">تم</button>
+
+      <p class="text-sm mb-4 arabic-text" style="color: var(--text-muted);">Send this to the customer — shown only once / أرسلها للعميل — ستظهر مرة واحدة فقط</p>
+
+      <div class="result-box">
+        <svg class="w-6 h-6 flex-shrink-0" style="color: var(--warning);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span id="pwResultValue" class="result-code" style="letter-spacing: 0.1em; font-size: 1.25rem;"></span>
+        <button id="pwCopyBtn" class="btn btn-secondary btn-sm flex-shrink-0">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+
+      <div class="flex justify-end mt-6">
+        <button id="pwCloseBtn" class="btn btn-primary btn-sm">Done / تم</button>
       </div>
     </div>
   </div>
 
   <!-- Coupon Modal -->
-  <div id="couponModal" class="modal-overlay hidden">
+  <div id="couponModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="couponModalTitle">
     <div class="modal-card">
-      <h3 class="font-headline text-xl mb-4 flex items-center gap-2" style="color:#CCFF00;">
-        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14H5V5h14m0-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
-        Add Coupon / إضافة كوبون
-      </h3>
-      <form id="couponForm" class="space-y-4">
+      <div class="flex items-center justify-between mb-6">
+        <h3 id="couponModalTitle" class="font-headline text-xl" style="color: var(--accent);">
+          <span>🎫 Add Coupon / إضافة كوبون</span>
+        </h3>
+        <button class="btn btn-ghost btn-sm" onclick="closeCouponModal()" aria-label="Close">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form id="couponForm" class="space-y-4" novalidate>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Coupon Code / رمز الكوبون</label>
-          <input id="couponCodeInput" type="text" required class="auth-input uppercase" placeholder="COUPON-XXXX" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Coupon Code / رمز الكوبون</label>
+          <input id="couponCodeInput" type="text" required class="input uppercase" placeholder="COUPON-XXXX" style="background: var(--bg); letter-spacing: 0.1em;" />
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Discount Type</label>
-          <select id="couponType" class="auth-input" style="background-color:#171717; cursor:pointer;">
-            <option value="days_14">Free 2 weeks / 2 أسبوع مجانًا</option>
-            <option value="days_30">Free 1 month / شهر مجاني</option>
-            <option value="days_365">Free 1 year / سنة مجانية</option>
-            <option value="percent">Percentage discount / تخفيض نسبة</option>
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Discount Type / نوع الخصم</label>
+          <select id="couponType" class="input" style="background: var(--bg);">
+            <option value="days_14">🧪 Free 2 weeks / أسبوعين مجاناً</option>
+            <option value="days_30" selected>📅 Free 1 month / شهر مجاني</option>
+            <option value="days_365">📆 Free 1 year / سنة مجانية</option>
+            <option value="percent">💯 Percentage discount / نسبة مئوية</option>
           </select>
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1" style="color:#c4c9ac;">Value (if percentage)</label>
-          <input id="couponValue" type="number" min="1" max="100" value="50" class="auth-input" style="background-color:#171717;" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Value (percentage only) / القيمة (للنسبة فقط)</label>
+          <input id="couponValue" type="number" min="1" max="100" value="50" class="input w-28" style="background: var(--bg);" />
         </div>
-        <div class="flex justify-end gap-2 mt-4">
-          <button type="button" id="cancelCouponBtn" class="btn-sm bg-[#333333] text-[#e2e4cf]">Cancel / إلغاء</button>
-          <button type="submit" id="submitCouponBtn" class="btn-sm bg-[#CCFF00] text-black">Create Coupon / إنشاء</button>
+
+        <div class="flex justify-end gap-3 pt-2 border-t border-[var(--border)]">
+          <button type="button" id="cancelCouponBtn" class="btn btn-secondary btn-sm">Cancel / إلغاء</button>
+          <button type="submit" id="submitCouponBtn" class="btn btn-primary btn-sm">Create Coupon / إنشاء الكوبون</button>
         </div>
       </form>
-      <p id="couponModalMsg" class="text-sm text-center mt-3" style="color:#ff3366;"></p>
+      <p id="couponModalMsg" class="text-sm text-center mt-4" style="color: var(--danger); min-height: 1.25rem;"></p>
     </div>
   </div>
 
-  <script type="module">
-    // ============================================================
-    // Admin dashboard — users, subscriptions (package + days), cloud
-    // Users come from the GymOS Edge Function /api/users (auth users +
-    // their user_metadata subscription). Offline → local dp_demo_users.
-    // ============================================================
-    const $ = (sel, root = document) => root.querySelector(sel);
-
-    const { appConfig } = await import('./js/config.js');
-    // Source of truth is js/config.js (same as the app) — the old hardcoded
-    // URL here could silently drift away from wherever the client points.
-    const API_BASE = appConfig.apiUrl || 'https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api';
-    const TIER_LABEL = {
-      trial: 'Trial / تجربة', monthly: 'Monthly / شهر', yearly: 'Yearly / سنة',
-      lifetime: 'Lifetime / دائم', none: 'None / بدون',
-    };
-    const DEFAULT_DAYS = { trial: 14, monthly: 30, yearly: 365, lifetime: 0, none: 0 };
-
-    // Elements
-    const tableBody = $('#usersTableBody');
-    const searchInput = $('#searchInput');
-    const statusFilter = $('#statusFilter');
-    const refreshBtn = $('#refreshBtn');
-    const addCouponBtn = $('#addCouponBtn');
-    const statTotal = $('#statTotal');
-    const statActive = $('#statActive');
-    const statTrial = $('#statTrial');
-    const statExpired = $('#statExpired');
-    const adminEmailDisplay = $('#adminEmailDisplay');
-    const adminLogoutBtn = $('#adminLogoutBtn');
-    const modeBadge = $('#modeBadge');
-
-    // User modal
-    const userModal = $('#userModal');
-    const userModalTitleText = $('#userModalTitleText');
-    const userForm = $('#userForm');
-    const userName = $('#userName');
-    const userEmail = $('#userEmail');
-    const userPassword = $('#userPassword');
-    const passwordRow = $('#passwordRow');
-    const userSubType = $('#userSubType');
-    const userDays = $('#userDays');
-    const subPreview = $('#subPreview');
-    const submitUserBtn = $('#submitUserBtn');
-    const userModalMsg = $('#userModalMsg');
-    const cancelUserBtn = $('#cancelUserBtn');
-    const couponSection = $('#couponSection');
-    const couponCode = $('#couponCode');
-    const applyCouponBtn = $('#applyCouponBtn');
-    const couponResult = $('#couponResult');
-
-    // Coupon modal
-    const couponModal = $('#couponModal');
-    const couponForm = $('#couponForm');
-    const couponCodeInput = $('#couponCodeInput');
-    const couponType = $('#couponType');
-    const couponValue = $('#couponValue');
-    const couponModalMsg = $('#couponModalMsg');
-    const cancelCouponBtn = $('#cancelCouponBtn');
-    const submitCouponBtn = $('#submitCouponBtn');
-    const toggleCouponsBtn = $('#toggleCouponsBtn');
-    const couponListWrap = $('#couponListWrap');
-    const couponListBody = $('#couponListBody');
-
-    const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
-    const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
-
-    let allUsers = [];
-    let loading = false;
-    let editId = null;
-
-    // ---- Session guard ----
-    if (!TOKEN) { window.location.href = 'admin-login.html'; throw new Error('no admin token'); }
-
-    modeBadge.textContent = IS_DEMO ? 'OFFLINE / محلي' : 'ONLINE / أونلاين';
-    modeBadge.style.color = IS_DEMO ? '#ff9800' : '#CCFF00';
-    modeBadge.style.borderColor = IS_DEMO ? '#ff980055' : '#CCFF0055';
-    adminEmailDisplay.textContent = IS_DEMO
-      ? 'admin@gym.local'
-      : ((() => { try { return JSON.parse(localStorage.getItem('dp_current_user') || 'null'); } catch { return null; } })() || {}).email || 'Admin';
-
-    adminLogoutBtn.addEventListener('click', () => {
-      sessionStorage.removeItem('dp_admin_token');
-      sessionStorage.removeItem('dp_demo_admin');
-      localStorage.removeItem('dp_current_user');
-      window.location.href = 'index.html';
-    });
-
-    // ---- Helpers ----
-    const ts = (v) => {
-      if (v == null) return null;
-      return typeof v === 'number' ? v : (Date.parse(v) || null);
-    };
-    function normalizeUser(u) {
-      return {
-        id: u.id,
-        email: u.email,
-        name: u.full_name || u.name || '',
-        status: u.status || 'active',
-        subscription: u.subTier || u.subscription || 'none',
-        subStart: ts(u.subStart),
-        subEnd: ts(u.subEnd),
-        subTier: u.subTier || null,
-        days: u.days != null ? u.days : null,
-        password: u.password,
-        _demo: !!u._demo,
-      };
-    }
-
-    async function api(path, opts = {}) {
-      const res = await fetch(API_BASE + path, {
-        ...opts,
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: appConfig.supabaseAnonKey || '',
-          Authorization: 'Bearer ' + TOKEN,
-          ...(opts.headers || {}),
-        },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      return data;
-    }
-
-    // ---- Demo helpers (offline accounts via db.js) ----
-    async function demoGetUsers() {
-      const { demoUsersAll } = await import('./js/db.js');
-      return demoUsersAll();
-    }
-    async function demoCreateUser(data) {
-      const { demoUsersAll, demoUsersSave, findDemoUser } = await import('./js/db.js');
-      if (findDemoUser(data.email)) throw new Error('Email already exists / البريد موجود مسبقاً');
-      const users = demoUsersAll();
-      users.push({ ...data, id: 'U' + Date.now().toString(36).toUpperCase(), createdAt: Date.now() });
-      demoUsersSave(users);
-      return users[users.length - 1];
-    }
-    async function demoUpdateUser(userId, updates) {
-      const { demoUsersAll, demoUsersSave } = await import('./js/db.js');
-      const users = demoUsersAll();
-      const i = users.findIndex(u => u.id === userId);
-      if (i === -1) throw new Error('User not found / المستخدم غير موجود');
-      users[i] = { ...users[i], ...updates };
-      demoUsersSave(users);
-      return users[i];
-    }
-
-    async function loadUsers() {
-      if (loading) return;
-      loading = true;
-      tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm opacity-60">Loading users...</td></tr>`;
-      let users;
-      try {
-        if (IS_DEMO) throw new Error('demo');
-        const data = await api('/api/users');
-        users = (data || []).map(u => normalizeUser({ ...u, _demo: false }));
-      } catch (err) {
-        // A real (non-demo) failure must NOT fall back to demo rows — an admin
-        // acting on local demo data under an "ONLINE" badge is worse than an
-        // honest error. 401/403 means the 12h admin token died: re-login.
-        if (!IS_DEMO) {
-          console.log('Admin API error:', err.message);
-          if (/(401|403|FORBIDDEN|UNAUTHORIZED)/i.test(err.message || '')) {
-            sessionStorage.removeItem('dp_admin_token');
-            window.location.href = 'admin-login.html';
-            return;
-          }
-          users = [];
-          tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:#ff3366;">API error: ${esc(err.message)} — راجع الاتصال / أعد تسجيل الدخول</td></tr>`;
-          loading = false;
-          return;
-        }
-        users = (await demoGetUsers()).map(u => normalizeUser({ ...u, _demo: true }));
-      }
-      allUsers = users;
-      renderUsers(users);
-      updateStats(users);
-      loading = false;
-    }
-
-    // ---- Render ----
-    function tierBadge(user) {
-      const now = Date.now();
-      const tier = user.subscription;
-      const expired = user.status !== 'suspended' &&
-        (tier === 'trial' || tier === 'monthly' || tier === 'yearly' || tier === 'active') &&
-        user.subEnd && user.subEnd <= now;
-      const suspended = user.status === 'suspended';
-      if (suspended) return '<span class="badge badge-expired">Suspended / موقوف</span>';
-      if (expired) return '<span class="badge badge-expired">Expired / منتهي</span>';
-      if (tier === 'trial') return '<span class="badge badge-trial">Trial / تجربة</span>';
-      if (tier === 'lifetime' || tier === 'active' || tier === 'monthly' || tier === 'yearly') return '<span class="badge badge-active">Active / نشط</span>';
-      return '<span class="badge badge-none">None / بدون</span>';
-    }
-    function expiryText(user) {
-      if (user.subscription === 'lifetime') return '<span style="color:#CCFF00;">Lifetime</span>';
-      if (!user.subEnd) return '—';
-      return new Date(user.subEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    }
-    const esc = (t) => String(t ?? '').replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
-
-    function renderUsers(users) {
-      const q = searchInput.value.trim().toLowerCase();
-      const st = statusFilter.value;
-      let list = users;
-      if (q) list = list.filter(u => (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q));
-      if (st !== 'all') {
-        list = list.filter(u => {
-          const now = Date.now();
-          if (st === 'active') return u.status !== 'suspended' && u.subscription !== 'none' && (!u.subEnd || u.subEnd > now);
-          if (st === 'trial') return u.subscription === 'trial' && u.subEnd && u.subEnd > now;
-          if (st === 'trial_expired') return u.subscription === 'trial' && u.subEnd && u.subEnd <= now && u.status !== 'suspended';
-          if (st === 'expired') return u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now;
-          if (st === 'suspended') return u.status === 'suspended';
-          return true;
-        });
-      }
-
-      if (!list.length) {
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm opacity-60">No users found / لا توجد مستخدمين</td></tr>`;
-        return;
-      }
-
-      tableBody.innerHTML = list.map(u => `
-        <tr class="hover:bg-[#171717]/50 transition-colors">
-          <td>
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color:#CCFF00;">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
-              <span>${esc(u.name || '—')}</span>
-            </div>
-          </td>
-          <td class="font-mono text-sm" style="color:#CCFF00;">${esc(u.email || '—')}</td>
-          <td>${esc(TIER_LABEL[u.subscription] || u.subscription || 'None')}</td>
-          <td class="whitespace-nowrap">${expiryText(u)}</td>
-          <td>${tierBadge(u)}</td>
-          <td>
-            <div class="flex gap-1 flex-wrap justify-end">
-              <button class="btn-sm btn-activate" data-action="edit" data-id="${esc(u.id)}">✎ Edit / تعديل</button>
-              ${u.status === 'suspended'
-                ? `<button class="btn-sm btn-activate" data-action="activate" data-id="${esc(u.id)}">Activate / تفعيل</button>`
-                : `<button class="btn-sm btn-deactivate" data-action="suspend" data-id="${esc(u.id)}">Suspend / تعليق</button>`}
-            </div>
-          </td>
-        </tr>`).join('');
-    }
-
-    function updateStats(users) {
-      const now = Date.now();
-      const active = users.filter(u => u.status !== 'suspended' && u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd > now).length
-        + users.filter(u => u.subscription === 'lifetime' && u.status !== 'suspended').length;
-      const trial = users.filter(u => u.subscription === 'trial' && u.subEnd && u.subEnd > now && u.status !== 'suspended').length;
-      const expired = users.filter(u => u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now).length;
-      statTotal.textContent = users.length;
-      statActive.textContent = active;
-      statTrial.textContent = trial;
-      statExpired.textContent = expired;
-    }
-
-    // ---- Subscription preview ----
-    function previewText() {
-      const tier = userSubType.value;
-      if (tier === 'lifetime') return 'Lifetime — never expires / مدى الحياة — لا ينتهي';
-      if (tier === 'none') return 'No subscription / بدون اشتراك';
-      const days = parseInt(userDays.value) || DEFAULT_DAYS[tier] || 30;
-      const end = Date.now() + days * 86400000;
-      return `${days} days → ${new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  (${days} يوم)`;
-    }
-    function refreshPreview() {
-      if (userSubType.value === 'lifetime' || userSubType.value === 'none') userDays.disabled = true;
-      else userDays.disabled = false;
-      subPreview.textContent = previewText();
-    }
-    window._setDays = (d) => { userDays.value = d; refreshPreview(); };
-
-    userSubType.addEventListener('change', () => {
-      if (userSubType.value !== 'lifetime' && userSubType.value !== 'none') {
-        userDays.value = parseInt(userDays.value) || DEFAULT_DAYS[userSubType.value] || 30;
-      }
-      refreshPreview();
-    });
-    userDays.addEventListener('input', refreshPreview);
-
-    // ---- Modal (create / edit) ----
-    window._openCreate = () => {
-      editId = null;
-      userModalTitleText.textContent = 'Add User / إضافة مستخدم';
-      passwordRow.classList.remove('hidden');
-      userPassword.required = true;
-      userEmail.disabled = false;
-      userForm.reset();
-      userSubType.value = 'monthly';
-      userDays.value = 30;
-      submitUserBtn.textContent = 'Create User / إنشاء';
-      couponSection.classList.add('hidden');
-      pendingCoupon = null;
-      userModalMsg.textContent = '';
-      refreshPreview();
-      userModal.classList.remove('hidden');
-    };
-
-    window._editUser = (id) => {
-      const u = allUsers.find(x => x.id === id);
-      if (!u) return;
-      editId = id;
-      userModalTitleText.textContent = 'Edit Subscription / تعديل الاشتراك';
-      passwordRow.classList.add('hidden');
-      userPassword.required = false;
-      userName.value = u.name || '';
-      userEmail.value = u.email || '';
-      userEmail.disabled = true;
-      const tier = ['trial', 'monthly', 'yearly', 'lifetime', 'none'].includes(u.subscription) ? u.subscription : 'none';
-      userSubType.value = tier;
-      userDays.value = u.days || (tier === 'yearly' ? 365 : tier === 'trial' ? 14 : tier === 'lifetime' ? 0 : 30);
-      submitUserBtn.textContent = 'Save Changes / حفظ';
-      // Coupons apply to existing users only — claiming with the placeholder
-      // userId 'pending' on a create pollutes the coupon's audit trail.
-      couponSection.classList.remove('hidden');
-      pendingCoupon = null;
-      userModalMsg.textContent = '';
-      refreshPreview();
-      userModal.classList.remove('hidden');
-    };
-
-    cancelUserBtn.addEventListener('click', () => { pendingCoupon = null; userModal.classList.add('hidden'); });
-    userModal.addEventListener('click', (e) => { if (e.target === userModal) { pendingCoupon = null; userModal.classList.add('hidden'); } });
-
-    // ---- Save (create or edit subscription) ----
-    userForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (loading) return;
-      const name = userName.value.trim();
-      const email = userEmail.value.trim().toLowerCase();
-      const password = userPassword.value;
-      const tier = userSubType.value;
-      const days = parseInt(userDays.value) || DEFAULT_DAYS[tier] || 0;
-
-      if (!name || !email) { userModalMsg.textContent = 'Name and email are required / الاسم والبريد مطلوبان'; return; }
-      if (editId === null && password.length < 8) { userModalMsg.textContent = 'Password must be 8+ characters / 8 أحرف على الأقل'; return; }
-
-      loading = true;
-      userModalMsg.textContent = '';
-      submitUserBtn.disabled = true;
-
-      const now = Date.now();
-      const subEnd = tier === 'lifetime' ? now + 36500 * 86400000 : tier === 'none' ? null : now + days * 86400000;
-      const subscription = {
-        tier,
-        days: tier === 'lifetime' || tier === 'none' ? 0 : days,
-      };
-
-      // A coupon is CLAIMED before the user is written, so a concurrent admin
-      // cannot take the same code in between. If the write then fails we hand
-      // the claim back, which makes redemption exactly-once either way.
-      let claimedCoupon = null;
-      if (pendingCoupon) {
-        try {
-          await apiRedeemCoupon(pendingCoupon, editId || 'pending');
-          claimedCoupon = { code: pendingCoupon, userId: editId || 'pending' };
-        } catch (err) {
-          userModalMsg.textContent = (err.message || 'Coupon could not be redeemed') + ' / الكوبون مستخدم بالفعل';
-          loading = false;
-          submitUserBtn.disabled = false;
-          return;
-        }
-      }
-
-      let savedId = editId;
-      try {
-        if (editId === null) {
-          if (IS_DEMO) {
-            const created = await demoCreateUser({
-              name, email, password, status: 'active',
-              subscription: tier === 'none' ? 'none' : (tier === 'lifetime' ? 'active' : tier),
-              subStart: now, subEnd, subTier: tier, days: subscription.days,
-              lastLogin: null,
-            });
-            savedId = created && created.id;
-            if (claimedCoupon) claimedCoupon.userId = savedId || 'pending';
-          } else {
-            const created = await api('/api/users', { method: 'POST', body: JSON.stringify({ email, password, full_name: name, subscription }) });
-            savedId = created && created.id;
-            if (claimedCoupon) claimedCoupon.userId = savedId || 'pending';
-          }
-        } else {
-          if (IS_DEMO) {
-            await demoUpdateUser(editId, {
-              name,
-              subscription: tier === 'none' ? 'none' : (tier === 'lifetime' ? 'active' : tier),
-              subStart: (allUsers.find(x => x.id === editId) || {}).subStart || now,
-              subEnd, subTier: tier, days: subscription.days, status: 'active',
-            });
-          } else {
-            await api('/api/users/' + editId, { method: 'PATCH', body: JSON.stringify({ name, subscription }) });
-          }
-        }
-        userModal.classList.add('hidden');
-        pendingCoupon = null;
-        await loadUsers();
-      } catch (err) {
-        console.error(err);
-        if (claimedCoupon) {
-          try { await apiReleaseCoupon(claimedCoupon.code, claimedCoupon.userId); } catch (e) { console.warn('coupon release failed', e); }
-        }
-        userModalMsg.textContent = err.message || 'Failed / فشل';
-      } finally {
-        loading = false;
-        submitUserBtn.disabled = false;
-      }
-    });
-
-    // ---- Row actions: suspend / activate ----
-    tableBody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn || loading) return;
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      if (action === 'edit') { window._editUser(id); return; }
-
-      if (!confirm(action === 'suspend'
-        ? 'Suspend this user? / تعليق هذا المستخدم؟'
-        : 'Activate this user? / تفعيل هذا المستخدم؟')) return;
-
-      loading = true;
-      try {
-        const suspend = action === 'suspend';
-        if (IS_DEMO) {
-          await demoUpdateUser(id, { status: suspend ? 'suspended' : 'active' });
-        } else {
-          await api('/api/users/' + id, { method: 'PATCH', body: JSON.stringify({ suspend }) });
-        }
-        await loadUsers();
-      } catch (err) {
-        console.error(err);
-        alert('Action failed / العملية فشلت: ' + err.message);
-      } finally { loading = false; }
-    });
-
-    // ---- Filters / refresh ----
-    searchInput.addEventListener('input', () => renderUsers(allUsers));
-    statusFilter.addEventListener('change', () => renderUsers(allUsers));
-    refreshBtn.addEventListener('click', loadUsers);
-
-    // ---- Coupon system ----
-    // Coupons live on the server (migrations/0005_coupons.sql) so they survive
-    // clearing site data, appear on any device, and leave an audit trail.
-    // localStorage remains only as a fallback for demo mode and for the window
-    // between deploying the function and applying the migration.
-    const COUPON_KEY = 'dp_coupons';
-    const localCoupons = () => { try { return JSON.parse(localStorage.getItem(COUPON_KEY)) || []; } catch { return []; } };
-    const saveLocalCoupons = (c) => localStorage.setItem(COUPON_KEY, JSON.stringify(c));
-    const couponTierOf = (k) => k === 'days_14' ? 'trial' : k === 'days_30' ? 'monthly' : k === 'days_365' ? 'yearly' : null;
-    const couponDaysOf = (k) => k === 'days_14' ? 14 : k === 'days_30' ? 30 : k === 'days_365' ? 365 : 0;
-    // Set once a coupon is applied to the form; consumed only when the
-    // subscription is actually saved.
-    let pendingCoupon = null;
-
-    async function apiListCoupons() {
-      if (IS_DEMO) return localCoupons();
-      const r = await api('/api/coupons?limit=200');
-      return Array.isArray(r) ? r : (r.data || []);
-    }
-
-    async function apiDeleteCoupon(code) {
-      if (IS_DEMO) { saveLocalCoupons(localCoupons().filter(c => c.code.toUpperCase() !== code.toUpperCase())); return; }
-      await api('/api/coupons/' + encodeURIComponent(code), { method: 'DELETE' });
-    }
-
-    const KIND_LABEL = { days_14: '14 days / 14 يوم', days_30: '30 days / 30 يوم', days_365: '365 days / 365 يوم', percent: 'Percent / نسبة' };
-
-    async function loadCoupons() {
-      let rows = [];
-      try {
-        rows = await apiListCoupons();
-      } catch (err) {
-        couponListBody.innerHTML = '<tr><td colspan="5" style="color:#ff3366;">' + esc(err.message || 'Could not load coupons') + '</td></tr>';
-        return;
-      }
-      if (!rows.length) {
-        couponListBody.innerHTML = '<tr><td colspan="5" style="color:#8b917a;">No coupons yet / لا توجد كوبونات</td></tr>';
-        return;
-      }
-      // esc() on every server-controlled field: a coupon code or description is
-      // admin input that reaches innerHTML here.
-      couponListBody.innerHTML = rows.map((c) => `
-        <tr style="border-top:1px solid #2a2a2a;">
-          <td class="py-2 px-2" style="font-family:monospace;">${esc(c.code)}</td>
-          <td class="py-2 px-2">${esc(KIND_LABEL[c.kind] || c.kind)}</td>
-          <td class="py-2 px-2" style="color:${c.used ? '#ff3366' : '#CCFF00'};">${c.used ? 'Used / مستخدم' : 'Unused / متاح'}</td>
-          <td class="py-2 px-2" style="color:#8b917a;">${esc(c.usedBy || '—')}</td>
-          <td class="py-2 px-2 text-right">
-            <button class="btn-sm" style="background:#3a1a1a;color:#ff3366;" data-del-coupon="${esc(c.code)}">Delete / حذف</button>
-          </td>
-        </tr>`).join('');
-    }
-
-    toggleCouponsBtn.addEventListener('click', async () => {
-      const show = couponListWrap.classList.contains('hidden');
-      couponListWrap.classList.toggle('hidden', !show);
-      toggleCouponsBtn.textContent = show ? 'Hide / إخفاء' : 'Show / عرض';
-      if (show) await loadCoupons();
-    });
-
-    couponListBody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-del-coupon]');
-      if (!btn) return;
-      const code = btn.dataset.delCoupon;
-      if (!confirm('Delete coupon ' + code + '? / حذف الكوبون؟')) return;
-      btn.disabled = true;
-      try {
-        await apiDeleteCoupon(code);
-        await loadCoupons();
-      } catch (err) {
-        btn.disabled = false;
-        alert(err.message || 'Delete failed / فشل الحذف');
-      }
-    });
-
-    async function apiCreateCoupon(code, kind, value, description) {
-      if (IS_DEMO) {
-        const list = localCoupons();
-        if (list.some(c => c.code.toUpperCase() === code)) throw new Error('Coupon code already exists / رمز الكوبون موجود مسبقاً');
-        const rec = { code, kind, value, description, used: false, createdAt: Date.now() };
-        saveLocalCoupons([rec, ...list]);
-        return rec;
-      }
-      return api('/api/coupons', { method: 'POST', body: JSON.stringify({ code, kind, value, description }) });
-    }
-
-    // Peek only — the coupon is NOT burned here. It is consumed on save, so
-    // closing this dialog no longer wastes it.
-    async function apiPeekCoupon(code) {
-      if (IS_DEMO) {
-        const c = localCoupons().find(x => x.code.toUpperCase() === code);
-        if (!c) throw new Error('Invalid coupon / كوبون غير صحيح');
-        if (c.used) throw new Error('Coupon already used / الكوبون مستخدم بالفعل');
-        return { coupon: c, tier: couponTierOf(c.kind), days: couponDaysOf(c.kind) };
-      }
-      return api('/api/coupons/' + encodeURIComponent(code));
-    }
-
-    async function apiRedeemCoupon(code, userId) {
-      if (IS_DEMO) {
-        const list = localCoupons();
-        const i = list.findIndex(x => x.code.toUpperCase() === code);
-        if (i === -1) throw new Error('Invalid coupon / كوبون غير صحيح');
-        if (list[i].used) throw new Error('Coupon already used / الكوبون مستخدم بالفعل');
-        list[i].used = true;
-        list[i].usedAt = Date.now();
-        list[i].usedBy = userId || '';
-        saveLocalCoupons(list);
-        return { ok: true };
-      }
-      return api('/api/coupons/redeem', { method: 'POST', body: JSON.stringify({ code, userId: userId || '' }) });
-    }
-
-    // Undo a claim whose subscription save then failed, so the code is not
-    // wasted. Best-effort: a failure here only leaves the coupon claimed.
-    async function apiReleaseCoupon(code, userId) {
-      if (IS_DEMO) {
-        const list = localCoupons();
-        const i = list.findIndex(x => x.code.toUpperCase() === code);
-        if (i !== -1 && list[i].usedBy === userId) { list[i].used = false; list[i].usedBy = ''; list[i].usedAt = null; saveLocalCoupons(list); }
-        return;
-      }
-      await api('/api/coupons/release', { method: 'POST', body: JSON.stringify({ code, userId }) });
-    }
-
-    applyCouponBtn.addEventListener('click', async () => {
-      const code = couponCode.value.trim().toUpperCase();
-      if (!code) { couponResult.textContent = 'Enter coupon code / أدخل رمز الكوبون'; couponResult.style.color = '#ff3366'; return; }
-      applyCouponBtn.disabled = true;
-      couponResult.textContent = 'Checking… / جارٍ التحقق';
-      couponResult.style.color = '#c4c9ac';
-      try {
-        const r = await apiPeekCoupon(code);
-        pendingCoupon = code;
-        if (r.tier) { userSubType.value = r.tier; userDays.value = r.days; }
-        couponResult.textContent = 'Coupon applied — save to confirm / تم تطبيق الكوبون — احفظ للتأكيد';
-        couponResult.style.color = '#CCFF00';
-        couponCode.value = '';
-        refreshPreview();
-      } catch (err) {
-        pendingCoupon = null;
-        couponResult.textContent = (err.message || 'Invalid coupon') + ' / كوبون غير صحيح';
-        couponResult.style.color = '#ff3366';
-      } finally {
-        applyCouponBtn.disabled = false;
-      }
-    });
-
-    addCouponBtn.addEventListener('click', () => { couponModal.classList.remove('hidden'); couponForm.reset(); couponModalMsg.textContent = ''; });
-    cancelCouponBtn.addEventListener('click', () => couponModal.classList.add('hidden'));
-    couponForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const code = couponCodeInput.value.trim().toUpperCase();
-      const kind = couponType.value;
-      const value = parseInt(couponValue.value) || 50;
-      if (!code) { couponModalMsg.textContent = 'Enter coupon code / أدخل رمز الكوبون'; return; }
-      const description = kind === 'days_14' ? 'Free 2 weeks' : kind === 'days_30' ? 'Free 1 month' : kind === 'days_365' ? 'Free 1 year' : `${value}% discount`;
-      submitCouponBtn.disabled = true;
-      try {
-        await apiCreateCoupon(code, kind, value, description);
-        if (!couponListWrap.classList.contains('hidden')) await loadCoupons();
-        couponModalMsg.textContent = '✓ Coupon created successfully / تم إنشاء الكوبون بنجاح';
-        couponModalMsg.style.color = '#CCFF00';
-        couponForm.reset();
-        setTimeout(() => { couponModal.classList.add('hidden'); couponModalMsg.textContent = ''; submitCouponBtn.disabled = false; }, 1500);
-      } catch (err) {
-        couponModalMsg.textContent = err.message || 'Failed / فشل';
-        submitCouponBtn.disabled = false;
-      }
-    });
-
-    // ============================================================
-    // Activation Codes — create / list / revoke / reset / delete.
-    // Server: GET|POST /api/codes, PATCH .../revoke|/reset-password,
-    // DELETE /api/codes/:code (all authAdmin). Demo mode keeps a
-    // local mirror so the panel stays usable offline.
-    // ============================================================
-    const addCodeBtn = $('#addCodeBtn');
-    const codeModal = $('#codeModal');
-    const codeForm = $('#codeForm');
-    const codeCustom = $('#codeCustom');
-    const codeTier = $('#codeTier');
-    const codeDays = $('#codeDays');
-    const codeDeviceLimit = $('#codeDeviceLimit');
-    const codeOwner = $('#codeOwner');
-    const codeNote = $('#codeNote');
-    const submitCodeBtn = $('#submitCodeBtn');
-    const cancelCodeBtn = $('#cancelCodeBtn');
-    const codeModalMsg = $('#codeModalMsg');
-    const codeResult = $('#codeResult');
-    const codeResultValue = $('#codeResultValue');
-    const codeCopyBtn = $('#codeCopyBtn');
-    const codeWaLink = $('#codeWaLink');
-    const codeSearchInput = $('#codeSearchInput');
-    const codeStatusFilter = $('#codeStatusFilter');
-    const toggleCodesBtn = $('#toggleCodesBtn');
-    const codeListWrap = $('#codeListWrap');
-    const codeListBody = $('#codeListBody');
-    const codeLoadMoreBtn = $('#codeLoadMoreBtn');
-    const codeListMore = $('#codeListMore');
-    const codeCountBadge = $('#codeCountBadge');
-    const pwModal = $('#pwModal');
-    const pwResultValue = $('#pwResultValue');
-    const pwCopyBtn = $('#pwCopyBtn');
-    const pwCloseBtn = $('#pwCloseBtn');
-
-    const CODE_KEY = 'dp_codes_local';
-    const localCodes = () => { try { return JSON.parse(localStorage.getItem(CODE_KEY)) || []; } catch { return []; } };
-    const saveLocalCodes = (c) => localStorage.setItem(CODE_KEY, JSON.stringify(c));
-    const codeTierDays = (t) => t === 'lifetime' ? 0 : t === 'yearly' ? 365 : 60;
-
-    let codeCursor = null;
-    let codeBusy = false;
-
-    async function apiListCodes({ reset = false } = {}) {
-      if (IS_DEMO) { codeCursor = null; return { data: localCodes(), hasMore: false }; }
-      const q = codeSearchInput.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10);
-      const st = codeStatusFilter.value;
-      const params = new URLSearchParams({ limit: '50' });
-      if (q) params.set('q', q);
-      if (st !== 'all') params.set('status', st);
-      if (!reset && codeCursor) params.set('cursor', codeCursor);
-      const r = await api('/api/codes?' + params.toString());
-      const data = Array.isArray(r) ? r : (r.data || []);
-      codeCursor = r.nextCursor || null;
-      return { data, hasMore: !!r.hasMore };
-    }
-
-    function codeExpiryText(c) {
-      if (c.revoked) return '—';
-      if (!c.used || !c.usedAt) return 'not started / لم يُفعّل';
-      if (!Number(c.days)) return '<span style="color:#CCFF00;">Lifetime / دائم</span>';
-      const end = Number(c.expiresAt) || (Number(c.usedAt) + Number(c.days) * 86400000);
-      const left = Math.ceil((end - Date.now()) / 86400000);
-      const d = new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      return left <= 0 ? `<span style="color:#ff3366;">${esc(d)} (انتهى)</span>`
-        : left <= 7 ? `<span style="color:#ffaa00;">${esc(d)} (${left}d)</span>` : esc(d);
-    }
-    function codeStatusBadge(c) {
-      if (c.revoked) return '<span class="badge badge-expired">Revoked ملغي</span>';
-      if (!c.used) return '<span class="badge badge-active">Ready جاهز</span>';
-      const end = Number(c.expiresAt) || (c.usedAt ? Number(c.usedAt) + Number(c.days) * 86400000 : null);
-      if (end && end <= Date.now()) return '<span class="badge badge-expired">Expired منتهي</span>';
-      return '<span class="badge badge-trial">Active مفعّل</span>';
-    }
-
-    async function loadCodes({ reset = true } = {}) {
-      if (codeBusy) return;
-      codeBusy = true;
-      if (reset) { codeCursor = null; codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#8b917a;">Loading…</td></tr>'; }
-      try {
-        const { data, hasMore } = await apiListCodes({ reset });
-        if (reset) codeListBody.innerHTML = '';
-        codeListMore.classList.toggle('hidden', !hasMore);
-        if (!codeListBody.children.length && !data.length) {
-          codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#8b917a;">No codes / لا توجد أكواد</td></tr>';
-        }
-        // esc() everywhere: note/owner/usedDeviceName/devices[].name are
-        // admin- OR customer-controlled strings that reach innerHTML here
-        // (a customer sets their own deviceName at activation).
-        codeListBody.insertAdjacentHTML('beforeend', data.map(c => `
-          <tr style="border-top:1px solid #2a2a2a;">
-            <td class="py-2 px-2"><span style="font-family:monospace;font-size:1rem;color:#CCFF00;letter-spacing:0.15em;">${esc(c.code)}</span>
-              ${c.note ? `<div class="text-[10px] opacity-60" style="color:#c4c9ac;">${esc(c.note)}</div>` : ''}</td>
-            <td class="py-2 px-2">${esc(c.tier || 'monthly')} · ${c.days ? esc(String(c.days)) + 'd' : '∞'}</td>
-            <td class="py-2 px-2 text-xs" style="color:#8b917a;">${esc(c.owner || '—')}</td>
-            <td class="py-2 px-2 text-xs" title="${esc((c.devices || []).map(d => d.name || d.deviceId).join(', '))}">${(c.devices || []).length}/${c.device_limit || 3}</td>
-            <td class="py-2 px-2 whitespace-nowrap">${codeExpiryText(c)}</td>
-            <td class="py-2 px-2">${codeStatusBadge(c)}</td>
-            <td class="py-2 px-2">
-              <div class="flex gap-1 flex-wrap justify-end">
-                ${c.revoked
-                  ? `<button class="btn-sm btn-activate" data-code-action="unrevoke" data-code="${esc(c.code)}">Restore</button>`
-                  : `<button class="btn-sm btn-deactivate" data-code-action="revoke" data-code="${esc(c.code)}">Revoke</button>`}
-                <button class="btn-sm" style="background:#262a15;color:#c4c9ac;border:1px solid #444933;" data-code-action="resetpw" data-code="${esc(c.code)}">🔑</button>
-                <button class="btn-sm" style="background:#3a1a1a;color:#ff3366;" data-code-action="delete" data-code="${esc(c.code)}">✕</button>
-              </div>
-            </td>
-          </tr>`).join(''));
-      } catch (err) {
-        codeListBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center" style="color:#ff3366;">' + esc(err.message || 'Could not load codes') + '</td></tr>';
-        codeListMore.classList.add('hidden');
-      } finally {
-        codeBusy = false;
-      }
-    }
-
-    async function refreshCodeCount() {
-      try {
-        if (IS_DEMO) { codeCountBadge.textContent = localCodes().length + ' codes'; return; }
-        const r = await api('/api/codes');
-        const list = Array.isArray(r) ? r : (r.data || []);
-        codeCountBadge.textContent = list.length + ' codes';
-      } catch { codeCountBadge.textContent = ''; }
-    }
-
-    toggleCodesBtn.addEventListener('click', async () => {
-      const show = codeListWrap.classList.contains('hidden');
-      codeListWrap.classList.toggle('hidden', !show);
-      toggleCodesBtn.textContent = show ? 'Hide / إخفاء' : 'Show / عرض';
-      if (show) await loadCodes({ reset: true });
-    });
-    codeSearchInput.addEventListener('input', () => { if (!codeListWrap.classList.contains('hidden')) loadCodes({ reset: true }); });
-    codeStatusFilter.addEventListener('change', () => { if (!codeListWrap.classList.contains('hidden')) loadCodes({ reset: true }); });
-    codeLoadMoreBtn.addEventListener('click', () => loadCodes({ reset: false }));
-
-    codeListBody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-code-action]');
-      if (!btn || codeBusy) return;
-      const action = btn.dataset.codeAction;
-      const code = btn.dataset.code;
-      codeBusy = true;
-      btn.disabled = true;
-      try {
-        if (action === 'revoke' || action === 'unrevoke') {
-          const revoke = action === 'revoke';
-          if (!confirm((revoke ? 'Revoke code ' : 'Restore code ') + code + '?\n' + (revoke ? 'كل أجهزة العميل بتقفل فوراً' : 'العميل يرجع يشتغل'))) return;
-          if (IS_DEMO) {
-            const list = localCodes();
-            const it = list.find(x => x.code === code);
-            if (it) { it.revoked = revoke; saveLocalCodes(list); }
-          } else {
-            await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: revoke }) });
-          }
-        } else if (action === 'resetpw') {
-          if (!confirm('Generate a NEW password for ' + code + '?\nكلمة السر القديمة بتبطل — العميل بيسجل دخول بالجديدة')) return;
-          let temp;
-          if (IS_DEMO) {
-            temp = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('') + '-demo';
-          } else {
-            const r = await api('/api/codes/' + encodeURIComponent(code) + '/reset-password', { method: 'PATCH', body: '{}' });
-            temp = r.tempPassword;
-          }
-          pwResultValue.textContent = temp;
-          pwModal.classList.remove('hidden');
-        } else if (action === 'delete') {
-          if (!confirm('DELETE code ' + code + ' permanently?\nبيانات السحابة الخاصة فيه بتنمسح كمان — بدون رجعة')) return;
-          if (IS_DEMO) {
-            saveLocalCodes(localCodes().filter(x => x.code !== code));
-          } else {
-            await api('/api/codes/' + encodeURIComponent(code), { method: 'DELETE' });
-          }
-        }
-        await loadCodes({ reset: true });
-        refreshCodeCount();
-      } catch (err) {
-        alert(err.message || 'Failed / فشل');
-      } finally {
-        codeBusy = false;
-        btn.disabled = false;
-      }
-    });
-
-    window._setCodeDays = (d) => { codeDays.value = d; };
-    codeTier.addEventListener('change', () => { codeDays.value = codeTierDays(codeTier.value); });
-
-    addCodeBtn.addEventListener('click', () => {
-      codeForm.reset();
-      codeDays.value = 60;
-      codeModalMsg.textContent = '';
-      codeResult.classList.add('hidden');
-      codeModal.classList.remove('hidden');
-    });
-    cancelCodeBtn.addEventListener('click', () => codeModal.classList.add('hidden'));
-    codeModal.addEventListener('click', (e) => { if (e.target === codeModal) codeModal.classList.add('hidden'); });
-
-    codeForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const payload = {
-        custom: codeCustom.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''),
-        tier: codeTier.value,
-        days: Math.max(0, parseInt(codeDays.value) || 0),
-        device_limit: Math.max(1, Math.min(20, parseInt(codeDeviceLimit.value) || 3)),
-        owner: codeOwner.value.trim().toLowerCase(),
-        note: codeNote.value.trim(),
-      };
-      submitCodeBtn.disabled = true;
-      codeModalMsg.textContent = '';
-      try {
-        let rec;
-        if (IS_DEMO) {
-          const list = localCodes();
-          let code = payload.custom;
-          if (code && list.some(x => x.code === code)) throw new Error('Code already exists / الكود موجود');
-          if (!code) {
-            const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-            const rnd = new Uint8Array(6); crypto.getRandomValues(rnd);
-            do { code = Array.from(rnd, b => A[b % 32]).join(''); } while (list.some(x => x.code === code));
-          }
-          rec = { code, tier: payload.tier, days: payload.days || codeTierDays(payload.tier), owner: payload.owner, note: payload.note, used: false, revoked: false, device_limit: payload.device_limit, devices: [], createdAt: Date.now() };
-          saveLocalCodes([rec, ...list]);
-        } else {
-          rec = await api('/api/codes', { method: 'POST', body: JSON.stringify(payload) });
-        }
-        codeResultValue.textContent = rec.code;
-        const waMsg = encodeURIComponent(`Digital Pulse — كود تفعيلك: ${rec.code}\nحمّل التطبيق وفعّل الكود للاشتراك (${payload.tier}, ${payload.days || codeTierDays(payload.tier)} يوم).\nhttps://ibrheamkhalaf88-collab.github.io/GymOS/`);
-        codeWaLink.href = 'https://wa.me/?text=' + waMsg;
-        codeResult.classList.remove('hidden');
-        codeModalMsg.textContent = '';
-        if (!codeListWrap.classList.contains('hidden')) await loadCodes({ reset: true });
-        refreshCodeCount();
-      } catch (err) {
-        codeModalMsg.textContent = (err.message === 'DUPLICATE' ? 'الكود موجود — جرّب غيره' : err.message) || 'Failed / فشل';
-      } finally {
-        submitCodeBtn.disabled = false;
-      }
-    });
-
-    codeCopyBtn.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(codeResultValue.textContent); codeCopyBtn.textContent = '✓'; setTimeout(() => { codeCopyBtn.textContent = 'Copy / نسخ'; }, 1200); } catch { /* clipboard blocked — the code stays visible to read */ }
-    });
-    pwCopyBtn.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(pwResultValue.textContent); pwCopyBtn.textContent = '✓'; setTimeout(() => { pwCopyBtn.textContent = 'Copy / نسخ'; }, 1200); } catch { /* noop */ }
-    });
-    pwCloseBtn.addEventListener('click', () => pwModal.classList.add('hidden'));
-
-    // ---- Load ----
-    loadUsers();
-    refreshCodeCount();
-  </script>
+  <!-- Load the admin panel module -->
+  <script type="module" src="js/admin-panel.js"></script>
   <script type="module" src="js/pwa.js"></script>
 </body>
 </html>

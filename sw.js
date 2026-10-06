@@ -1,6 +1,6 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v7";
+const CACHE = "dp-cache-v11";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
@@ -17,6 +17,11 @@ const ASSETS = [
   "js/admin.js", "js/admin-auth.js",
   "js/tailwind-config.js", "js/pwa.js",
   "vendor/tailwind.js", "vendor/chart.umd.min.js",
+  "vendor/material-symbols.css",
+  "vendor/fonts/MaterialSymbolsOutlined-400.ttf",
+  "vendor/fonts/MaterialSymbolsOutlined-500.ttf",
+  "vendor/fonts/MaterialSymbolsOutlined-600.ttf",
+  "vendor/fonts/MaterialSymbolsOutlined-700.ttf",
   "assets/icons/icon.svg", "assets/icons/icon-192.png", "assets/icons/icon-512.png",
   "manifest.webmanifest",
 ];

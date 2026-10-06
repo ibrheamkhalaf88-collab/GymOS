@@ -11,25 +11,31 @@ import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "
 import { sanitizeName, sanitizeAmount, sanitizePhone, validatePassword } from "./validate.js";
 import { appConfig } from "./config.js";
 import { install as installAccess } from "./access.js";
+import "./sync-status-ui.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
 
-// ---------- Force update (native APK only) — non-blocking with timeout + cache ----------
+// ---------- Force update (native APK only) — auto-download & install ----------
 enforceUpdateIfNeeded().catch(() => {});
 
 async function enforceUpdateIfNeeded() {
   const isNative = !!(window.Capacitor && window.Capacitor.isNative);
   if (!isNative) return;
+  
   const lastCheck = Number(localStorage.getItem("dp_last_version_check") || 0);
   if (Date.now() - lastCheck < 6 * 3600 * 1000) return;
   if (!navigator.onLine) return;
+  
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3000);
-    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { headers: { "Accept": "application/vnd.github+json" }, signal: ctrl.signal });
+    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { 
+      headers: { "Accept": "application/vnd.github+json" }, 
+      signal: ctrl.signal 
+    });
     clearTimeout(t);
     if (!res.ok) return;
     const data = await res.json();
@@ -37,7 +43,12 @@ async function enforceUpdateIfNeeded() {
     if (!latest) return;
     if (cmpVersion(latest, appConfig.appVersion) > 0) {
       const apk = (data.assets || []).find((a) => /apk/i.test(a.name || ""));
-      showUpdateOverlay(apk ? apk.browser_download_url : "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
+      if (apk && apk.browser_download_url) {
+        // Try auto-download and install using Capacitor plugin
+        await autoDownloadAndInstall(apk.browser_download_url);
+      } else {
+        showUpdateOverlay("https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
+      }
     }
     localStorage.setItem("dp_last_version_check", String(Date.now()));
   } catch (e) {
@@ -45,32 +56,49 @@ async function enforceUpdateIfNeeded() {
   }
 }
 
-function cmpVersion(a, b) {
-  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const x = pa[i] || 0, y = pb[i] || 0;
-    if (x > y) return 1; if (x < y) return -1;
-  }
-  return 0;
-}
-
-function sanitizeUrl(url) {
-  if (!url) return "#";
+async function autoDownloadAndInstall(apkUrl) {
   try {
-    const parsed = new URL(url);
-    if (parsed.protocol === "https:" || parsed.protocol === "http:") return url;
-  } catch {}
-  return "#";
+    // Check if Capacitor plugin is available
+    const { AutoUpdater } = await import('@capacitor/core').then(m => m.Plugins).catch(() => ({}));
+    if (!AutoUpdater) {
+      console.warn('[AutoUpdater] Plugin not available, showing manual update');
+      showUpdateOverlay(apkUrl);
+      return;
+    }
+
+    // Check install permission
+    const permResult = await AutoUpdater.checkInstallPermission();
+    if (!permResult.canInstall) {
+      // Request permission
+      await AutoUpdater.openInstallSettings();
+      // Re-check after user returns
+      const permResult2 = await AutoUpdater.checkInstallPermission();
+      if (!permResult2.canInstall) {
+        showUpdateOverlay(apkUrl);
+        return;
+      }
+    }
+
+    // Show downloading indicator
+    showDownloadingOverlay();
+
+    // Download and install
+    await AutoUpdater.downloadAndInstall({ url: apkUrl });
+    // If we reach here, install intent was launched
+    // The app will be restarted after install
+    
+  } catch (e) {
+    console.error('[AutoUpdater] Failed:', e);
+    showUpdateOverlay(apkUrl);
+  }
 }
 
-function showUpdateOverlay(apkUrl) {
-  const safeUrl = sanitizeUrl(apkUrl);
+function showDownloadingOverlay() {
   document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
     '<div style="font-size:72px;color:#ccff00">⬇</div>' +
-    '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
-    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
-    '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
-    '<p style="font-size:11px;color:#777;margin:8px 0 0">Update / حدّث التطبيق</p>' +
+    '<h1 style="font-size:24px;margin:0;font-weight:800">جاري تحميل التحديث...</h1>' +
+    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يرجى الانتظار، يتم تحميل وتثبيت الإصدار الجديد تلقائياً.</p>' +
+    '<div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>' +
     '</div>';
 }
 
@@ -123,12 +151,12 @@ import { supabase } from "./supabase-client.js";
       try {
         const user = JSON.parse(demoUser);
         localStorage.setItem('dp_user_email', user.email || '');
-        if (user.subscription === 'trial' && Date.now() > user.subEnd) {
-          localStorage.removeItem('dp_current_user');
-          localStorage.removeItem('dp_user_email');
-          window.location.href = 'login.html';
-          return;
-        }
+        // An expired trial is NOT logged out and NOT bounced to login.html.
+        // That made the read-only state unreachable: login showed the gate
+        // offering "enter activation code", the only way back was the app,
+        // and the app immediately redirected here again. installAccess()
+        // now renders the read-only view + gate from dp_current_user, so the
+        // session is deliberately left intact.
       } catch {}
     }
     // Sync is local-first, so still try to start it even if auth lookup failed.
@@ -137,6 +165,47 @@ import { supabase } from "./supabase-client.js";
       if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
     } catch {}
     console.warn('[initAuth] skipped (no connection or auth error):', e?.message || e);
+  }
+
+  // Note: We do NOT redirect to login.html on expired trial here.
+  // The access.js install() will show the read-only gate + activation link.
+  // Redirecting would create a loop with login.js's checkExistingSession().
+})();
+
+// ---------- App Initialization Flow ----------
+// Check if user is authenticated before rendering the app.
+// Show loading state until auth check completes.
+(async function initApp() {
+  // Check if user has a valid session (Supabase or demo)
+  let hasSupabaseSession = false;
+  if (supabase) {
+    const { data: { session } } = await supabase.auth.getSession();
+    hasSupabaseSession = !!session?.user;
+  }
+  const hasDemoSession = !!localStorage.getItem('dp_current_user');
+  
+  // If user has demo session (dp_current_user) but no Supabase session yet,
+  // they might be returning from OAuth callback where session is still being written.
+  // Wait briefly and retry once.
+  if (!hasSupabaseSession && hasDemoSession && supabase) {
+    await new Promise(r => setTimeout(r, 200));
+    const { data: { session: retrySession } } = await supabase.auth.getSession();
+    hasSupabaseSession = !!retrySession?.user;
+  }
+  
+  if (!hasSupabaseSession && !hasDemoSession) {
+    // No session at all — redirect to login
+    window.location.replace('login.html');
+    return;
+  }
+  
+  // Session exists — now initialize access gate
+  installAccess();
+  
+  // Hide loading overlay after initialization
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  if (loadingOverlay) {
+    loadingOverlay.remove();
   }
 })();
 
@@ -432,6 +501,23 @@ function viewDashboard() {
   syncExpiryNotifications();
 
   screen.innerHTML = `
+  <!-- Sync Status Bar -->
+  <div id="syncStatusBar" class="mb-4 p-3 bg-surface border border-outline-variant rounded-lg flex items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <span id="syncStatusIcon" class="material-symbols-outlined text-2xl">cloud_sync</span>
+      <div>
+        <p id="syncStatusText" class="font-headline text-sm font-bold uppercase tracking-wider">✅ Synced</p>
+        <p id="syncStatusDetail" class="text-xs text-muted">All data up to date</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span id="syncPendingCount" class="px-2 py-1 bg-primary/20 text-primary text-xs font-bold rounded-full hidden">0 pending</span>
+      <button id="syncNowBtn" class="px-3 py-1.5 bg-primary text-black text-xs font-bold uppercase rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1" style="display:none;">
+        <span class="material-symbols-outlined text-[16px]">sync</span> Sync
+      </button>
+    </div>
+  </div>
+
   <!-- Metrics Grid -->
   <div class="grid grid-cols-2 gap-4">
     <!-- Active Members -->
@@ -2221,6 +2307,73 @@ function viewProfile() {
           </div>
         </section>
 
+        <!-- Activation Code Management -->
+        <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
+          <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
+            <div>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🔑 Activation Code</h3>
+              <p class="font-arabic text-muted text-sm">كود التفعيل</p>
+            </div>
+            <span class="material-symbols-outlined text-muted">vpn_key</span>
+          </div>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Current Code / <span class="font-arabic normal-case">الكود الحالي</span></p>
+                <p class="text-muted text-xs mt-1 font-headline">Enter a new code to renew or upgrade / أدخل كود جديد للتجديد أو الترقية</p>
+              </div>
+              <button id="changeCodeBtn" class="text-primary text-sm font-label uppercase tracking-widest hover:underline">Change / تغيير</button>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">License Owner / <span class="font-arabic normal-case">المالك</span></p>
+                <p class="text-primary font-headline text-sm mt-1">${escapeHtml(lic.owner || "—")}</p>
+              </div>
+              <span class="material-symbols-outlined text-primary text-lg">person</span>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Tier / <span class="font-arabic normal-case">الباقة</span></p>
+                <p class="text-primary font-headline text-sm mt-1">${tierLabel(lic.tier)}</p>
+              </div>
+              <span class="material-symbols-outlined text-primary text-lg">workspace_premium</span>
+            </div>
+            <div class="h-px bg-outline-variant w-full"></div>
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
+                <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "♾️ دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
+              </div>
+              <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Audit Log Section -->
+        <section class="cyber-card p-6">
+          <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
+            <div>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">📋 Audit Log</h3>
+              <p class="font-arabic text-muted text-sm">سجل العمليات</p>
+            </div>
+            <span class="material-symbols-outlined text-muted">history</span>
+          </div>
+          <div id="auditLogContainer" class="space-y-2 max-h-[400px] overflow-y-auto">
+            <p class="text-center text-muted text-sm py-4">Loading audit log...</p>
+          </div>
+          <div class="flex justify-end gap-2 mt-4">
+            <button id="auditLogRefresh" class="px-3 py-2 bg-primary text-black text-xs font-bold uppercase rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">refresh</span> Refresh
+            </button>
+            <button id="auditLogExport" class="px-3 py-2 border border-primary text-primary text-xs font-bold uppercase rounded-xl hover:bg-primary/10 active:scale-95 transition-all flex items-center gap-1">
+              <span class="material-symbols-outlined text-[16px]">download</span> Export CSV
+            </button>
+          </div>
+        </section>
+
         <section class="cyber-card p-6 flex flex-col justify-between rounded-lg">
           <div>
             <div class="mb-4 pb-4 border-b border-outline-variant">
@@ -2309,6 +2462,8 @@ function viewProfile() {
     try { await navigator.clipboard.writeText(`DP-${lic.code}`); showToast("Copied / تم النسخ"); }
     catch { showToast("Copy failed / فشل النسخ", "err"); }
   };
+  const changeCodeBtn = $("#changeCodeBtn");
+  if (changeCodeBtn) changeCodeBtn.onclick = openChangeCode;
   $("#hapticToggle")?.addEventListener("change", (e) =>
     localStorage.setItem("dp_haptic", e.target.checked ? "1" : "0"));
   $("#secChangePw").onclick = openChangePassword;
@@ -2345,6 +2500,62 @@ function viewProfile() {
   // view; binding it unconditionally crashed the profile view and left
   // #logoutBtn unwired. Export is offered in-profile via #secExport above.
   $("#logoutBtn").onclick = deactivateLicense;
+
+  // Load Audit Log
+  async function loadAuditLog() {
+    const container = document.getElementById("auditLogContainer");
+    if (!container) return;
+    const logs = store.getAuditLog({ limit: 100 });
+    if (!logs.length) {
+      container.innerHTML = `<p class="text-center text-muted text-sm py-4">No audit entries yet / لا يوجد سجل عمليات بعد</p>`;
+      return;
+    }
+    const actionIcons = { create: "➕", update: "✏️", delete: "🗑️" };
+    const actionColors = { create: "text-primary", update: "text-frost", delete: "text-alert" };
+    const collectionLabels = { members: "👥 Members", devices: "🔧 Devices", trainers: "💪 Trainers", ledger: "💰 Ledger", checkins: "📍 Check-ins" };
+    container.innerHTML = logs.map(l => `
+      <div class="p-3 bg-surface-container rounded-lg border border-outline-variant flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <span class="font-headline text-sm ${actionColors[l.action] || ''}">${actionIcons[l.action] || l.action} ${l.action.toUpperCase()}</span>
+          <span class="text-xs text-muted font-mono">${new Date(l.ts).toLocaleString("ar-EG")}</span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap text-sm">
+          <span class="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-label uppercase">${collectionLabels[l.collection] || l.collection}</span>
+          <span class="text-muted">by</span>
+          <span class="font-medium">${escapeHtml(l.userName || l.userEmail || "Unknown")}</span>
+          <span class="text-muted">(${escapeHtml(l.userEmail || "")})</span>
+        </div>
+        ${l.details && l.details.fields && l.details.fields.length ? `
+          <div class="text-xs text-muted mt-1">
+            Fields: ${l.details.fields.map(f => `<code class="bg-black/50 px-1 rounded">${escapeHtml(f)}</code>`).join(", ")}
+          </div>
+        ` : ""}
+      </div>
+    `).join("");
+  }
+  
+  loadAuditLog();
+  document.getElementById("auditLogRefresh")?.addEventListener("click", loadAuditLog);
+  
+  document.getElementById("auditLogExport")?.addEventListener("click", () => {
+    const logs = store.getAuditLog({ limit: 5000 });
+    if (!logs.length) { showToast("No audit data to export", "err"); return; }
+    const headers = ["ID", "Timestamp", "Action", "Collection", "Item ID", "User ID", "User Name", "User Email", "Fields Changed"];
+    const rows = logs.map(l => [
+      l.id, new Date(l.ts).toISOString(), l.action, l.collection, l.itemId,
+      l.userId, l.userName, l.userEmail, (l.details?.fields || []).join(";")
+    ]);
+    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `audit-log-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Audit log exported / تم تصدير السجل");
+  });
+
 }
 
 // ---------- Change website password ----------
@@ -2391,6 +2602,61 @@ function openChangePassword() {
       msgEl.textContent = "Connection error / خطأ بالاتصال";
     }
   });
+}
+
+// ---------- Change Activation Code ----------
+function openChangeCode() {
+  const t = i18n.t;
+  const lic = license.get();
+  if (!lic || !lic.code) { showToast("No license found / لا يوجد ترخيص", "err"); return; }
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔑 Change Activation Code</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تغيير كود التفعيل — أدخل الكود الجديد للتجديد أو الترقية</p>
+    <form id="chcodeForm" class="flex flex-col gap-3">
+      <div>
+        <label class="text-[10px] uppercase tracking-widest text-muted font-headline">New Activation Code / الكود الجديد</label>
+        <input name="code" required maxlength="6" class="dp-field mt-1 uppercase" dir="ltr" placeholder="ABC123" style="letter-spacing: 0.2em;" />
+      </div>
+      <p class="text-xs text-muted" dir="rtl">الكود يتكون من 6 أحرف/أرقام (مثال: ABC123)</p>
+      <p id="chcodeMsg" class="text-xs min-h-[1rem]" style="color:#ff3366"></p>
+      <div class="flex gap-3 pt-2">
+        <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
+        <button type="submit" class="flex-1 py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.save}</button>
+      </div>
+    </form>`);
+  mod.el.querySelector("[data-close]").onclick = mod.close;
+  $("#chcodeForm", mod.el).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const msgEl = document.getElementById("chcodeMsg");
+    const newCode = fd.get("code").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (newCode.length !== 6) { msgEl.textContent = "Code must be 6 characters / الكود يجب أن يكون 6 أحرف"; return; }
+    try {
+      const res = await codesDbChangeCode(lic.code, newCode);
+      if (!res.ok) {
+        const errors = {
+          INVALID_CODE: "Invalid code format / صيغة الكود غير صحيحة",
+          NOT_FOUND: "Code not found / الكود غير موجود",
+          REVOKED: "Code has been revoked / الكود ملغي",
+          ALREADY_USED: "Code already used on another device / الكود مستخدم على جهاز آخر",
+          DEVICE_LIMIT: "Device limit reached / تم الوصول لحد الأجهزة",
+        };
+        msgEl.textContent = errors[res.error] || "Failed / فشل";
+        return;
+      }
+      mod.close();
+      showToast("✅ Activation code updated / تم تحديث كود التفعيل");
+      setTimeout(() => location.reload(), 500);
+    } catch {
+      msgEl.textContent = "Connection error / خطأ بالاتصال";
+    }
+  });
+}
+
+async function codesDbChangeCode(oldCode, newCode) {
+  const { codesDb } = await import("./db.js");
+  // Use the activate endpoint with the new code to switch
+  return codesDb.activate(newCode, { deviceId: localStorage.getItem("dp_device_id") || "", deviceName: "Web App" });
 }
 
 async function codesDbChange(code, cur, next) {

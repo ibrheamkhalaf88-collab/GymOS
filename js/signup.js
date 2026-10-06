@@ -13,6 +13,14 @@ const form = $('#signupForm');
 const googleBtn = $('#googleBtn');
 let loading = false;
 
+// Get return URL from query params (for redirect after signup).
+// Same allowlist as login.js / auth/callback.html: ?return=//evil.com would
+// otherwise ride along into the OAuth redirectTo and the native deep link.
+const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.html'];
+const urlParams = new URLSearchParams(window.location.search);
+const wantReturn = urlParams.get('return');
+const returnUrl = RETURN_ALLOWED.includes(wantReturn) ? wantReturn : 'app.html';
+
 /* -------- helpers -------- */
 function setMsg(text, color = '#ff3366') {
   msg.textContent = text;
@@ -283,7 +291,7 @@ googleBtn.addEventListener('click', async () => {
   // user closes the browser without finishing. See js/native-oauth.js.
   if (isNativeApp()) {
     clearTimeout(googleWatchdog);
-    const nativeErr = await startNativeGoogleOAuth();
+    const nativeErr = await startNativeGoogleOAuth(returnUrl);
     if (nativeErr) {
       setMsg(nativeErr);
       setGoogleLoading(false);
@@ -299,7 +307,7 @@ googleBtn.addEventListener('click', async () => {
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: `${APP_BASE}auth/callback.html`,
+      redirectTo: `${APP_BASE}auth/callback.html?return=${encodeURIComponent(returnUrl)}`,
     },
   });
   if (error) {
