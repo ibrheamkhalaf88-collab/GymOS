@@ -241,6 +241,7 @@ document.addEventListener('keydown', (e) => {
     if (!elements.codeModal.classList.contains('hidden')) closeCodeModal();
     if (!elements.pwModal.classList.contains('hidden')) closePwModal();
     if (!elements.couponModal.classList.contains('hidden')) closeCouponModal();
+    closeDataModal();
   }
 });
 
@@ -309,6 +310,38 @@ function normalizeUser(u) {
   };
 }
 
+// ---------- Cloud gym stats (Phase C) ----------
+// codes.owner is either the account email or "user:<uuid>" (see /api/trial),
+// so every user is linked to their cloud gym through both keys. An account
+// with no bound code simply shows "—" instead of a fake zero.
+function attachGymStats(users, stats) {
+  const byOwner = new Map();
+  for (const s of stats || []) {
+    const key = String(s.owner || '').toLowerCase();
+    if (!key) continue;
+    if (!byOwner.has(key)) byOwner.set(key, []);
+    byOwner.get(key).push(s);
+  }
+  for (const u of users) {
+    const email = String(u.email || '').toLowerCase();
+    const mine = [...(byOwner.get(email) || []), ...(byOwner.get(`user:${u.id}`) || [])];
+    u._gymCodes = mine.map(s => s.code);
+    u._members = mine.reduce((m, s) => Math.max(m, Number(s.members) || 0), 0);
+    u._lastSync = mine.reduce((t, s) => Math.max(t, Number(s.lastSync) || 0), 0);
+  }
+}
+
+const shortId = (id) => {
+  const s = String(id || '');
+  return s ? (s.length > 10 ? s.slice(0, 10) + '…' : s) : '—';
+};
+
+function fmtSync(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 // ---------- Demo Helpers ----------
 async function demoGetUsers() {
   return demoUsersAll();
@@ -358,7 +391,7 @@ async function loadUsers() {
   loading = true;
   elements.usersTableBody.innerHTML = `
     <tr>
-      <td colspan="6">
+      <td colspan="9">
         <div class="empty-state">
           <span class="icon">⏳</span>
           <p class="empty-state-title">Loading users...</p>
@@ -370,8 +403,14 @@ async function loadUsers() {
   let users;
   try {
     if (IS_DEMO) throw new Error('demo');
-    const data = await api('/api/users');
+    const [data, statsRes] = await Promise.all([
+      api('/api/users'),
+      // New columns (member count / last sync) ride on the backup endpoint's
+      // stats scope. Optional on purpose: a stats failure must never hide users.
+      api('/api/admin/backup?scope=stats').catch(() => null),
+    ]);
     users = (data || []).map(u => normalizeUser({ ...u, _demo: false }));
+    attachGymStats(users, (statsRes && statsRes.stats) || []);
   } catch (err) {
     if (!IS_DEMO) {
       console.log('Admin API error:', err.message);
@@ -383,7 +422,7 @@ async function loadUsers() {
       users = [];
       elements.usersTableBody.innerHTML = `
         <tr>
-          <td colspan="6">
+          <td colspan="9">
             <div class="empty-state">
               <span class="icon">⚠️</span>
               <p class="empty-state-title">API Error / خطأ في الاتصال</p>
@@ -431,7 +470,7 @@ function renderUsers(users) {
   const st = elements.statusFilter.value;
   let list = users;
 
-  if (q) list = list.filter(u => (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q));
+  if (q) list = list.filter(u => (u.email || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q) || (u.id || '').toLowerCase().includes(q));
 
   if (st !== 'all') {
     const now = Date.now();
@@ -448,7 +487,7 @@ function renderUsers(users) {
   if (!list.length) {
     elements.usersTableBody.innerHTML = `
       <tr>
-        <td colspan="6">
+        <td colspan="9">
           <div class="empty-state">
             <span class="icon">👤</span>
             <p class="empty-state-title">No users found / لا توجد مستخدمين</p>
@@ -468,11 +507,17 @@ function renderUsers(users) {
         </div>
       </td>
       <td class="font-mono text-sm" style="color: var(--accent);">${esc(u.email || '—')}</td>
+      <td class="font-mono text-xs opacity-70" title="${escAttr(u.id || '')}">${esc(shortId(u.id))}</td>
       <td>${esc(TIER_LABEL[u.subscription] || u.subscription || 'None')}</td>
       <td class="whitespace-nowrap">${expiryText(u)}</td>
+      <td class="text-center font-mono text-sm">${(u._gymCodes || []).length ? u._members : '<span class="opacity-40">—</span>'}</td>
+      <td class="text-xs whitespace-nowrap">${(u._gymCodes || []).length && u._lastSync ? fmtSync(u._lastSync) : '<span class="opacity-40">—</span>'}</td>
       <td>${tierBadge(u)}</td>
       <td>
         <div class="flex gap-1 flex-wrap justify-end">
+          <button class="btn btn-secondary btn-sm" data-action="viewdata" data-id="${escAttr(u.id)}" title="عرض بيانات السحابة لهذا الحساب">👁 View / بيانات</button>
+          <button class="btn btn-secondary btn-sm" data-action="backup" data-id="${escAttr(u.id)}" title="تنزيل نسخة JSON من بيانات الحساب">⬇ Backup / نسخ</button>
+          <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${escAttr(u.id)}" title="استعادة بيانات من ملف JSON">⬆ Restore / استعادة</button>
           <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${escAttr(u.id)}">✎ Edit / تعديل</button>
           ${u.status === 'suspended'
             ? `<button class="btn btn-success btn-sm" data-action="activate" data-id="${escAttr(u.id)}">▶️ Activate / تفعيل</button>`
@@ -724,6 +769,223 @@ elements.userForm.addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- Cloud data: View / Backup / Restore (Phase C) ----------
+function findGymUser(id) {
+  return allUsers.find(u => u.id === id) || null;
+}
+
+// Demo/offline mode has no server gyms, and an account without a bound code
+// has nothing to fetch. Returns the user's codes, or null after explaining why.
+function gymCodesFor(u) {
+  if (!u) { showToast('User not found / المستخدم غير موجود', 'error'); return null; }
+  if (u._demo || IS_DEMO) { showToast('Cloud data is online-only / بيانات السحابة متاحة في الوضع الأونلاين فقط', 'error'); return null; }
+  const codes = u._gymCodes || [];
+  if (!codes.length) { showToast('No activation code bound to this account / لا يوجد كود مرتبط بهذا الحساب', 'error'); return null; }
+  return codes;
+}
+
+function downloadJson(filename, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+const fileStamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+const safeName = (s) => String(s || 'user').replace(/[^A-Za-z0-9._@-]+/g, '_').slice(0, 60);
+
+// One-off overlay — the panel's other modals are static HTML, but this view
+// renders whatever the server returned.
+function openDataModal(inner) {
+  closeDataModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'dpDataModal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:80;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  overlay.innerHTML = `
+    <div style="background:#111;border:1px solid #333;border-radius:1rem;max-width:720px;width:100%;max-height:85vh;overflow:auto;padding:1.25rem;">
+      ${inner}
+    </div>`;
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeDataModal(); });
+  document.body.appendChild(overlay);
+}
+
+function closeDataModal() {
+  document.getElementById('dpDataModal')?.remove();
+}
+
+function membersPreview(data) {
+  const members = Array.isArray(data?.members) ? data.members : [];
+  if (!members.length) return '<p class="text-sm opacity-60">No members in this copy / لا يوجد أعضاء في هذه النسخة</p>';
+  const rows = members.slice(0, 25).map(m => `
+    <tr>
+      <td style="padding:.25rem .5rem;">${esc(m.name || '—')}</td>
+      <td style="padding:.25rem .5rem;font-family:monospace;">${esc(m.phone || '—')}</td>
+      <td style="padding:.25rem .5rem;">${m.joinDate ? new Date(m.joinDate).toLocaleDateString('en-GB') : '—'}</td>
+    </tr>`).join('');
+  const more = members.length > 25
+    ? `<p class="text-xs opacity-60" style="margin-top:.5rem;">… ${members.length - 25} more in the file / والمزيد داخل الملف</p>` : '';
+  return `
+    <table style="width:100%;font-size:.85rem;border-collapse:collapse;">
+      <thead><tr style="text-align:left;opacity:.7;">
+        <th style="padding:.25rem .5rem;">Name / الاسم</th>
+        <th style="padding:.25rem .5rem;">Phone / الهاتف</th>
+        <th style="padding:.25rem .5rem;">Joined / الانضمام</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>${more}`;
+}
+
+async function viewUserData(id) {
+  const u = findGymUser(id);
+  const codes = gymCodesFor(u);
+  if (!codes) return;
+  try {
+    const parts = [];
+    for (const c of codes) {
+      const res = await api(`/api/admin/backup?scope=code&code=${encodeURIComponent(c)}`);
+      const rows = res.gyms || [];
+      const count = rows.reduce((m, g) => Math.max(m, Array.isArray(g.data?.members) ? g.data.members.length : 0), 0);
+      const latest = rows.reduce((t, g) => Math.max(t, g.saved_at ? Date.parse(g.saved_at) || 0 : 0), 0);
+      const primary = rows.find(g => g.device_id === '') || rows[0];
+      parts.push(`
+        <section style="margin-top:1rem;border-top:1px solid #333;padding-top:.75rem;">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+            <b style="font-family:monospace;color:var(--accent);">${esc(res.code?.code || c)}</b>
+            <span class="text-xs">${esc(TIER_LABEL[res.code?.tier] || res.code?.tier || '')} · ${esc(res.code?.owner || 'بدون مالك / no owner')}</span>
+          </div>
+          <p class="text-xs" style="margin:.35rem 0;">
+            ${count} members / عضو · Last sync: ${latest ? new Date(latest).toLocaleString('en-GB') : '—'}${rows.length > 1 ? ` · ${rows.length} device rows / صفوف أجهزة` : ''}
+          </p>
+          ${membersPreview(primary?.data)}
+          <details style="margin-top:.5rem;">
+            <summary class="text-xs cursor-pointer" style="opacity:.7;">Raw JSON / البيانات الخام</summary>
+            <pre style="font-size:.7rem;max-height:200px;overflow:auto;background:#000;padding:.5rem;border-radius:.5rem;">${esc(JSON.stringify(primary?.data || {}, null, 2))}</pre>
+          </details>
+        </section>`);
+    }
+    openDataModal(`
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <h3 style="font-weight:bold;">☁️ Cloud data / بيانات السحابة — ${esc(u.email || u.id)}</h3>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-secondary btn-sm" id="dmdDownload">⬇ Backup / تنزيل</button>
+          <button class="btn btn-secondary btn-sm" id="dmdClose">✕</button>
+        </div>
+      </div>
+      ${parts.join('')}`);
+    document.getElementById('dmdClose').addEventListener('click', closeDataModal);
+    document.getElementById('dmdDownload').addEventListener('click', () => backupUserData(id));
+  } catch (err) {
+    showToast('View failed: ' + err.message, 'error');
+  }
+}
+
+async function backupUserData(id) {
+  const u = findGymUser(id);
+  const codes = gymCodesFor(u);
+  if (!codes) return;
+  try {
+    const exportCodes = [];
+    for (const c of codes) {
+      const res = await api(`/api/admin/backup?scope=code&code=${encodeURIComponent(c)}`);
+      exportCodes.push({ code: res.code, gyms: res.gyms || [] });
+    }
+    downloadJson(`gymos-backup-${safeName(u.email || u.id)}-${fileStamp()}.json`, {
+      app: 'GymOS', kind: 'user-backup', version: 1,
+      user: { id: u.id, email: u.email, name: u.name },
+      exportedAt: Date.now(),
+      codes: exportCodes,
+    });
+    showToast('Backup downloaded / تم تنزيل النسخة الاحتياطية', 'success');
+  } catch (err) {
+    showToast('Backup failed: ' + err.message, 'error');
+  }
+}
+
+async function restoreUserData(id) {
+  const u = findGymUser(id);
+  const codes = gymCodesFor(u);
+  if (!codes) return;
+
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+    let parsed;
+    try { parsed = JSON.parse(await file.text()); } catch {
+      showToast('Invalid JSON file / ملف JSON غير صالح', 'error'); return;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      showToast('Unsupported file shape / شكل الملف غير مدعوم', 'error'); return;
+    }
+    // Accept either our own export ({ codes: [...] }) or a raw gym-data object.
+    let targetCode = codes[0];
+    let data = null;
+    if (Array.isArray(parsed.codes)) {
+      const entry = parsed.codes.find(e => codes.includes(e?.code?.code)) || parsed.codes[0];
+      targetCode = entry?.code?.code || targetCode;
+      const rows = entry.gyms || [];
+      data = (rows.find(g => g.device_id === '') || rows[0])?.data || null;
+    } else {
+      data = parsed;
+    }
+    if (!data || typeof data !== 'object' || Array.isArray(data)
+      || (data.members != null && !Array.isArray(data.members))) {
+      showToast('No gym data inside this file / لا توجد بيانات داخل الملف', 'error'); return;
+    }
+    const newCount = Array.isArray(data.members) ? data.members.length : 0;
+
+    // Show BOTH sides in the confirmation, and keep the server's current copy
+    // around for the pre-restore snapshot.
+    let current = null;
+    try {
+      const res = await api(`/api/admin/backup?scope=code&code=${encodeURIComponent(targetCode)}`);
+      const rows = res.gyms || [];
+      current = (rows.find(g => g.device_id === '') || rows[0])?.data ?? null;
+    } catch { /* offline — the warning below still stands */ }
+    const curCount = Array.isArray(current?.members) ? current.members.length : 0;
+
+    const confirmed = await showConfirm({
+      title: 'Restore cloud data / استعادة بيانات السحابة',
+      message: `سيتم استبدال بيانات «${targetCode}» في السحابة: ${curCount} عضو حاليًا ← ${newCount} عضو من الملف. سيُنزَّل نسخة من البيانات الحالية قبل الاستبدال، ولن يُحذف أي شيء آخر. / Replace now?`,
+      icon: '⬆️',
+      iconColor: '#ff9800',
+      okText: 'Restore / استعادة',
+      okClass: 'btn-warning',
+      cancelText: 'لا، إلغاء / No, cancel',
+    });
+    if (!confirmed) return; // زر «لا» لا يمسّ أي بيانات أبداً
+
+    loading = true;
+    try {
+      // 1) snapshot of what is about to be replaced — saved locally, always
+      if (current) {
+        downloadJson(`gymos-pre-restore-${safeName(targetCode)}-${fileStamp()}.json`, {
+          app: 'GymOS', kind: 'pre-restore-snapshot',
+          code: targetCode, savedAt: Date.now(), data: current,
+        });
+      }
+      // 2) then the actual replace
+      await api('/api/admin/backup', { method: 'PUT', body: JSON.stringify({ code: targetCode, data }) });
+      showToast('Restored / تمت الاستعادة بنجاح', 'success');
+      loading = false;
+      await loadUsers();
+    } catch (err) {
+      showToast('Restore failed: ' + err.message, 'error');
+    } finally {
+      loading = false;
+    }
+  });
+  document.body.appendChild(input);
+  input.click();
+}
+
 // ---------- Row Actions: Suspend / Activate / Edit ----------
 elements.usersTableBody.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-action]');
@@ -736,6 +998,12 @@ elements.usersTableBody.addEventListener('click', async (e) => {
     editUser(id);
     return;
   }
+
+  // Phase C cloud actions — each explains itself and returns; none of them
+  // falls through to the suspend/activate confirmation below.
+  if (action === 'viewdata') { await viewUserData(id); return; }
+  if (action === 'backup') { await backupUserData(id); return; }
+  if (action === 'restore') { await restoreUserData(id); return; }
 
   const isSuspend = action === 'suspend';
   const confirmed = await showConfirm({
@@ -753,22 +1021,29 @@ elements.usersTableBody.addEventListener('click', async (e) => {
   if (!confirmed) return;
 
   loading = true;
+  let updated = false;
   try {
     if (IS_DEMO) {
       await demoUpdateUser(id, { status: isSuspend ? 'suspended' : 'active' });
+      updated = true;
     } else {
       await api('/api/users/' + id, {
         method: 'PATCH',
         body: JSON.stringify({ suspend: isSuspend }),
       });
+      updated = true;
     }
-    await loadUsers();
-    showToast(isSuspend ? 'User suspended / تم تعليق المستخدم' : 'User activated / تم تفعيل المستخدم', 'success');
   } catch (err) {
     console.error(err);
     showToast('Action failed: ' + err.message, 'error');
-  } finally {
-    loading = false;
+  }
+  // Release the flag BEFORE refreshing: loadUsers() early-returns while
+  // loading is true, which silently left the table stale after every
+  // suspend/activate until the admin hit Refresh by hand.
+  loading = false;
+  if (updated) {
+    await loadUsers();
+    showToast(isSuspend ? 'User suspended / تم تعليق المستخدم' : 'User activated / تم تفعيل المستخدم', 'success');
   }
 });
 

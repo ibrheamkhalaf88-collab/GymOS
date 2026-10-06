@@ -584,6 +584,80 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, token: await signJwt({ admin: true }, true) }, 200, origin);
     }
 
+    /* admin: backup / restore — one endpoint, three reads + one write.
+       GET  (default)          → full backup: codes + gyms (downloadable file)
+       GET  ?scope=stats       → light per-code aggregates for the panel columns
+                                 (owner, member count, last cloud sync)
+       GET  ?scope=code&code=X → a single code's record + its gym rows (View Data)
+       PUT  { code, data }     → replace one code's shared gym row. The panel
+                                 always downloads a snapshot of the CURRENT data
+                                 and asks for explicit confirmation first, and
+                                 never offers a "delete" — restore only writes. */
+    if (path === "/api/admin/backup") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const scope = url.searchParams.get("scope") || "";
+      if (req.method === "GET") {
+        if (scope === "stats") {
+          const { data: codeRows, error: cErr } = await sb.from("codes").select("code,owner");
+          if (cErr) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+          const { data: gymRows, error: gErr } = await sb.from("gyms").select("code,saved_at,data");
+          if (gErr) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+          const agg = new Map<string, { members: number; lastSync: number }>();
+          for (const g of gymRows || []) {
+            const cur = agg.get(g.code) || { members: 0, lastSync: 0 };
+            const members = Array.isArray((g.data as any)?.members) ? (g.data as any).members.length : 0;
+            const savedAt = g.saved_at ? Date.parse(g.saved_at) || 0 : 0;
+            // A sync-off code has one row per device — take the richest copy
+            // and the most recent save, which is what "member count / last
+            // sync" means from the owner's point of view.
+            if (members > cur.members) cur.members = members;
+            if (savedAt > cur.lastSync) cur.lastSync = savedAt;
+            agg.set(g.code, cur);
+          }
+          const stats = (codeRows || []).map((c) => ({
+            code: c.code,
+            owner: c.owner || "",
+            members: agg.get(c.code)?.members ?? 0,
+            lastSync: agg.get(c.code)?.lastSync ?? 0,
+          }));
+          return json({ stats }, 200, origin);
+        }
+        if (scope === "code") {
+          const code = normCode(url.searchParams.get("code") || "");
+          if (!code) return json({ error: "BAD_REQUEST" }, 400, origin);
+          const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
+          if (!rec) return json({ error: "NOT_FOUND" }, 404, origin);
+          const { data: rows, error: gErr } = await sb.from("gyms").select("*").eq("code", code);
+          if (gErr) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+          return json({ code: toRecord(rec), gyms: rows || [] }, 200, origin);
+        }
+        const [codesRes, gymsRes] = await Promise.all([
+          sb.from("codes").select("*").order("created_at", { ascending: false }),
+          sb.from("gyms").select("*").order("saved_at", { ascending: false }),
+        ]);
+        if (codesRes.error || gymsRes.error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        return json({
+          generatedAt: Date.now(),
+          codes: (codesRes.data || []).map(toRecord),
+          gyms: gymsRes.data || [],
+        }, 200, origin);
+      }
+      if (req.method === "PUT") {
+        const code = normCode(body?.code);
+        const data = body?.data;
+        if (!code) return json({ error: "BAD_REQUEST" }, 400, origin);
+        if (!data || typeof data !== "object" || Array.isArray(data)) return json({ error: "BAD_REQUEST" }, 400, origin);
+        const { data: cur } = await sb.from("gyms").select("data").eq("code", code).eq("device_id", "").maybeSingle();
+        const { error } = await sb.from("gyms").upsert(
+          { code, device_id: "", data, saved_at: new Date().toISOString() },
+          { onConflict: "code,device_id" });
+        if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        // Hand back what was overwritten so the client can keep its own copy.
+        return json({ ok: true, previous: cur?.data ?? null }, 200, origin);
+      }
+      return json({ error: "METHOD_NOT_ALLOWED" }, 405, origin);
+    }
+
     /* admin: list codes — paginated when query present, legacy array otherwise */
     if (req.method === "GET" && path === "/api/codes") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
