@@ -6,6 +6,7 @@ import { computeAccess, READONLY, showGate } from './access.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 import { codesDb } from './db.js';
 import { license } from './license.js';
+import { writeSession } from './session.js';
 import { showToast, openModal } from './ui.js';
 import { appConfig } from './config.js';
 
@@ -193,7 +194,9 @@ function deny(result) {
 }
 
 function storeUserSession(user) {
-  localStorage.setItem('dp_current_user', JSON.stringify({ id: user.id, email: user.email, name: user.name, status: user.status, subscription: user.subscription, subStart: user.subStart, subEnd: user.subEnd, subTier: user.subTier, loginAt: Date.now() }));
+  // Phase B: session.js is the single writer/normaliser for dp_current_user
+  // (and it keeps dp_user_email / dp_user_id in sync with it).
+  writeSession(user);
 }
 
 function mapSupabaseAuthError(err) {
@@ -306,7 +309,7 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
       // Adopt the server code bound to this account so this device syncs the
       // same gym data as every other device (was: email logins never synced).
       try { const { linkCloudIdentity } = await import('./cloud-link.js'); await linkCloudIdentity(supabase); } catch {}
-      storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
+      storeUserSession(result.user);
       try {
         if (isFirstLogin()) {
           await autoActivateTrial(result.user.email);
@@ -361,7 +364,7 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
     return;
   }
   if (!result.ok) { setMsg(result.error || 'Login failed'); setLoading(false); return; }
-  storeUserSession(result.user); localStorage.setItem('dp_user_email', result.user.email); localStorage.setItem('dp_user_id', result.user.id);
+  storeUserSession(result.user);
   try {
     if (isFirstLogin()) {
       await autoActivateTrial(result.user.email);

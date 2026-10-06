@@ -5,6 +5,7 @@ import { supabase } from './supabase-client.js';
 import { validatePassword } from './validate.js';
 import { APP_BASE } from './config.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
+import { writeSession } from './session.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
@@ -213,13 +214,10 @@ form.addEventListener('submit', async (e) => {
   // Signup OK — 30-day free trial, then admin approves
 
   // Store user for immediate login.
-  // The demo record carries passHash/plainPassword — NEVER persist a password
-  // inside dp_current_user (any script on this origin can read it).
-  const safeUser = { ...result.user };
-  delete safeUser.passHash;
-  delete safeUser.plainPassword;
-  localStorage.setItem('dp_current_user', JSON.stringify({ ...safeUser, loginAt: Date.now() }));
-  localStorage.setItem('dp_user_email', result.user.email);
+  // session.js is the single writer for dp_current_user: it persists ONLY the
+  // normalised shape — passHash/plainPassword and any other stray field are
+  // dropped structurally, so no password can ever live inside the session.
+  writeSession(result.user);
 
   // Mint/adopt the server code for this account right away — without it the
   // account's data never syncs and a second device would show an empty gym.

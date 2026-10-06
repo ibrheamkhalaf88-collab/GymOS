@@ -8,6 +8,7 @@ import { license, deviceName } from "./license.js";
 import { showToast, openModal } from "./ui.js";
 import { appConfig } from "./config.js";
 import { store } from "./store.js";
+import { writeCodeSession, readSession, isTrialSessionId } from "./session.js";
 import { supabase } from "./supabase-client.js";
 
 if (license.isActive()) { location.replace("app.html"); }
@@ -186,6 +187,20 @@ function setError(text) {
   msg.style.color = "#ff3366";
 }
 
+// ---- Phase B: كود التفعيل يجب أن يترك خلفه dp_current_user ----
+// بدون جلسة يطرد app.html الزائر إلى login.html، وبدونها يظل المتجر يقرأ
+// المفاتيح العمومية dp_<collection> بلا عزل. جلسات الحسابات الحقيقية لا
+// تُستبدَل أبداً (قواعد session.js) — لكن جلسة التجربة الجهازية تنتقل إلى
+// الكود الحقيقي وبياناتها تتبع الجهاز معها.
+function sessionFromCode(record) {
+  const prevId = readSession()?.id || "";
+  const written = writeCodeSession(record);
+  if (written && prevId && written.id !== prevId && isTrialSessionId(prevId)) {
+    try { store.adoptNamespace(prevId, written.id); } catch { /* لا نوقف التفعيل أبداً */ }
+  }
+  return written;
+}
+
 // ---- Free 30-day trial (once per device — server-issued when online) ----
 const TRIAL_FLAG = "dp_trial_used";
 document.getElementById("trialBtn").addEventListener("click", async () => {
@@ -215,6 +230,7 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
         if (data.token) setJwt(data.token);
         sessionStorage.setItem("dp_code", rec.code);
         license.save(rec);
+        sessionFromCode(rec);
         localStorage.setItem(TRIAL_FLAG, "1");
         localStorage.setItem("dp_license_mode", "online");
         localStorage.setItem("dp_cloud", rec.data_enabled === false ? "0" : "1");
@@ -235,6 +251,7 @@ document.getElementById("trialBtn").addEventListener("click", async () => {
   const pick = () => alphabet[Math.floor(Math.random() * alphabet.length)];
   const trialCode = `TRI-${pick()}${pick()}${pick()}`;
   license.save({ code: trialCode, tier: "trial", days: 30 });
+  sessionFromCode({ code: trialCode, tier: "trial", days: 30 });
   localStorage.setItem(TRIAL_FLAG, "1");
   localStorage.setItem("dp_license_mode", codesDb.mode());
   // ختم جهازي إضافي لمنع المسح البسيط
@@ -326,6 +343,7 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       license.save(res.record);
+      sessionFromCode(res.record);
       localStorage.setItem("dp_license_mode", codesDb.mode());
       const L = license.get();
       localStorage.setItem("dp_cloud", (isOnline && L.data_enabled) ? "1" : "0");
@@ -371,6 +389,7 @@ form.addEventListener("submit", async (e) => {
     }
 
     license.save(result.record);
+    sessionFromCode(result.record);
     localStorage.setItem("dp_license_mode", codesDb.mode());
     markDigits("success");
     if (result.alreadyUsed) {

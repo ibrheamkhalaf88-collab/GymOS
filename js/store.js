@@ -40,13 +40,17 @@ function memSeededKey() {
 }
 // السحابة مرتبطة بترخيص الجهاز — لا تسمح بدفع بيانات حساب آخر إلى سحابة
 // ترخيص لا يملكه، ولا تعطل المزامنة إلا إذا كان الحساب مالك الترخيص.
-function cloudAllowed(lic) {
+export function cloudAllowed(lic) {
   if (!lic) return false;
   if (!lic.owner) return true;
   const o = String(lic.owner).toLowerCase();
   try {
     const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
     if (!u) return true;
+    // جلسة كود التفعيل (activate.js) هي نفسها حساب هذا الترخيص — id هو الكود
+    // نفسه. أقوى مطابقة ممكنة عندما يكون المالك رقم هاتف أو اسم بلا بريد
+    // للمقارنة: بدونها كانت جلسات الأكواد تُطفئ المزامنة بصمت.
+    if (u.id && lic.code && String(u.id).toLowerCase() === String(lic.code).toLowerCase()) return true;
     const email = String(u.email || "").toLowerCase();
     // Email-linked codes store owner as "user:<uuid>" (set by /api/trial under
     // a Supabase session) — they must match the session's user id, not email.
@@ -415,13 +419,24 @@ export const store = {
     // الهجرة مرة واحدة فقط على الجهاز — فلا تتسرب الداتا القديمة لحسابات أخرى.
     if (seedFlag !== "1") {
       const uid = currentAccountId();
-      if (uid && localStorage.getItem(PREFIX + col) !== null && localStorage.getItem("dp_legacy_migrated") !== "1") {
-        try {
-          const legacy = JSON.parse(localStorage.getItem(PREFIX + col)) || [];
-          localStorage.setItem(key, JSON.stringify(legacy));
-          localStorage.setItem("dp_legacy_migrated", "1");
-          return legacy;
-        } catch { /* fallthrough */ }
+      if (uid && localStorage.getItem("dp_legacy_migrated") !== "1") {
+        // نستورد كل المجموعات في نفَس واحدة: الكود القديم رفع علامة
+        // "dp_legacy_migrated" بعد أول مجموعة، فكان members يستورد لكن
+        // devices/ledger/trainers لا تُستورد أبداً. النسخ الأصلية تبقى في
+        // مكانها، والبيانات الموجودة في نطاق الحساب لا تُستبدل أبداً.
+        let imported = false;
+        for (const c of [...COLLECTIONS, "tombstones"]) {
+          const legacyRaw = localStorage.getItem(PREFIX + c);
+          const targetKey = c === "tombstones" ? memTombKey() : memColKey(c);
+          if (legacyRaw === null || localStorage.getItem(targetKey) !== null) continue;
+          try {
+            JSON.parse(legacyRaw); // تحقق من السلامة قبل المساس بالنطاق
+            localStorage.setItem(targetKey, legacyRaw);
+            imported = true;
+          } catch { /* سطر قديم تالف — تخطَّه */ }
+        }
+        if (imported) localStorage.setItem("dp_legacy_migrated", "1");
+        if (localStorage.getItem(key) !== null) return read(col);
       }
     }
     // لا تعيد زرع تلقائياً بعد مسح المستخدم — ارجع فارغاً، الزرع فقط عند أول تثبيت
@@ -432,6 +447,28 @@ export const store = {
     localStorage.setItem(memColKey(col), "[]");
     if (COLLECTIONS.every((c) => localStorage.getItem(memColKey(c)) !== null)) localStorage.setItem(memSeededKey(), "1");
     return [];
+  },
+
+  // اعتماد نطاق تجربة جهازية إلى حساب كود فعلي عند التبديل على نفس الجهاز:
+  // نسخ صفوف التجربة إلى نطاق الكود — بدون حذف الأصل، وبدون لمس صفوف موجودة
+  // أصلاً في نطاق الهدف (التجربة ملك للجهاز، الكود ملك للحساب).
+  adoptNamespace(fromId, toId) {
+    const clean = (v) => String(v || "").replace(/[^A-Za-z0-9_-]/g, "");
+    const from = clean(fromId), to = clean(toId);
+    if (!from || !to || from === to) return 0;
+    let copied = 0;
+    for (const c of [...COLLECTIONS, "tombstones"]) {
+      const srcKey = `${PREFIX}${from}_${c}`;
+      const dstKey = `${PREFIX}${to}_${c}`;
+      const raw = localStorage.getItem(srcKey);
+      if (raw === null || localStorage.getItem(dstKey) !== null) continue;
+      try {
+        JSON.parse(raw);
+        localStorage.setItem(dstKey, raw);
+        copied++;
+      } catch { /* سطر تالف — تخطَّه */ }
+    }
+    return copied;
   },
 
   subscribe(col, cb) {
