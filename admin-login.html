@@ -135,10 +135,6 @@
 
         <div id="adminLoginMsg" class="h-6"></div>
       </form>
-
-      <p class="text-center text-xs mt-6 opacity-60" style="color:#c4c9ac;">
-        Demo credentials: <span class="text-[#CCFF00]">admin@gym.local</span> / <span class="text-[#CCFF00]">admin123</span>
-      </p>
     </div>
   </main>
 
@@ -175,9 +171,7 @@
           </svg>`;
     }
 
-    // Demo admin credentials (when Supabase not connected)
-    const DEMO_EMAIL = 'admin@gym.local';
-    const DEMO_PASS  = 'admin123';
+    // Supabase anon key (public by design; the admin password lives only server-side)
     const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13ZmJndWNheWpnYmJ2Y3llbGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDQwMjEsImV4cCI6MjEwMzMyMDAyMX0.FP2qGp9pNhnC17xhBLN_81Pz0Lg1PS4B04VRrd7M9hY';
 
     form.addEventListener('submit', async (e) => {
@@ -195,17 +189,7 @@
       setLoading(true);
       setMsg('');
 
-      // Demo mode
-      if (email === DEMO_EMAIL && password === DEMO_PASS) {
-        sessionStorage.setItem('dp_admin_token', 'demo-admin-' + Date.now());
-        sessionStorage.setItem('dp_demo_admin', '1');
-        setMsg('✓ Admin authenticated — redirecting... / تم تسجيل دخول المدير', '#CCFF00');
-        setLoading(false);
-        setTimeout(() => { window.location.href = 'admin.html'; }, 800);
-        return;
-      }
-
-      // Online admin — authenticate via the GymOS Edge Function (admin JWT)
+      // Authenticate via the GymOS Edge Function (admin JWT)
       try {
         const res = await fetch('https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api/api/admin/login', {
           method: 'POST',
