@@ -78,6 +78,7 @@ Hardened nginx:alpine image with security headers
 - **CORS allow-list** — GitHub Pages + localhost + Capacitor origins only
 - **Tests** — `npm test` (node:test, validation + crypto vectors)
 - **Lint** — `npm lint` (ESLint flat config)
+- **Data & identity invariants** — the 10 hard rules every session/storage/auth change must respect: [docs/INVARIANTS.md](docs/INVARIANTS.md)
 - Full details: [SECURITY.md](SECURITY.md)
 
 ## 🔗 Backend unification (Supabase)

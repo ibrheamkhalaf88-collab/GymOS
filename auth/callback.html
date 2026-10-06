@@ -38,6 +38,7 @@
   <script type="module">
     import { supabase } from '../js/supabase-client.js';
     import { APP_BASE } from '../js/config.js';
+    import { writeSession } from '../js/session.js';
 
     const statusEl = document.getElementById('cbStatus');
     const subEl = document.getElementById('cbSub');
@@ -72,7 +73,9 @@
       if (done) return;
       done = true;
       const meta = user.user_metadata || {};
-      localStorage.setItem('dp_current_user', JSON.stringify({
+      // session.js is the single writer for dp_current_user (INV5): it keeps
+      // dp_user_email / dp_user_id in sync and drops any stray field.
+      writeSession({
         id: user.id,
         email: user.email,
         name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
@@ -81,9 +84,7 @@
         subStart: meta.subStart || NOW,
         subEnd: meta.subEnd || NOW + 30 * 86400000,
         subTier: meta.subTier || 'free_trial',
-        loginAt: NOW,
-      }));
-      localStorage.setItem('dp_user_email', user.email || '');
+      });
 
       // Redirect to the allowlisted return page (app.html by default).
       window.location.replace(resolveReturnUrl());
@@ -217,8 +218,9 @@
           }
         }
       
-        // Persist user data for app access
-        localStorage.setItem('dp_current_user', JSON.stringify({
+        // Persist user data for app access — via the single session writer
+        // (INV5), same normalised shape as every other login path.
+        writeSession({
           id: user.id,
           email: user.email,
           name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
@@ -227,9 +229,7 @@
           subStart: meta.subStart || NOW,
           subEnd: meta.subEnd || NOW + 30 * 86400000,
           subTier: meta.subTier || 'free_trial',
-          loginAt: NOW,
-        }));
-        localStorage.setItem('dp_user_email', user.email || '');
+        });
       
         // Ensure Supabase session is persisted in localStorage (it should be automatic, but verify)
         try {
