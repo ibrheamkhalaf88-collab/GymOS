@@ -1,6 +1,6 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v11";
+const CACHE = "dp-cache-v12";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
@@ -16,6 +16,14 @@ const ASSETS = [
   "js/supabase-client.js", "js/login.js", "js/activate.js", "js/signup.js",
   "js/admin.js", "js/admin-auth.js",
   "js/tailwind-config.js", "js/pwa.js",
+  // Same failure mode, reached differently: these are pulled in by `import`
+  // (app.js -> sync-status-ui.js, login/signup -> native-oauth.js) or by an
+  // HTML <script src> (onboarding/admin-panel/contact), and vendor/supabase-js.js
+  // is the UMD bundle every page loads before anything else works. A cache
+  // miss on any of them falls back to index.html and kills that page offline.
+  "js/sync-status-ui.js", "js/native-oauth.js", "js/onboarding.js",
+  "js/admin-panel.js", "js/contact.js",
+  "vendor/supabase-js.js",
   "vendor/tailwind.js", "vendor/chart.umd.min.js",
   "vendor/material-symbols.css",
   "vendor/fonts/MaterialSymbolsOutlined-400.ttf",
