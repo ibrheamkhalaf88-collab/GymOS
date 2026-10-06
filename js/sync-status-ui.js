@@ -1,4 +1,9 @@
 // Sync Status UI Update
+// NOTE: this file is imported as an ES module (js/app.js line 14), so `store`
+// must be imported explicitly — it is NOT a global. Without this import the
+// whole function threw "ReferenceError: store is not defined" at load time.
+import { store } from "./store.js";
+
 function updateSyncStatusUI() {
   const syncBar = document.getElementById("syncStatusBar");
   if (!syncBar) return;
