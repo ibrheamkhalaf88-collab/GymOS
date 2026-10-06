@@ -11,6 +11,16 @@ import { demoUsersAll, demoUsersSave, findDemoUser, demoAll as demoCodesAll } fr
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+// ---------- Auth guard: MUST be the first executable code ----------
+// Runs before anything else so no runtime error below can ever bypass login.
+const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
+const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
+
+if (!TOKEN) {
+  window.location.href = 'admin-login.html';
+  throw new Error('no admin token');
+}
+
 // ---------- HTML escaping (XSS prevention) ----------
 const esc = (s) =>
   String(s ?? '')
@@ -78,30 +88,6 @@ function hideConfirm() {
     confirmResolve = null;
   }
 }
-
-elements.confirmOk.addEventListener('click', () => {
-  if (confirmResolve !== null) {
-    confirmResolve(true);
-    confirmResolve = null;
-  }
-  hideConfirm();
-});
-
-elements.confirmCancel.addEventListener('click', hideConfirm);
-elements.confirmOverlay.addEventListener('click', (e) => {
-  if (e.target === elements.confirmOverlay) hideConfirm();
-});
-
-// Close with Escape key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (!elements.confirmOverlay.classList.contains('hidden')) hideConfirm();
-    if (!elements.userModal.classList.contains('hidden')) closeUserModal();
-    if (!elements.codeModal.classList.contains('hidden')) closeCodeModal();
-    if (!elements.pwModal.classList.contains('hidden')) closePwModal();
-    if (!elements.couponModal.classList.contains('hidden')) closeCouponModal();
-  }
-});
 
 // ---------- Configuration ----------
 const TIER_LABEL = {
@@ -233,14 +219,30 @@ const elements = {
   confirmCancel: $('#confirmCancel'),
 };
 
-// ---------- Session / Auth ----------
-const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
-const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
+// ---------- Confirm-dialog listeners (after `elements` is initialized) ----------
+elements.confirmOk.addEventListener('click', () => {
+  if (confirmResolve !== null) {
+    confirmResolve(true);
+    confirmResolve = null;
+  }
+  hideConfirm();
+});
 
-if (!TOKEN) {
-  window.location.href = 'admin-login.html';
-  throw new Error('no admin token');
-}
+elements.confirmCancel.addEventListener('click', hideConfirm);
+elements.confirmOverlay.addEventListener('click', (e) => {
+  if (e.target === elements.confirmOverlay) hideConfirm();
+});
+
+// Close with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (!elements.confirmOverlay.classList.contains('hidden')) hideConfirm();
+    if (!elements.userModal.classList.contains('hidden')) closeUserModal();
+    if (!elements.codeModal.classList.contains('hidden')) closeCodeModal();
+    if (!elements.pwModal.classList.contains('hidden')) closePwModal();
+    if (!elements.couponModal.classList.contains('hidden')) closeCouponModal();
+  }
+});
 
 // Initialize UI for demo/online mode
 elements.modeBadge.textContent = IS_DEMO ? 'OFFLINE / محلي' : 'ONLINE / أونلاين';

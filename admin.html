@@ -2,6 +2,13 @@
 <html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
+  <script>
+    // Auth gate — runs before the body paints so the dashboard is never
+    // visible without a token, even if js/admin-panel.js fails to load.
+    if (!sessionStorage.getItem('dp_admin_token')) {
+      window.location.replace('admin-login.html');
+    }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Digital Pulse — Admin Dashboard</title>
   <meta name="description" content="Manage users, subscriptions, activation codes & coupons" />
