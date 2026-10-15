@@ -1,0 +1,540 @@
+{
+  "startDate": "2026-10-06",
+  "weeks": 4,
+  "platforms": ["LinkedIn", "TikTok", "Instagram Reels", "YouTube Shorts", "WhatsApp"],
+  "pillars": {
+    "educational": 0.40,
+    "behindTheScenes": 0.20,
+    "socialProof": 0.15,
+    "engagement": 0.15,
+    "promotional": 0.10
+  },
+  "cadence": {
+    "LinkedIn": 4,
+    "TikTok": 7,
+    "Instagram Reels": 7,
+    "YouTube Shorts": 3,
+    "WhatsApp": 3
+  },
+  "calendar": [
+    {
+      "date": "2026-10-06",
+      "day": "Monday",
+      "theme": "LAUNCH DAY",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "promotional",
+          "format": "carousel",
+          "title": "GymOS Launch Announcement",
+          "contentRef": "SOCIAL-CONTENT.md#1-linkedin--founder-personal-profile-primary",
+          "time": "09:00",
+          "assets": ["dashboard-ar.png", "qr-code.png", "logo-tagline.png"],
+          "hashtags": ["#GymOS", "#GymManagement", "#SaaS", "#ArabicTech", "#FitnessTech", "#BuildInPublic", "#MENAStartup"]
+        },
+        {
+          "platform": "LinkedIn",
+          "pillar": "promotional",
+          "format": "article",
+          "title": "Why I Built GymOS",
+          "contentRef": "SOCIAL-CONTENT.md#5-linkedin-article-pulse--why-i-built-gymos",
+          "time": "14:00",
+          "assets": ["dashboard-ar.png"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "Before/After Hero Video",
+          "contentRef": "SOCIAL-CONTENT.md#video-1-beforeafter-15-sec--hero-launch-video",
+          "time": "10:00",
+          "assets": ["excel-messy.mp4", "gymos-dashboard.mp4", "whatsapp-flow.mp4", "apk-install.mp4"],
+          "hashtags": ["#GymOS", "#GymManagement", "#FitnessTech", "#ArabicApp", "#SaudiArabia", "#UAE", "#Egypt", "#Jordan"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "Before/After Hero Video (cross-post)",
+          "contentRef": "SOCIAL-CONTENT.md#video-1-beforeafter-15-sec--hero-launch-video",
+          "time": "10:00",
+          "assets": ["excel-messy.mp4", "gymos-dashboard.mp4", "whatsapp-flow.mp4", "apk-install.mp4"],
+          "hashtags": ["#GymOS", "#GymManagement", "#FitnessTech", "#ArabicApp", "#ReelsInstagram", "#ExplorePage"]
+        },
+        {
+          "platform": "YouTube Shorts",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "Before/After Hero Video (cross-post)",
+          "contentRef": "SOCIAL-CONTENT.md#video-1-beforeafter-15-sec--hero-launch-video",
+          "time": "10:00",
+          "assets": ["excel-messy.mp4", "gymos-dashboard.mp4", "whatsapp-flow.mp4", "apk-install.mp4"],
+          "hashtags": ["#GymOS", "#GymManagement", "#FitnessTech", "#ArabicApp", "#Shorts"]
+        },
+        {
+          "platform": "YouTube Shorts",
+          "pillar": "educational",
+          "format": "video-60s",
+          "title": "Extended Demo Walkthrough",
+          "contentRef": "SOCIAL-CONTENT.md#4-youtube-short-extended-demo",
+          "time": "11:00",
+          "assets": ["full-demo-60s.mp4"]
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "promotional",
+          "format": "broadcast",
+          "title": "Launch Announcement to List",
+          "contentRef": "SOCIAL-CONTENT.md#4-whatsapp-business--broadcast-message",
+          "time": "11:00",
+          "list": "GymOS Launch"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "educational",
+          "format": "video-20s",
+          "title": "Feature: Trainer Payroll",
+          "contentRef": "SOCIAL-CONTENT.md#video-2-feature-trainer-payroll-20-sec--post-1400",
+          "time": "14:00",
+          "assets": ["payroll-demo.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "educational",
+          "format": "video-20s",
+          "title": "Feature: Trainer Payroll (cross-post)",
+          "contentRef": "SOCIAL-CONTENT.md#video-2-feature-trainer-payroll-20-sec--post-1400",
+          "time": "14:00",
+          "assets": ["payroll-demo.mp4"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Feature: Hardware Maintenance",
+          "contentRef": "SOCIAL-CONTENT.md#video-3-feature-hardware-maintenance-15-sec--post-1800",
+          "time": "18:00",
+          "assets": ["hardware-demo.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Feature: Hardware Maintenance (cross-post)",
+          "contentRef": "SOCIAL-CONTENT.md#video-3-feature-hardware-maintenance-15-sec--post-1800",
+          "time": "18:00",
+          "assets": ["hardware-demo.mp4"]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-07",
+      "day": "Tuesday",
+      "theme": "Social Proof - First Users",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "socialProof",
+          "format": "single-image",
+          "title": "First Trial Activation Screenshot",
+          "content": "First gym activated GymOS trial today! 🎉 Blurred screenshot showing 'Trial Active - 30 days remaining' with quote: 'أخيراً نظام يفهم لغتي وشغلي'. Demo code 7Q2-K9D still works. Link in comments.",
+          "time": "09:30",
+          "assets": ["first-activation-blurred.png"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "behindTheScenes",
+          "format": "video-30s",
+          "title": "Day 2: POV Founder",
+          "content": "POV: You wake up and see first trial activation. Screen record Supabase dashboard showing new code usage. Voiceover: 'First real user. This is why I built it.'",
+          "time": "11:00",
+          "assets": ["supabase-dashboard.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "behindTheScenes",
+          "format": "video-30s",
+          "title": "Day 2: POV Founder (cross-post)",
+          "content": "Same as TikTok",
+          "time": "11:00",
+          "assets": ["supabase-dashboard.mp4"]
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "engagement",
+          "format": "personal-followup",
+          "title": "Follow up Day 1 Broadcast",
+          "content": "Personal replies to anyone who responded. Send Template 2 to non-responders.",
+          "time": "10:00",
+          "list": "GymOS Launch"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "day": "Wednesday",
+      "theme": "Education - Activation Codes vs Email/Password",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "educational",
+          "format": "carousel",
+          "title": "Why Activation Codes Beat Email/Password for Gym Staff",
+          "contentRef": "SOCIAL-CONTENT.md#carousel-2-why-not-mindbodyglofox-week-1",
+          "time": "09:00",
+          "assets": ["carousel-activation-codes.png"],
+          "hashtags": ["#GymOS", "#GymManagement", "#SaaS", "#UX", "#ArabicTech"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Feature: Freeze/Resume Membership",
+          "content": "Member going on vacation? Tap 'تجميد' → choose dates → saves remaining days. Tap 'استئناف' → picks up where left off. No pro-rating math needed.",
+          "time": "12:00",
+          "assets": ["freeze-resume-demo.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Feature: Freeze/Resume (cross-post)",
+          "content": "Same as TikTok",
+          "time": "12:00",
+          "assets": ["freeze-resume-demo.mp4"]
+        },
+        {
+          "platform": "YouTube Shorts",
+          "pillar": "educational",
+          "format": "video-30s",
+          "title": "How to: Freeze & Resume Memberships",
+          "content": "Step-by-step tutorial with Arabic narration. Show freeze → member card shows 'مجمد' badge → resume → badge gone → days preserved.",
+          "time": "15:00",
+          "assets": ["freeze-resume-tutorial.mp4"]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-09",
+      "day": "Thursday",
+      "theme": "Technical Credibility - Security & Architecture",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "educational",
+          "format": "single-image",
+          "title": "Your Data Stays Yours: RLS + Supabase",
+          "content": "Row-Level Security on every table. Anon key = zero access. Service role only via Edge Functions. Your member data never touches my servers — it's in YOUR Supabase project. 🔒\n\nThis is why activation codes work: no email/password to leak. Just a hash.\n\n#GymOS #Security #Supabase #PostgreSQL #DataPrivacy #ArabicTech",
+          "time": "09:30",
+          "assets": ["rls-diagram.png"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "behindTheScenes",
+          "format": "video-30s",
+          "title": "Behind: Building Real-Time Sync",
+          "content": "Screen record: VS Code → db.js → store.js → cloud-link.js. Voiceover: '200 lines of vanilla JS handles offline queue, conflict resolution, and real-time sync. No Redux, no RxJS. Just localStorage + Supabase Realtime.'",
+          "time": "11:00",
+          "assets": ["sync-code-walkthrough.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "behindTheScenes",
+          "format": "video-30s",
+          "title": "Behind: Building Real-Time Sync (cross-post)",
+          "content": "Same as TikTok",
+          "time": "11:00",
+          "assets": ["sync-code-walkthrough.mp4"]
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "educational",
+          "format": "broadcast",
+          "title": "Technical Deep-dive for IT Leads",
+          "content": "Template 3 with feature: 'أمان البيانات: RLS على كل الجداول، anon key ما يقدر يقرأ شي، بياناتك في مشروعك على Supabase. جرب الكود 7Q2-K9D وشوف بنفسك.'",
+          "time": "14:00",
+          "list": "GymOS Launch - IT Segment"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "day": "Friday",
+      "theme": "Conversion Push - Launch Offer",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "promotional",
+          "format": "carousel",
+          "title": "Launch Week Offer: Pro Yearly -20%",
+          "contentRef": "SOCIAL-CONTENT.md#carousel-2-why-not-mindbodyglofox-week-1 (adapt for offer)",
+          "time": "09:00",
+          "assets": ["launch-offer-carousel.png"],
+          "hashtags": ["#GymOS", "#GymManagement", "#LaunchOffer", "#SaaS", "#ArabicTech"]
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "Launch Offer Ends Sunday",
+          "content": "Pro yearly 20% off this week only. Try free 30 days first (code: 7Q2-K9D), then upgrade before Sunday. Link in bio. 💪",
+          "time": "12:00",
+          "assets": ["offer-graphic.mp4"]
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "Launch Offer Ends Sunday (cross-post)",
+          "content": "Same as TikTok",
+          "time": "12:00",
+          "assets": ["offer-graphic.mp4"]
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "promotional",
+          "format": "broadcast",
+          "title": "Launch Offer Broadcast",
+          "content": "Template 4: 'التجربة المجانية تنتهي قريباً. حابب نكمل بالنسخة Pro؟ خصم 20% للسنة هذا الأسبوع. كلمني وأرتبلك كل شي.'",
+          "time": "10:00",
+          "list": "GymOS Launch - Hot Leads"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "day": "Saturday",
+      "theme": "Community Engagement Only",
+      "posts": [
+        {
+          "platform": "All",
+          "pillar": "engagement",
+          "format": "engagement-only",
+          "title": "Engage, Don't Broadcast",
+          "content": "15 min each platform: Reply to all comments, comment on 10 relevant posts, share 2 peer posts, DM 3 hot leads personally.",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-12",
+      "day": "Sunday",
+      "theme": "Plan & Batch Create Week 2",
+      "posts": [
+        {
+          "platform": "All",
+          "pillar": "engagement",
+          "format": "planning",
+          "title": "Week 2 Content Batch Creation",
+          "content": "Review Week 1 metrics → Identify top 3 performing formats → Batch record 10 videos for Week 2 → Write 5 LinkedIn carousels → Segment WhatsApp lists (Hot/Warm/Cold) → Set up Meta Ads test ($50).",
+          "time": "14:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-13",
+      "day": "Monday",
+      "theme": "Week 2 - Education Focus",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "educational",
+          "format": "carousel",
+          "title": "How to Set Up GymOS in 10 Minutes",
+          "time": "09:00"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Tip: Package Pricing Strategy",
+          "time": "11:00"
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Tip: Package Pricing (cross-post)",
+          "time": "11:00"
+        },
+        {
+          "platform": "YouTube Shorts",
+          "pillar": "educational",
+          "format": "video-30s",
+          "title": "Tutorial: Monthly Reports for Accountant",
+          "time": "15:00"
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "educational",
+          "format": "broadcast",
+          "title": "Weekly Tip: Automate Renewals",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-14",
+      "day": "Tuesday",
+      "theme": "Week 2 - Case Study Teaser",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "socialProof",
+          "format": "single-image",
+          "title": "Case Study Preview: Gym in Riyadh",
+          "time": "09:30"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "socialProof",
+          "format": "video-30s",
+          "title": "Customer Story: 'Provided 10hrs/week'",
+          "time": "11:00"
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "socialProof",
+          "format": "video-30s",
+          "title": "Customer Story (cross-post)",
+          "time": "11:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-15",
+      "day": "Wednesday",
+      "theme": "Week 2 - Feature Deep-dive: Reports",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "educational",
+          "format": "carousel",
+          "title": "Monthly Reports That Don't Break Arabic",
+          "time": "09:00"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Export: CSV vs Excel vs PDF",
+          "time": "12:00"
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "educational",
+          "format": "video-15s",
+          "title": "Export Formats (cross-post)",
+          "time": "12:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-16",
+      "day": "Thursday",
+      "theme": "Week 2 - Objection Handling",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "educational",
+          "format": "article",
+          "title": "GymOS vs Spreadsheets: The Real Cost",
+          "time": "14:00"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "engagement",
+          "format": "video-30s",
+          "title": "Q&A: 'What if internet goes down?'",
+          "time": "11:00"
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "engagement",
+          "format": "video-30s",
+          "title": "Q&A: Offline Mode (cross-post)",
+          "time": "11:00"
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "engagement",
+          "format": "personal",
+          "title": "Check-in with Warm Leads",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-17",
+      "day": "Friday",
+      "theme": "Week 2 - Conversion",
+      "posts": [
+        {
+          "platform": "LinkedIn",
+          "pillar": "promotional",
+          "format": "single-image",
+          "title": "Last Chance: Launch Pricing Ends Tomorrow",
+          "time": "09:00"
+        },
+        {
+          "platform": "TikTok",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "24 Hours Left for 20% Off",
+          "time": "12:00"
+        },
+        {
+          "platform": "Instagram Reels",
+          "pillar": "promotional",
+          "format": "video-15s",
+          "title": "24 Hours Left (cross-post)",
+          "time": "12:00"
+        },
+        {
+          "platform": "WhatsApp",
+          "pillar": "promotional",
+          "format": "broadcast",
+          "title": "Final Offer Reminder",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-18",
+      "day": "Saturday",
+      "theme": "Engagement Only",
+      "posts": [
+        {
+          "platform": "All",
+          "pillar": "engagement",
+          "format": "engagement-only",
+          "title": "Community Management",
+          "time": "10:00"
+        }
+      ]
+    },
+    {
+      "date": "2026-10-19",
+      "day": "Sunday",
+      "theme": "Week 3 Planning",
+      "posts": [
+        {
+          "platform": "All",
+          "pillar": "engagement",
+          "format": "planning",
+          "title": "Week 3 Batch Create + Meta Ads Launch",
+          "time": "14:00"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "generatedBy": "social-media-manager skill + marketing-strategy-pmm skill",
+    "contextFile": ".claude/product-marketing-context.md",
+    "launchDate": "2026-10-06",
+    "demoCode": "7Q2-K9D",
+    "landingUrl": "https://ibrheamkhalaf88-collab.github.io/GymOS/",
+    "whatsappUrl": "https://wa.me/972568802803",
+    "githubReleases": "https://github.com/ibrheamkhalaf88-collab/GymOS/releases"
+  }
+}

@@ -3,3 +3,7 @@ project_id = "gymos"
 [functions.gymos-api]
 enabled = true
 verify_jwt = false
+
+[functions.gymos-drive-backup]
+enabled = true
+verify_jwt = false
