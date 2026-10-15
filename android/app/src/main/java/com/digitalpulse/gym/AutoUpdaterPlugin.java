@@ -181,12 +181,17 @@ public class AutoUpdaterPlugin extends Plugin {
                 android.content.pm.PackageInstaller.Session session = packageInstaller.openSession(sessionId);
                 try (java.io.FileInputStream fis = new java.io.FileInputStream(apkFile)) {
                     long size = apkFile.length();
-                    session.write(fis, 0, size);
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    java.io.OutputStream os = session.openWrite("update.apk", 0, size);
+                    while ((len = fis.read(buffer)) > 0) {
+                        os.write(buffer, 0, len);
+                    }
+                    os.flush();
+                    session.fsync(os);
                 }
-                session.fsync();
-                android.content.IntentSender intentSender = packageInstaller.getSessionIntentSender(sessionId).getIntentSender();
-                // We can't easily use startIntentSenderForResult from Plugin, so fall back to ACTION_VIEW
-                // This is a limitation - for full auto-install on Android 14+ need a different approach
+                // Note: getSessionIntentSender(int) may not be available on all API levels.
+                // We fall back to ACTION_VIEW which works reliably.
             } catch (Exception e) {
                 Log.w(TAG, "PackageInstaller failed, falling back to ACTION_VIEW", e);
             }

@@ -26,6 +26,7 @@ ios/
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Firebase
 .firebase/
@@ -63,6 +64,7 @@ output/
 # Local handover (contains secrets, keep on device only)
 HANDOVER.md
 CREDENTIALS.md
+CREDENTIALS_MANAGEMENT.md
 
 # Deploy scripts with secrets
 deploy-fn-only.ps1
@@ -73,3 +75,29 @@ run_deploy.ps1
 _check*.cjs
 _check*.mjs
 _test*.cjs
+
+# Local backups & stale build outputs (kept on device only)
+.backup/
+dist-prod/
+supabase/.temp/
+*.app_end.txt
+
+# One-off maintenance/patch scripts (not part of the build)
+scripts/debug_admin.py
+scripts/replace_admin.py
+scripts/replace_cta.py
+scripts/update_admin*.py
+scripts/find_div.py
+scripts/fix_offline_banner.py
+scripts/fix_fonts_css.py
+scripts/download_fonts.py
+scripts/update_html_fonts.py
+
+# Internal audit/report artefacts & local infra reference
+docs/reports/
+PROJECT_REFERENCE.md
+AUDIT_REPORT.md
+FINAL_REPORT.md
+FINAL_HARDENING_REPORT.md
+FIX-PLAN.md
+FIXES_SUMMARY.md

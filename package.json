@@ -1,11 +1,13 @@
 {
     "name": "gymos",
-    "version": "1.0.0",
+    "version": "1.4.0",
     "type": "module",
     "description": "Digital Pulse",
     "main": "index.html",
     "scripts": {
         "dev": "npx serve -l 5173 .",
+        "build:dev": "NODE_ENV=development node scripts/build.js --output dist",
+        "build:prod": "NODE_ENV=production node scripts/build.js --output dist",
         "sync": "node scripts/sync-www.js",
         "cap:init": "npx cap init",
         "cap:add:android": "npx cap add android",
@@ -31,9 +33,13 @@
     "devDependencies": {
         "@capacitor/cli": "^6.2.1",
         "@eslint/js": "^10.0.1",
+        "autoprefixer": "^10.4.19",
+        "cssnano": "^7.0.6",
         "eslint": "^10.9.1",
         "globals": "^17.11.0",
         "jsdom": "^26.1.0",
+        "postcss": "^8.4.47",
+        "tailwindcss": "^3.4.13",
         "typescript": "^7.0.2"
     }
 }
