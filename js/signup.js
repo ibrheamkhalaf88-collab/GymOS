@@ -140,6 +140,9 @@ form.addEventListener('submit', async (e) => {
         email,
         password,
         options: {
+          /* Land the confirmation link on our PKCE callback so supabase-js
+             exchanges the code and signs the user in (same path as resend). */
+          emailRedirectTo: `${APP_BASE}auth/callback.html`,
           data: {
             name: name,
             subscription: 'trial',
