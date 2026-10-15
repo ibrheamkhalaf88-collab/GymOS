@@ -5,8 +5,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const root = "C:/Users/Lenovo/Documents/digital-pulse";
-const read = (p) => readFileSync(`${root}/${p}`, "utf8");
+// Relative to this file, never an absolute path: the suite also runs on the
+// Linux CI runner, where a C:/... path does not exist and the whole file
+// would fail to load.
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 const appJs = read("js/app.js");
 const storeJs = read("js/store.js");
@@ -14,7 +16,7 @@ const adminPanelJs = read("js/admin-panel.js");
 const adminHtml = read("admin.html");
 const apiTs = read("supabase/functions/gymos-api/index.ts");
 const indexHtml = read("index.html");
-const driveCallback = readFileSync("C:/Users/Lenovo/Documents/digital-pulse/auth/drive-callback.html", "utf8");
+const driveCallback = read("auth/drive-callback.html");
 const ciYml = read(".github/workflows/ci.yml");
 const buildApkYml = read(".github/workflows/build-apk.yml");
 
