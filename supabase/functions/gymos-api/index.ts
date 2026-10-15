@@ -21,6 +21,9 @@ const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD");
 if (!ADMIN_PASSWORD) throw new Error("Missing ADMIN_PASSWORD — set Supabase Function Secret");
 const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGIN") || "")
   .split(",").map((s) => s.trim()).filter(Boolean);
+// Where GoTrue recovery links land. Must stay inside the Supabase redirect
+// allow list (https://ibrheamkhalaf88-collab.github.io/GymOS/**).
+const RESET_PASSWORD_URL = "https://ibrheamkhalaf88-collab.github.io/GymOS/reset-password.html";
 // Allow GitHub Pages deployment
 const GITHUB_PAGES_ORIGIN = "https://ibrheamkhalaf88-collab.github.io";
 const APP_ORIGINS = new Set([
@@ -1203,7 +1206,11 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true }, 200, origin);
     }
 
-    /* admin: forgot password — request reset link sent to admin email */
+    /* admin: forgot password — sends the branded GoTrue recovery email to the
+       admin address through the project SMTP (digitalpulse.ps@gmail.com). The
+       link lands on reset-password.html (PKCE) and resets the Supabase auth
+       password. NOTE: the admin PANEL login is the ADMIN_PASSWORD function
+       secret — separate, update it in Supabase Dashboard → Functions secrets. */
     if (req.method === "POST" && path === "/api/admin/forgot-password") {
       const ip = clientIp(req);
       if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
@@ -1213,38 +1220,28 @@ async function handler(req: Request): Promise<Response> {
         // Don't reveal if email is wrong — always return success for security
         return json({ ok: true, message: "If the email matches the admin account, a reset link has been sent." }, 200, origin);
       }
-      // Generate a secure reset token (1 hour expiry)
-      const resetToken = randChars(32);
-      const resetTokenHash = await bcrypt.hash(resetToken, BCRYPT_COST);
-      const resetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
-      
-      // Store in a secure way - using a dedicated table or app_metadata
-      // For now, store in a simple key-value approach using a reserved code
-      const { error } = await sb.from("codes").upsert({
-        code: "ADMIN_RESET_TOKEN",
-        tier: "none",
-        days: 0,
-        owner: ADMIN_EMAIL,
-        note: `Reset token hash: ${resetTokenHash}, expires: ${resetExpires}`,
-        used: true,
-        revoked: false,
-        used_at: new Date().toISOString(),
-        used_device: "admin-reset",
-        used_device_name: "password-reset",
-        data_enabled: false,
-        sync_enabled: false,
-        device_limit: 1,
-        devices: [],
-      }).eq("code", "ADMIN_RESET_TOKEN");
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: RESET_PASSWORD_URL });
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-
-      // TODO: Send email with reset link
-      // The reset link should be: ${APP_URL}/admin-reset-password.html?token=${resetToken}
-      // Email service integration (Resend, SendGrid, SMTP) needs to be configured
-      console.log(`[ADMIN PASSWORD RESET] Token generated for ${email}. Reset link: ${Deno.env.get("APP_URL") || "https://ibrheamkhalaf88-collab.github.io"}/admin-reset-password.html?token=${resetToken}`);
-      
+      await logAdminAction(ADMIN_EMAIL, "admin_forgot_password", "system", null, { email }, req);
       clearIp(ip);
-      return json({ ok: true, message: "If the email matches the admin account, a reset link has been sent." }, 200, origin);
+      return json({
+        ok: true,
+        message: "Reset link sent. This resets the Supabase auth password; the admin panel password is the ADMIN_PASSWORD function secret (update it separately if needed).",
+      }, 200, origin);
+    }
+
+    /* admin: send a password-reset (recovery) email to any user. Uses GoTrue's
+       /recover through the project SMTP, so the user receives the branded
+       recovery template, and the link lands on reset-password.html (PKCE).
+       GoTrue answers identically whether or not the address exists. */
+    if (req.method === "POST" && path === "/api/users/send-reset") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const email = String(body?.email || "").trim().toLowerCase();
+      if (!email) return json({ error: "MISSING_FIELDS" }, 400, origin);
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: RESET_PASSWORD_URL });
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "send_reset_email", "user", null, { email }, req);
+      return json({ ok: true, email }, 200, origin);
     }
 
     /* admin: reset password — verify token and set new password */

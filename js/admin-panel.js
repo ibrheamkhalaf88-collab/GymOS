@@ -510,6 +510,7 @@ function appendUsersToTable(users) {
           <button class="btn btn-secondary btn-sm" data-action="backup" data-id="${escAttr(u.id)}" title="تنزيل نسخة JSON من بيانات الحساب">⬇ Backup / نسخ</button>
           <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${escAttr(u.id)}" title="استعادة بيانات من ملف JSON">⬆ Restore / استعادة</button>
           <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${escAttr(u.id)}">✎ Edit / تعديل</button>
+          <button class="btn btn-secondary btn-sm" data-action="send-reset" data-email="${escAttr(u.email || '')}" title="إرسال رابط إعادة تعيين كلمة السر إلى بريد المستخدم">🔑 Reset Mail / رابط كلمة السر</button>
           ${u.status === 'suspended'
             ? `<button class="btn btn-success btn-sm" data-action="activate" data-id="${escAttr(u.id)}">▶️ Activate / تفعيل</button>`
             : `<button class="btn btn-warning btn-sm" data-action="suspend" data-id="${escAttr(u.id)}">⏸️ Suspend / تعليق</button>`}
@@ -599,6 +600,7 @@ function renderUsers(users) {
           <button class="btn btn-secondary btn-sm" data-action="backup" data-id="${escAttr(u.id)}" title="تنزيل نسخة JSON من بيانات الحساب">⬇ Backup / نسخ</button>
           <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${escAttr(u.id)}" title="استعادة بيانات من ملف JSON">⬆ Restore / استعادة</button>
           <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${escAttr(u.id)}">✎ Edit / تعديل</button>
+          <button class="btn btn-secondary btn-sm" data-action="send-reset" data-email="${escAttr(u.email || '')}" title="إرسال رابط إعادة تعيين كلمة السر إلى بريد المستخدم">🔑 Reset Mail / رابط كلمة السر</button>
           ${u.status === 'suspended'
             ? `<button class="btn btn-success btn-sm" data-action="activate" data-id="${escAttr(u.id)}">▶️ Activate / تفعيل</button>`
             : `<button class="btn btn-warning btn-sm" data-action="suspend" data-id="${escAttr(u.id)}">⏸️ Suspend / تعليق</button>`}
@@ -1178,6 +1180,31 @@ elements.usersTableBody.addEventListener('click', async (e) => {
   if (action === 'viewdata') { await viewUserData(id); return; }
   if (action === 'backup') { await backupUserData(id); return; }
   if (action === 'restore') { await restoreUserData(id); return; }
+
+  // Email the user a branded password-reset link (GoTrue recovery via SMTP).
+  if (action === 'send-reset') {
+    if (IS_DEMO) { showToast('Demo mode — no email sent / وضع التجربة — لا إيميل', 'error'); return; }
+    const email = btn.dataset.email || '';
+    if (!email) { showToast('No email on this account / لا يوجد بريد لهذا الحساب', 'error'); return; }
+    const confirmedReset = await showConfirm({
+      title: 'Send Reset Email / إرسال رابط كلمة السر',
+      message: `A password-reset link will be emailed to ${email}. / سيتم إرسال رابط إعادة تعيين كلمة السر إلى ${email}.`,
+      icon: '🔑',
+      iconColor: '#CCFF00',
+      okText: 'Send / إرسال',
+      okClass: 'btn-success',
+      cancelText: 'Cancel / إلغاء',
+    });
+    if (!confirmedReset) return;
+    try {
+      await api('/api/users/send-reset', { method: 'POST', body: JSON.stringify({ email }) });
+      showToast('✉️ Reset link sent / تم إرسال الرابط إلى بريد المستخدم', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to send reset email: ' + err.message, 'error');
+    }
+    return;
+  }
 
   const isSuspend = action === 'suspend';
   const confirmed = await showConfirm({
