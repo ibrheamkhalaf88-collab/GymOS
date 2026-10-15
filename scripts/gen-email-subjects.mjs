@@ -9,8 +9,8 @@ const out = join(here, '..', 'supabase', 'auth-email-templates', 'subjects.json'
 
 const subjects = {
   confirmation: 'أكّد حسابك في Digital Pulse ✓ Confirm your account',
-  recovery: 'استعادة كلمة السر في Digital Pulse 🔑 Reset your password',
-  invite: 'دعوة للانضمام إلى Digital Pulse 🎉 You\'re invited',
+  recovery: 'استعادة كلمة السر في Digital Pulse ✓ Reset your password',
+  invite: 'دعوة للانضمام إلى Digital Pulse ✓ You\'re invited',
   email_change: 'تأكيد بريدك الجديد في Digital Pulse ✓ Confirm your new email',
 };
 
