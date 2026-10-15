@@ -12,9 +12,16 @@ const signup = readFileSync(new URL("../js/signup.js", import.meta.url), "utf8")
 const link = readFileSync(new URL("../js/cloud-link.js", import.meta.url), "utf8");
 const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
 
-test("server: /api/trial binds the code to the auth user id when present", () => {
-  assert.match(fn, /const ownerKey = u \? `user:\$\{u\.id\}` : devId;/);
-  assert.match(fn, /\.eq\("owner", ownerKey\)/);
+test("server: /api/trial is disabled and returns 403", () => {
+  assert.match(fn, /path === "\/api\/trial"/);
+  assert.match(fn, /error: "ACTIVATION_DISABLED"/);
+  assert.match(fn, /Public trial codes are disabled/);
+});
+
+test("server: /api/auth/activate is disabled and returns 403", () => {
+  assert.match(fn, /path === "\/api\/auth\/activate"/);
+  assert.match(fn, /error: "ACTIVATION_DISABLED"/);
+  assert.match(fn, /Public code activation is disabled/);
 });
 
 test("server: /api/auth/mine exists, requires a Supabase session, and never resets the countdown", () => {

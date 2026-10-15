@@ -15,21 +15,31 @@ import { license, deviceName, getDeviceId } from "./license.js";
 export async function linkCloudIdentity(supabase) {
   try {
     if (!supabase) return false;
-    const { data: { session } } = await supabase.auth.getSession();
+    const SESSION_TIMEOUT_MS = 8000;
+    const { data: { session } } = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Session check timed out')), SESSION_TIMEOUT_MS))
+    ]);
     const token = session?.access_token;
     if (!token) return false;
     const deviceId = getDeviceId();
     const curCode = license.get()?.code || "";
     let res;
     try {
-      res = await findLinkedCode(token, deviceId, deviceName());
+      res = await Promise.race([
+        findLinkedCode(token, deviceId, deviceName()),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Find linked code timed out')), 10000))
+      ]);
     } catch (e) {
       if (e?.code !== "NO_CODE") throw e; // 429/500/network → try again next sign-in
       // No code linked to this account. If the device already has a licence
       // (e.g. activated by code), keep it — never overwrite a paid code with a
       // bare trial. Mint a trial only when this device has no licence at all.
       if (curCode) return true;
-      res = await mintLinkedTrial(token, deviceId);
+      res = await Promise.race([
+        mintLinkedTrial(token, deviceId),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Mint trial timed out')), 10000))
+      ]);
     }
     if (!res?.record?.code || !res?.token) return false;
     // Signing into a DIFFERENT account on a device that already has a licence:

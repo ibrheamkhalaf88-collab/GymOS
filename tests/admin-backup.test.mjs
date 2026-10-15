@@ -39,16 +39,17 @@ test("PUT restore writes one shared gym row and hands the old data back", () => 
     "restore never deletes anything");
 });
 
-test("admin.html users table has the nine Phase C columns", () => {
+test("admin.html users table has the ten Phase C columns (including Gym Name)", () => {
   const table = adminHtml.slice(adminHtml.indexOf('id="usersTable"'));
   const thead = table.slice(0, table.indexOf("</thead>"));
-  assert.equal((thead.match(/<th[\s>]/g) || []).length, 9, "nine column headers");
+  assert.equal((thead.match(/<th[\s>]/g) || []).length, 10, "ten column headers");
   assert.match(thead, /User ID/);
   assert.match(thead, /Members/);
   assert.match(thead, /Last sync/);
+  assert.match(thead, /Gym Name/);
   const tbody = table.slice(0, table.indexOf("</tbody>"));
   assert.ok(!tbody.includes('colspan="6"'), "no stale six-column placeholders");
-  assert.ok(tbody.includes('colspan="9"'), "placeholder spans the new width");
+  assert.ok(tbody.includes('colspan="10"'), "placeholder spans the new width");
 });
 
 test("panel loads gym stats and wires the three cloud actions", () => {

@@ -238,9 +238,6 @@ function shell(inner) {
 </div>`;
 }
 
-let _gateResolve = null;
-let _gateReject = null;
-
 export function hideGate() {
   document.getElementById("dpGate")?.remove();
   document.body.style.overflow = "";
@@ -358,10 +355,10 @@ export function showGate(access = getAccess()) {
   }
   
   // Return a promise that resolves when gate closes (for future use)
-  return new Promise((resolve, reject) => {
-    _gateResolve = resolve;
-    _gateReject = reject;
-  });
+return new Promise((_resolve, _reject) => {
+  // Promise handlers stored for future use when gate can be closed programmatically
+  // Currently the gate is closed via user interaction or page navigation
+});
 }
 
 export function isGateOpen() {

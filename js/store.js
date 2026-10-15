@@ -406,6 +406,27 @@ export function sortMembers(list = []) {
     .sort((a, b) => (b.joinDate || b.createdAt || 0) - (a.joinDate || a.createdAt || 0));
 }
 
+// ---------- Lazy loader for SheetJS (xlsx) ----------
+// vendor/xlsx.full.min.js is ~930 KB, so it is injected on the first export /
+// import instead of being loaded (and parsed) on every page view. Mirrors the
+// ensureChart() pattern used in app.js. Resolves immediately if already loaded.
+let xlsxLoading = null;
+function ensureXLSX() {
+  if (typeof XLSX !== "undefined") return Promise.resolve();
+  if (xlsxLoading) return xlsxLoading;
+  xlsxLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "vendor/xlsx.full.min.js";
+    s.onload = () =>
+      typeof XLSX !== "undefined" ? resolve() : reject(new Error("SheetJS failed to initialise"));
+    s.onerror = () => reject(new Error("Failed to load SheetJS (vendor/xlsx.full.min.js)"));
+    document.head.appendChild(s);
+  });
+  // Allow a later retry if the first attempt failed (e.g. offline).
+  xlsxLoading.catch(() => { xlsxLoading = null; });
+  return xlsxLoading;
+}
+
 export const store = {
   sortMembers,
   all(col) {
@@ -562,6 +583,133 @@ export const store = {
     if (!dump || !dump.data) throw new Error("Invalid backup file");
     Object.entries(dump.data).forEach(([col, list]) => {
       if (COLLECTIONS.includes(col)) write(col, Array.isArray(list) ? list : []);
+    });
+  },
+
+  // ---------- Excel / CSV Export & Import ----------
+  // Uses SheetJS (xlsx) loaded lazily from vendor/xlsx.full.min.js
+
+  /** Export all collections to XLSX (multi-sheet workbook) */
+  async exportToXLSX() {
+    await ensureXLSX();
+    if (typeof XLSX === 'undefined') throw new Error('SheetJS not loaded');
+    const wb = XLSX.utils.book_new();
+    COLLECTIONS.forEach((c) => {
+      const data = this.all(c);
+      if (data.length === 0) {
+        // Still create sheet with headers
+        const ws = XLSX.utils.aoa_to_sheet([[]]);
+        XLSX.utils.book_append_sheet(wb, ws, c);
+        return;
+      }
+      const headers = Object.keys(data[0]);
+      const rows = data.map((row) => headers.map((h) => row[h]));
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      // Set column widths
+      const cols = headers.map(() => ({ wch: 20 }));
+      ws['!cols'] = cols;
+      XLSX.utils.book_append_sheet(wb, ws, c);
+    });
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  },
+
+  /** Export all collections to CSV (single file, collections separated by blank row) */
+  exportToCSV() {
+    let csv = '';
+    COLLECTIONS.forEach((c) => {
+      const data = this.all(c);
+      csv += `=== ${c.toUpperCase()} ===\n`;
+      if (data.length === 0) {
+        csv += '\n';
+        return;
+      }
+      const headers = Object.keys(data[0]);
+      csv += headers.join(',') + '\n';
+      data.forEach((row) => {
+        csv += headers.map((h) => {
+          const v = row[h];
+          if (v === null || v === undefined) return '';
+          const s = String(v);
+          return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }).join(',') + '\n';
+      });
+      csv += '\n';
+    });
+    return new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  },
+
+  /** Import from XLSX or CSV file — returns { added, updated, errors } */
+  async importFromFile(file, options = {}) {
+    if (!requireWrite("import from file")) return { added: 0, updated: 0, errors: ['Write access denied'] };
+    const { dryRun = false, skipDuplicates = true, keyField = 'id' } = options;
+
+    // SheetJS parses both XLSX and CSV here, so make sure it is loaded first.
+    await ensureXLSX();
+    if (typeof XLSX === 'undefined') throw new Error('SheetJS not loaded');
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          let workbook;
+          const name = file.name.toLowerCase();
+          if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+            workbook = XLSX.read(data, { type: 'array' });
+          } else if (name.endsWith('.csv')) {
+            const text = new TextDecoder('utf-8').decode(data);
+            workbook = XLSX.read(text, { type: 'string' });
+          } else {
+            reject(new Error('Unsupported file format. Use .xlsx, .xls, or .csv'));
+            return;
+          }
+
+          const results = { added: 0, updated: 0, errors: [] };
+
+          for (const sheetName of workbook.SheetNames) {
+            const col = sheetName.toLowerCase();
+            if (!COLLECTIONS.includes(col)) {
+              results.errors.push(`Sheet "${sheetName}" is not a recognized collection (${COLLECTIONS.join(', ')})`);
+              continue;
+            }
+            const ws = workbook.Sheets[sheetName];
+            const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            if (!rows.length) continue;
+
+            const existing = this.all(col);
+            const existingMap = new Map(existing.map((r) => [r[keyField], r]));
+
+            for (const row of rows) {
+              const key = row[keyField];
+              if (!key) {
+                results.errors.push(`Row missing ${keyField} in ${col}: ${JSON.stringify(row).slice(0, 80)}`);
+                continue;
+              }
+              const exists = existingMap.has(key);
+              if (exists && skipDuplicates) {
+                // Optionally update
+                if (!dryRun) {
+                  this.update(col, key, row);
+                  results.updated++;
+                }
+              } else if (!exists) {
+                if (!dryRun) {
+                  this.insert(col, row);
+                  results.added++;
+                }
+              } else {
+                results.errors.push(`Duplicate ${keyField} "${key}" in ${col} (use skipDuplicates to update)`);
+              }
+            }
+          }
+          resolve(results);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
     });
   },
 

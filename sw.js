@@ -24,7 +24,7 @@ const ASSETS = [
   "js/sync-status-ui.js", "js/native-oauth.js", "js/onboarding.js",
   "js/admin-panel.js", "js/contact.js",
   "vendor/supabase-js.js",
-  "vendor/tailwind.js", "vendor/chart.umd.min.js",
+  "vendor/tailwind.js", "vendor/chart.umd.min.js", "vendor/xlsx.full.min.js",
   "vendor/material-symbols.css",
   "vendor/fonts/MaterialSymbolsOutlined-400.ttf",
   "vendor/fonts/MaterialSymbolsOutlined-500.ttf",

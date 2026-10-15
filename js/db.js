@@ -58,19 +58,29 @@ export function clearJwt() {
   } catch { /* ignore */ }
 }
 
-async function api(path, { method = "GET", body, auth = false, admin = false } = {}) {
+async function api(path, { method = "GET", body, auth = false, admin = false, timeoutMs = 15000 } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (appConfig.supabaseAnonKey) headers["apikey"] = appConfig.supabaseAnonKey;
   if (auth) headers.Authorization = `Bearer ${getJwt()}`;
   if (admin) headers.Authorization = `Bearer ${sessionStorage.getItem("dp_admin_token") || ""}`;
   let res;
   try {
-    res = await fetch(`${API()}${path}`, {
-      method,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      res = await fetch(`${API()}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw Object.assign(new Error("Request timed out / انتهت المهلة"), { code: "TIMEOUT" });
+    }
     // Transport failure (offline, DNS, blocked). Give it a code so callers
     // stop mislabeling it as e.g. NOT_FOUND ("code not found" was shown to
     // users who were simply offline).
@@ -467,15 +477,46 @@ export const codesDb = {
     // The server keys this write by the JWT's code and ignores the body's code.
     // If the stored token belongs to a DIFFERENT code (stale licence after a
     // switch), the push would silently land in the old account's cloud row.
+    let jwtCode = null;
     try {
       const parts = (localStorage.getItem("dp_jwt") || "").split(".");
       const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
       const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
-      if (payload.code && code && payload.code !== code) {
+      jwtCode = payload.code || null;
+    } catch { /* unreadable token — the server remains the authority */ }
+    
+    if (jwtCode && code && jwtCode !== code) {
+      // JWT code doesn't match license code — try to refresh JWT via /api/auth/mine
+      console.warn("[GymOS] saveGym: JWT code mismatch, attempting to refresh...");
+      try {
+        const { supabase } = await import("./supabase-client.js");
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            const { findLinkedCode } = await import("./db.js");
+            const res = await findLinkedCode(session.access_token, localStorage.getItem("dp_device_id") || "", navigator.userAgent.slice(0, 40));
+            if (res?.record?.code && res?.token) {
+              const { setJwt } = await import("./db.js");
+              setJwt(res.token);
+              console.log("[GymOS] saveGym: JWT refreshed successfully");
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[GymOS] saveGym: JWT refresh failed:", e?.message);
+      }
+      // Re-check after refresh attempt
+      try {
+        const parts = (localStorage.getItem("dp_jwt") || "").split(".");
+        const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
+        const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
+        jwtCode = payload.code || null;
+      } catch {}
+      if (jwtCode && code && jwtCode !== code) {
         console.warn("[GymOS] saveGym blocked: token belongs to a different code");
         return false;
       }
-    } catch { /* unreadable token — the server remains the authority */ }
+    }
     try { await api("/api/gym", { method: "PUT", auth: true, body: data }); return true; }
     catch { return false; }
   },

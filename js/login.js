@@ -2,13 +2,12 @@
 // login.js — Sign-in logic (email/password + Google OAuth)
 // ============================================================
 import { APP_BASE } from './config.js';
-import { computeAccess, READONLY, showGate } from './access.js';
+import { computeAccess, READONLY } from './access.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 import { codesDb } from './db.js';
 import { license } from './license.js';
 import { writeSession } from './session.js';
-import { showToast, openModal } from './ui.js';
-import { appConfig } from './config.js';
+import { showToast } from './ui.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#loginMsg');
@@ -28,7 +27,6 @@ const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.h
 const urlParams = new URLSearchParams(window.location.search);
 const wantReturn = urlParams.get('return');
 const returnUrl = RETURN_ALLOWED.includes(wantReturn) ? wantReturn : 'app.html';
-const loginReason = urlParams.get('reason') || '';
 
 // Check if this is first login (no trial used yet)
 function isFirstLogin() {
@@ -36,7 +34,7 @@ function isFirstLogin() {
 }
 
 // Auto-activate 30-day trial for first-time users (no modal, automatic)
-async function autoActivateTrial(userEmail) {
+async function autoActivateTrial(_userEmail) {
   const shown = localStorage.getItem('dp_welcome_shown');
   if (shown) return false; // Already shown
   // This device already has a licence (paid code, account-linked code or the
@@ -48,12 +46,15 @@ async function autoActivateTrial(userEmail) {
   
   localStorage.setItem('dp_welcome_shown', '1');
   
-  // Create trial via codesDb
+  // Create trial via codesDb with timeout
   try {
-    const res = await codesDb.activate('TRIAL-' + Date.now().toString(36).toUpperCase().slice(-6), {
-      deviceId: localStorage.getItem('dp_device_id') || '',
-      deviceName: navigator.userAgent.slice(0, 40)
-    });
+    const res = await Promise.race([
+      codesDb.activate('TRIAL-' + Date.now().toString(36).toUpperCase().slice(-6), {
+        deviceId: localStorage.getItem('dp_device_id') || '',
+        deviceName: navigator.userAgent.slice(0, 40)
+      }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Trial activation timed out')), 10000))
+    ]);
     if (res.ok) {
       license.save(res.record);
       localStorage.setItem('dp_trial_used', '1');
@@ -66,7 +67,7 @@ async function autoActivateTrial(userEmail) {
       localStorage.setItem('dp_trial_used', '1');
       showToast('🎁 تم تفعيل 30 يوم مجاناً كهدية ترحيبية! / 30-day welcome trial activated!');
     }
-  } catch (e) {
+  } catch {
     // Fallback: create local trial
     const trialCode = 'TRI-' + Math.random().toString(36).substring(2, 8).toUpperCase();
     license.save({ code: trialCode, tier: 'trial', days: 30 });
@@ -86,7 +87,10 @@ if (resendBtn) {
     setMsg('');
     try {
       const { supabase: sb } = await import('./supabase-client.js');
-      const { error } = sb ? await sb.auth.resend({ type: 'signup', email }) : { error: new Error('offline') };
+      const { error } = sb ? await Promise.race([
+        sb.auth.resend({ type: 'signup', email }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Resend confirmation timed out')), 10000))
+      ]) : { error: new Error('offline') };
       setMsg(error
         ? 'Could not resend — try again in a minute / تعذر الإرسال — جرّب بعد دقيقة'
         : '✉️ تم إرسال إيميل التأكيد — افتح بريدك وتحقق من السبام / Confirmation email sent', error ? '#ff3366' : '#CCFF00');
@@ -185,14 +189,6 @@ function checkSubscription(user) {
 /* A lapsed trial used to leave the user staring at a red line on the
    form with nowhere to go. Open the gate instead: it explains what is
    still available and gives them the activation-code button. */
-function deny(result) {
-  if (result.access && result.access.state === READONLY) {
-    showGate(result.access);
-    return;
-  }
-  setMsg(result.message || 'Access denied');
-}
-
 function storeUserSession(user) {
   // Phase B: session.js is the single writer/normaliser for dp_current_user
   // (and it keeps dp_user_email / dp_user_id in sync with it).
@@ -285,11 +281,12 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
       // Hard timeout: after a sign-out, supabase-js's Web Locks can deadlock the
       // next signInWithPassword on slow devices — the user then stares at
       // "signing you in" forever. A racing timeout surfaces a real message instead.
-      const TIMEOUT_MS = 15000;
-      const deadline = new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("Request timed out — check your internet / انتهت المهلة — افحص الشبكة"), { code: "over_request_timeout" })), TIMEOUT_MS));
+      const SIGNIN_TIMEOUT_MS = 15000;
+      const USER_TIMEOUT_MS = 8000;
+      
       const { error } = await Promise.race([
         supabase.auth.signInWithPassword({ email, password }),
-        deadline,
+        new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("Request timed out — check your internet / انتهت المهلة — افحص الشبكة"), { code: "over_request_timeout" })), SIGNIN_TIMEOUT_MS))
       ]);
       if (error) {
         // Real auth failure (wrong password, unconfirmed email, …) — surface it,
@@ -297,7 +294,11 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
         credError = true;
         throw error;
       }
-      const { data: { user: supUser } } = await Promise.race([supabase.auth.getUser(), deadline]);
+      // Separate timeout for getUser - don't reuse the signIn deadline
+      const { data: { user: supUser } } = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("User fetch timed out / انتهت مهلة جلب بيانات المستخدم"), { code: "user_fetch_timeout" })), USER_TIMEOUT_MS))
+      ]);
       if (!supUser) { credError = true; throw new Error('No user'); }
       const sub = supUser.user_metadata?.subscription || 'trial';
       // Never invent a fresh 30 days when metadata lacks subEnd — that let any
@@ -312,15 +313,18 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
       storeUserSession(result.user);
       try {
         if (isFirstLogin()) {
-          await autoActivateTrial(result.user.email);
+          await Promise.race([
+            autoActivateTrial(result.user.email),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auto trial activation timed out')), 10000))
+          ]);
         }
       } catch (e) {
-        console.warn('[login] autoActivateTrial failed:', e);
+        console.warn('[login] autoActivateTrial failed:', e?.message || e);
       }
       window.location.href = returnUrl;
       return;
     } catch (err) {
-      if (err?.code === "over_request_timeout") {
+      if (err?.code === "over_request_timeout" || err?.code === "user_fetch_timeout") {
         // Sign-in hung (Web Locks after sign-out, or dead network). Never leave
         // the spinner running.
         setMsg(err.message);
@@ -367,10 +371,13 @@ async function doEmailPasswordLogin(email, password, returnUrl) {
   storeUserSession(result.user);
   try {
     if (isFirstLogin()) {
-      await autoActivateTrial(result.user.email);
+      await Promise.race([
+        autoActivateTrial(result.user.email),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auto trial activation timed out')), 10000))
+      ]);
     }
   } catch (e) {
-    console.warn('[login] autoActivateTrial failed:', e);
+    console.warn('[login] autoActivateTrial failed:', e?.message || e);
   }
   window.location.href = returnUrl;
 }
@@ -455,21 +462,42 @@ googleBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Web flow: redirect to Google OAuth
-  const { error } = await supabase.auth.signInWithOAuth({
+  // Web flow: redirect to Google OAuth with timeout
+  const OAUTH_TIMEOUT_MS = 15000;
+  const oauthPromise = supabase.auth.signInWithOAuth({
     provider: 'google',
     options: { prompt: 'select_account', redirectTo: `${APP_BASE}auth/callback.html?return=${encodeURIComponent(returnUrl)}` },
   });
-  if (error) {
+  
+  try {
+    const { error } = await Promise.race([
+      oauthPromise,
+      new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error("Google OAuth timed out / انتهت مهلة تسجيل الدخول عبر جوجل"), { code: "oauth_timeout" })), OAUTH_TIMEOUT_MS))
+    ]);
+    if (error) {
+      clearTimeout(googleWatchdog);
+      console.error('Google OAuth error:', error);
+      setMsg('Could not start Google login — try again');
+      setGoogleLoading(false);
+      loading = false;
+      return;
+    }
+    // success path navigates away; the page (and timers) die with it.
+    // If we reach here without redirect, something went wrong — watchdog will handle it.
+  } catch (err) {
     clearTimeout(googleWatchdog);
-    console.error('Google OAuth error:', error);
+    if (err?.code === "oauth_timeout") {
+      setMsg(err.message);
+      setGoogleLoading(false);
+      loading = false;
+      return;
+    }
+    console.error('Google OAuth error:', err);
     setMsg('Could not start Google login — try again');
     setGoogleLoading(false);
     loading = false;
     return;
   }
-  // success path navigates away; the page (and timers) die with it.
-  // If we reach here without redirect, something went wrong — watchdog will handle it.
 });
 
 /* -------- Auto-redirect if session exists -------- */

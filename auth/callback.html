@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Digital Pulse ظ¤ Authentication</title>
+  <title>Digital Pulse — Authentication</title>
   <meta name="theme-color" content="#000000" />
   <script src="../vendor/tailwind.js"></script>
   <script src="../js/tailwind-config.js"></script>
@@ -26,14 +26,14 @@
         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
       </svg>
     </div>
-    <h2 class="font-headline text-xl uppercase tracking-widest mb-2" id="cbStatus">Signing you inظخ</h2>
+    <h2 class="font-headline text-xl uppercase tracking-widest mb-2" id="cbStatus">Signing you in</h2>
     <p class="text-sm text-muted mb-6" id="cbSub">Redirecting to your dashboard.</p>
     <div class="flex justify-center">
       <div class="w-10 h-10 border-4 border-[#CCFF00] border-t-transparent rounded-full animate-spin"></div>
     </div>
   </div>
 
-  <!-- Handle the OAuth callback ظ¤ runs immediately -->
+  <!-- Handle the OAuth callback — runs immediately -->
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
     import { supabase } from '../js/supabase-client.js';
@@ -55,26 +55,104 @@
     // ?return= comes straight from the URL, so it must never be resolved against
     // the origin: the old `new URL(returnUrl.startsWith('/') ? returnUrl : '/' +
     // returnUrl, origin)` sent the user to https://evil.com for
-    // ?return=//evil.com ظ¤ an open redirect on the one page that just handed them
+    // ?return=//evil.com — an open redirect on the one page that just handed them
     // a valid session. Only the app's own pages are accepted now; every other
     // value (absolute URL, //host, ../x) falls back to app.html.
     const RETURN_ALLOWED = ['app.html', 'onboarding.html', 'activate.html', 'index.html'];
     function resolveReturnUrl() {
       const want = new URLSearchParams(window.location.search).get('return');
       const page = RETURN_ALLOWED.includes(want) ? want : 'app.html';
-      // Resolve against THIS page (…/GymOS/auth/callback.html), not the origin
+      // Resolve against THIS page (../GymOS/auth/callback.html), not the origin
       // root: '/app.html' pointed at https://<user>.github.io/app.html and 404'd
       // because the site lives under /GymOS/. '../' works on GitHub Pages, on
       // localhost and inside the APK (its origin is https://localhost).
       return new URL('../' + page, window.location.href).href;
     }
 
-    function persistLogin(user) {
+    // PKCE-only OAuth callback (Supabase JS v2 uses PKCE exclusively).
+    // No implicit flow fallback — it caused double-handling and race conditions.
+    async function handleCallback() {
+      const params = new URLSearchParams(location.search);
+      const code = params.get('code');
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+
+      if (!supabase) {
+        setStatus('Login failed', 'Supabase is not configured in this build.');
+        return;
+      }
+
+      if (error) {
+        const msg = errorDescription || error;
+        setStatus('Login failed', 'Please try again. (' + msg + ')');
+        console.error('OAuth callback error:', error, errorDescription);
+        return;
+      }
+
+      try {
+        setStatus('Signing you in', 'Verifying session');
+
+        let user = null;
+
+        // First, try to get existing session (auto-exchanged by supabase-js on load)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('getSession error:', sessionError);
+          throw sessionError;
+        }
+
+        if (session?.user) {
+          user = session.user;
+        } else if (code) {
+          // Explicit code exchange if auto-exchange didn't complete
+          setStatus('Signing you in', 'Exchanging code');
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) {
+            console.error('OAuth exchange failed:', exchangeError);
+            throw exchangeError;
+          }
+          if (data?.user) {
+            user = data.user;
+          }
+        }
+
+        if (!user) {
+          throw new Error('No session after OAuth redirect');
+        }
+
+        await completeWithUser(user);
+      } catch (err) {
+        console.error('Callback login failed:', err);
+        setStatus('Login failed', 'Could not complete sign in. Please try again.');
+        // Don't redirect on error — let user retry
+      }
+    }
+
+    async function completeWithUser(user) {
       if (done) return;
       done = true;
+
       const meta = user.user_metadata || {};
-      // session.js is the single writer for dp_current_user (INV5): it keeps
-      // dp_user_email / dp_user_id in sync and drops any stray field.
+
+      // Ensure trial metadata exists for new users
+      if (!meta.subscription) {
+        try {
+          await supabase.auth.updateUser({
+            data: {
+              subscription: 'trial',
+              subStart: NOW,
+              subEnd: NOW + 30 * 86400000,
+              subTier: 'free_trial',
+            },
+          });
+        } catch (err) {
+          console.warn('metadata update failed:', err);
+        }
+      }
+
+      // Persist user data for app access — via the single session writer
+      // (INV5), same normalised shape as every other login path.
       writeSession({
         id: user.id,
         email: user.email,
@@ -86,168 +164,18 @@
         subTier: meta.subTier || 'free_trial',
       });
 
-      // Redirect to the allowlisted return page (app.html by default).
-      window.location.replace(resolveReturnUrl());
-    }
-
-    // Failsafe watchdog ظ¤ if main flow doesn't complete in 10s, try to recover from hash (legacy implicit flow)
-    setTimeout(() => {
-      if (done) return;
-      // Only attempt hash recovery for legacy implicit flow (not PKCE)
-      const hash = new URLSearchParams(location.hash.replace(/^#/, '?'));
-      const at = hash.get('access_token') || hash.get('token');
-      if (!at) {
-        setStatus('Login not completed', 'No session found. Please return and try again.');
-        return;
-      }
+      // Ensure Supabase session is persisted in localStorage (it should be automatic, but verify)
       try {
-        // Decode JWT to get user info
-        const body = at.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        const payload = JSON.parse(decodeURIComponent(escape(atob(body))));
-        // Store session for library compatibility
-        const session = {
-          access_token: at,
-          token_type: 'bearer',
-          expires_in: Number(hash.get('expires_in')) || 3600,
-          expires_at: NOW + (Number(hash.get('expires_in')) || 3600) * 1000,
-          refresh_token: hash.get('refresh_token') || '',
-          user: {
-            id: payload.sub || '',
-            aud: 'authenticated',
-            role: 'authenticated',
-            email: payload.email || '',
-            email_confirmed_at: NOW,
-            user_metadata: { name: hash.get('name') || '' },
-            app_metadata: { provider: 'google' },
-          },
-        };
-        localStorage.setItem(SB_KEY, JSON.stringify(session));
-        persistLogin({
-          id: payload.sub || '',
-          email: payload.email || '',
-          user_metadata: { name: hash.get('name') || '' },
-        });
-      } catch (err) {
-        console.error('failsafe login failed:', err);
-        setStatus('Login not completed', 'Could not read the session. Close and try again.');
-      }
-    }, 10000);
-
-    // Everything from here down used to run at module top level, but the
-    // `if (!supabase)` and `if (error)` guards below both `return`, and a
-    // top-level `return` is illegal in <script type="module">: the whole
-    // script was a SyntaxError ("Illegal return statement"), so nothing here
-    // ever ran and Google sign-in hung on the spinner forever. One async
-    // function makes those returns legal and keeps everything else as-is.
-    async function handleCallback() {
-      const params = new URLSearchParams(location.search);
-      const code = params.get('code');
-      const error = params.get('error');
-
-      if (!supabase) {
-        setStatus('Login failed', 'Supabase is not configured in this build.');
-        return;
-      }
-
-      if (error) {
-        setStatus('Login failed', 'Please try again. (' + error + ')');
-        console.error('OAuth callback error param:', error);
-        return;
-      }
-
-      // Main flow: Supabase automatically handles PKCE code exchange on page load.
-      // Just wait for the session to be established, then persist user data and redirect.
-      async function completeLogin() {
-        try {
-          setStatus('Signing you inظخ', 'Verifying sessionظخ');
-        
-          // Give Supabase a moment to auto-exchange the code (it does this on page load)
-          await new Promise(r => setTimeout(r, 100));
-        
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        
-          if (sessionError) {
-            console.error('getSession error:', sessionError);
-            throw sessionError;
-          }
-        
-          if (!session?.user) {
-            // If no session yet, try explicit exchange (for cases where auto-exchange didn't run)
-            if (code) {
-              setStatus('Signing you inظخ', 'Exchanging codeظخ');
-              const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-              if (exchangeError) {
-                console.error('OAuth exchange failed:', exchangeError);
-                throw exchangeError;
-              }
-              if (data?.user) {
-                await completeWithUser(data.user);
-                return;
-              }
-            }
-            throw new Error('No session after OAuth redirect');
-          }
-        
-          await completeWithUser(session.user);
-        } catch (err) {
-          console.error('Callback login failed:', err);
-          setStatus('Login failed', 'Could not complete sign in. Please try again.');
-          // Don't redirect on error ظ¤ let user retry
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('[callback] Supabase session confirmed');
         }
-      }
+      } catch {}
 
-      async function completeWithUser(user) {
-        if (done) return;
-        done = true;
-      
-        const meta = user.user_metadata || {};
-      
-        // Ensure trial metadata exists for new users
-        if (!meta.subscription) {
-          try {
-            await supabase.auth.updateUser({
-              data: {
-                subscription: 'trial',
-                subStart: NOW,
-                subEnd: NOW + 30 * 86400000,
-                subTier: 'free_trial',
-              },
-            });
-          } catch (err) {
-            console.warn('metadata update failed:', err);
-          }
-        }
-      
-        // Persist user data for app access — via the single session writer
-        // (INV5), same normalised shape as every other login path.
-        writeSession({
-          id: user.id,
-          email: user.email,
-          name: meta.name || meta.full_name || (user.email && user.email.split('@')[0]) || 'User',
-          status: 'active',
-          subscription: meta.subscription || 'trial',
-          subStart: meta.subStart || NOW,
-          subEnd: meta.subEnd || NOW + 30 * 86400000,
-          subTier: meta.subTier || 'free_trial',
-        });
-      
-        // Ensure Supabase session is persisted in localStorage (it should be automatic, but verify)
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            // Session exists in Supabase client ظ¤ it's already in localStorage with correct key
-            console.log('[callback] Supabase session confirmed');
-          }
-        } catch {}
-      
-        setStatus('Signing you inظخ', 'Redirecting to your dashboard.');
+      setStatus('Signing you in', 'Redirecting to your dashboard.');
 
-        // Same allowlisted target as persistLogin() above.
-        window.location.replace(resolveReturnUrl());
-      }
-
-      // Start the login completion flow
-      completeLogin();
+      // Same allowlisted target as persistLogin() above.
+      window.location.replace(resolveReturnUrl());
     }
 
     handleCallback();

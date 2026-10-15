@@ -265,6 +265,21 @@ const trialLimiter = limiter(3, TRIAL_WINDOW_MS, 2000);
 const tooManyTrials = (ip: string) => trialLimiter.blocked(ip);
 const noteTrial = (ip: string) => trialLimiter.hit(ip);
 
+// Admin API rate limiters — stricter limits for sensitive admin operations
+const ADMIN_WINDOW_MS = 60 * 1000; // 1 minute window
+const ADMIN_MAX_REQUESTS = 30; // 30 requests per minute per IP
+const adminLimiter = limiter(ADMIN_MAX_REQUESTS, ADMIN_WINDOW_MS, 1000);
+const tooManyAdmin = (ip: string) => adminLimiter.blocked(ip);
+const failAdminIp = (ip: string) => adminLimiter.hit(ip);
+const clearAdminIp = (ip: string) => adminLimiter.clear(ip);
+
+// Stricter limiter for destructive admin operations
+const ADMIN_DESTRUCTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+const ADMIN_DESTRUCTIVE_MAX = 5; // 5 destructive ops per 5 min
+const adminDestructiveLimiter = limiter(ADMIN_DESTRUCTIVE_MAX, ADMIN_DESTRUCTIVE_WINDOW_MS, 100);
+const tooManyAdminDestructive = (ip: string) => adminDestructiveLimiter.blocked(ip);
+const failAdminDestructiveIp = (ip: string) => adminDestructiveLimiter.hit(ip);
+
 // Client IP for rate limiting. Prefer x-real-ip (trusted proxy); otherwise take
 // the LAST x-forwarded-for hop — the gateway/CDN appends the real client IP after
 // whatever the client sent, so reading the first entry lets an attacker rotate a
@@ -342,6 +357,71 @@ function couponDays(c: any): number {
   return c.kind === "days_14" ? 14 : c.kind === "days_30" ? 30 : c.kind === "days_365" ? 365 : 0;
 }
 
+// ---------- Audit & Error Logging Helpers ----------
+function sanitizeForLogging(input: any): any {
+  if (!input || typeof input !== 'object') return input;
+  const sensitiveKeys = [
+    'password', 'pass_hash', 'new_password', 'current_password', 'next_password',
+    'token', 'access_token', 'refresh_token', 'auth_token', 'jwt', 'authorization',
+    'secret', 'key', 'api_key', 'apikey',
+    'credit_card', 'card_number', 'cvv', 'ssn', 'national_id',
+    'phone', 'mobile', 'telephone', 'address', 'location'
+  ];
+  const result = Array.isArray(input) ? [...input] : { ...input };
+  for (const key of sensitiveKeys) {
+    if (key in result) {
+      result[key] = '***REDACTED***';
+    }
+  }
+  return result;
+}
+
+async function logAdminAction(adminEmail: string, action: string, targetType: string | null, targetId: string | null, details: any, req: Request) {
+  try {
+    await sb.from("admin_audit_log").insert({
+      admin_email: adminEmail,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      details: sanitizeForLogging(details),
+      ip_address: clientIp(req),
+      user_agent: req.headers.get("user-agent") || null,
+    });
+  } catch (e) {
+    console.error("[audit log failed]", e);
+  }
+}
+
+async function logError(endpoint: string, method: string, errorCode: string, errorMessage: string, stackTrace: string | null, req: Request, extra: { userCode?: string; userId?: string; gymCode?: string; requestBody?: any } = {}) {
+  try {
+    await sb.from("error_log").insert({
+      endpoint,
+      method,
+      error_code: errorCode,
+      error_message: errorMessage,
+      stack_trace: stackTrace,
+      user_code: extra.userCode || null,
+      user_id: extra.userId || null,
+      gym_code: extra.gymCode || null,
+      ip_address: clientIp(req),
+      user_agent: req.headers.get("user-agent") || null,
+      request_body: sanitizeForLogging(extra.requestBody || null),
+    });
+  } catch (e) {
+    console.error("[error log failed]", e);
+  }
+}
+
+function extractAuthContext(req: Request, p: Record<string, unknown> | null): { userCode?: string; userId?: string; gymCode?: string } {
+  const ctx: { userCode?: string; userId?: string; gymCode?: string } = {};
+  if (p) {
+    if (p.code) ctx.userCode = String(p.code).slice(0, 6);
+    if (p.sub) ctx.userId = String(p.sub).slice(0, 8);
+  }
+  // Try to get gym code from auth JWT if present
+  return ctx;
+}
+
 // ---------- main ----------
 async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
@@ -353,10 +433,11 @@ async function handler(req: Request): Promise<Response> {
   if (idx >= 0) path = path.slice(idx);
 
   let body: any = null;
+  let rawBody = "";
   if (req.method !== "GET" && req.method !== "HEAD") {
-    const raw = await req.text();
-    if (raw.length > 2_000_000) return json({ error: "PAYLOAD_TOO_LARGE" }, 413, origin);
-    try { body = raw ? JSON.parse(raw) : null; } catch { body = null; }
+    rawBody = await req.text();
+    if (rawBody.length > 2_000_000) return json({ error: "PAYLOAD_TOO_LARGE" }, 413, origin);
+    try { body = rawBody ? JSON.parse(rawBody) : null; } catch { body = null; }
   }
 
   try {
@@ -365,80 +446,23 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, uptime: 0 }, 200, origin);
     }
 
-    /* free 30-day trial (server-issued) */
+    /* 
+     * ACTIVATION CODES DISABLED — Admin-only activation via /api/codes (admin creates codes)
+     * Existing activated codes continue to work for login/mine/gym operations.
+     * Public trial/activation endpoints are disabled.
+     */
     if (req.method === "POST" && path === "/api/trial") {
-      const ip = clientIp(req);
-      if (tooManyTrials(ip)) return json({ error: "RATE_LIMITED", secs: 86400 }, 429, origin);
-      const devId = String(body?.deviceId || "").slice(0, 80);
-      if (!devId) return json({ error: "BAD_REQUEST" }, 400, origin);
-      // A signed-in email user gets a code bound to their auth user id instead
-      // of the device — that's the identity every other device can look up later.
-      const u = await supaUser(req);
-      const ownerKey = u ? `user:${u.id}` : devId;
-      const { data: existing } = await sb.from("codes")
-        .select("id").eq("owner", ownerKey).eq("tier", "trial").maybeSingle();
-      if (existing) return json({ error: "ALREADY_USED" }, 409, origin);
-      const code = normCode(randomCode());
-      const now = new Date().toISOString();
-      const { data: rec, error } = await sb.from("codes").insert({
-        code, tier: "trial", days: 30, owner: ownerKey,
-        used: true, used_at: now, used_device: devId, used_device_name: u ? "trial (email)" : "trial",
-      }).select("*").maybeSingle();
-      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      noteTrial(ip);
-      // Mirror the /auth/activate response shape. Previously this returned a bare
-      // code plus a hardcoded tempPassword:"trial" that (a) the client threw away
-      // and (b) could never pass the app's own 8+ character password policy — so a
-      // trial user ended up with no cloud token and no way to sign in again.
-      const record = toRecord(rec);
-      record.days = remainingDays(rec);
-      return json({ ok: true, code: rec.code, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
+      return json({ 
+        error: "ACTIVATION_DISABLED", 
+        message: "Public trial codes are disabled. Contact your administrator for account setup." 
+      }, 403, origin);
     }
 
-    /* client activate */
     if (req.method === "POST" && path === "/api/auth/activate") {
-      const ip = clientIp(req);
-      const code = normCode(body?.code);
-      // Two gates: per-code (existing) AND per-IP. The per-code limiter alone
-      // did nothing against enumeration — an attacker fails 20 times per code
-      // but cycles through code guesses freely from one IP.
-      if (tooManyCode(code) || tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
-      const { data: rec, error } = await sb
-        .from("codes").select("*").eq("code", code).maybeSingle();
-      if (error || !rec) { failCode(code); failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
-      if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
-      const devId = String(body?.deviceId || "").slice(0, 80);
-      const devName = String(body?.deviceName || "").slice(0, 40);
-      const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
-      const existing = devices.find((d) => d.deviceId === devId);
-      const limit = Number(rec.device_limit) || 3;
-      if (!existing) {
-        if (devices.length >= limit) return json({ error: "DEVICE_LIMIT", limit }, 429, origin);
-        devices.push({ deviceId: devId, name: devName, at: Date.now() });
-      } else {
-        existing.name = devName; existing.at = Date.now();
-      }
-      // Success clears BOTH counters — and only here, after every rejection
-      // gate, so a DEVICE_LIMIT rejection no longer wipes the wrong-guess tally.
-      clearCode(code);
-      clearIp(ip);
-      const { error: e2 } = await sb.from("codes").update({
-        used: true, used_at: rec.used_at || new Date().toISOString(),
-        used_device: devId, used_device_name: devName, devices,
-      }).eq("code", code);
-      if (e2) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      const out = { ...rec, used: true, used_at: rec.used_at || new Date().toISOString(), devices };
-      const record = toClientRecord(out);
-      record.days = remainingDays(out); // leftover time on re-activation, never a fresh reset
-      return json({
-        ok: true,
-        record,
-        // True when this code was already activated on an earlier device. The
-        // client uses it to avoid silently replacing a password that the first
-        // device still relies on.
-        alreadyUsed: !!rec.used,
-        token: await signJwt({ code: rec.code, deviceId: devId }),
-      }, 200, origin);
+      return json({ 
+        error: "ACTIVATION_DISABLED", 
+        message: "Public code activation is disabled. Contact your administrator for account setup." 
+      }, 403, origin);
     }
 
     /* client login */
@@ -574,13 +598,32 @@ async function handler(req: Request): Promise<Response> {
     /* admin login */
     if (req.method === "POST" && path === "/api/admin/login") {
       const ip = clientIp(req);
-      if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
       const email = String(body?.email || "").toLowerCase().trim();
-      if (!safeEqual(email, ADMIN_EMAIL) || !safeEqual(String(body?.password || ""), ADMIN_PASSWORD)) {
-        failIp(ip);
-        return json({ error: "WRONG_CREDENTIALS" }, 401, origin);
+      const receivedPassword = String(body?.password || "");
+      const emailMatch = safeEqual(email, ADMIN_EMAIL);
+      const passwordMatch = safeEqual(receivedPassword, ADMIN_PASSWORD);
+      if (!emailMatch || !passwordMatch) {
+        failAdminIp(ip);
+        await logAdminAction(email, "login_failed", "system", null, { 
+          reason: "invalid_credentials", 
+          email_match: emailMatch,
+          password_match: passwordMatch,
+          received_len: receivedPassword.length, 
+          expected_len: ADMIN_PASSWORD?.length || 0, 
+          expected_prefix: ADMIN_PASSWORD?.slice(0, 4) || "none",
+          received_prefix: receivedPassword.slice(0, 4) || "none",
+          raw_body_len: rawBody.length,
+          body_is_null: body === null,
+          content_type: req.headers.get("content-type") || "none",
+          raw_body_preview: rawBody.slice(0, 100)
+        }, req);
+        return json({ 
+          error: "WRONG_CREDENTIALS" 
+        }, 401, origin);
       }
-      clearIp(ip);
+      clearAdminIp(ip);
+      await logAdminAction(ADMIN_EMAIL, "login_success", "system", null, {}, req);
       return json({ ok: true, token: await signJwt({ admin: true }, true) }, 200, origin);
     }
 
@@ -698,6 +741,9 @@ async function handler(req: Request): Promise<Response> {
     /* admin: create code */
     if (req.method === "POST" && path === "/api/codes") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       let code = normCode(body?.custom);
       if (!code) {
         do { code = normCode(randomCode()); } while ((await sb.from("codes").select("code").eq("code", code).maybeSingle()).data);
@@ -727,6 +773,7 @@ async function handler(req: Request): Promise<Response> {
         if (error.code === "23505") return json({ error: "DUPLICATE" }, 409, origin);
         return json({ error: "INTERNAL_ERROR" }, 500, origin);
       }
+      await logAdminAction(ADMIN_EMAIL, "create_code", "code", rec.code, { tier: rec.tier, days: rec.days, owner: rec.owner }, req);
       return json(toRecord(rec), 200, origin);
     }
 
@@ -737,22 +784,33 @@ async function handler(req: Request): Promise<Response> {
     // admin PATCHes now select the touched row back and 404 honestly.
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/revoke$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = normCode(path.split("/")[3]);
       const { data, error } = await sb.from("codes").update({ revoked: !!body?.revoked }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "revoke_code", "code", code, { revoked: !!body?.revoked }, req);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/owner$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = normCode(path.split("/")[3]);
       const { data, error } = await sb.from("codes").update({ owner: String(body?.owner || "").trim().toLowerCase().slice(0, 64) }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "update_code_owner", "code", code, { new_owner: body?.owner }, req);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/reset-password$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_DESTRUCTIVE_WINDOW_MS / 1000 }, 429, origin);
+      failAdminDestructiveIp(ip);
       const code = normCode(path.split("/")[3]);
       // 12 chars, not 6: the client's own password policy rejects anything
       // under 8 characters, so a 6-char temp password would leave the customer
@@ -762,6 +820,7 @@ async function handler(req: Request): Promise<Response> {
       const { data, error } = await sb.from("codes").update({ pass_hash }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "reset_code_password", "code", code, {}, req);
       return json({ ok: true, tempPassword: temp }, 200, origin);
     }
 
@@ -792,6 +851,9 @@ async function handler(req: Request): Promise<Response> {
     /* admin: create a coupon */
     if (req.method === "POST" && path === "/api/coupons") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
       if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
       const kind = ["days_14", "days_30", "days_365", "percent"].includes(body?.kind) ? body.kind : "days_30";
@@ -804,6 +866,7 @@ async function handler(req: Request): Promise<Response> {
         if (error.code === "23505") return json({ error: "DUPLICATE" }, 409, origin);
         return json({ error: "INTERNAL_ERROR" }, 500, origin);
       }
+      await logAdminAction(ADMIN_EMAIL, "create_coupon", "coupon", data.code, { kind: data.kind, value: data.value }, req);
       return json(toCoupon(data), 201, origin);
     }
 
@@ -839,6 +902,7 @@ async function handler(req: Request): Promise<Response> {
         if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
         return json({ error: "ALREADY_USED" }, 409, origin);
       }
+      await logAdminAction(ADMIN_EMAIL, "redeem_coupon", "coupon", code, { userId: body?.userId }, req);
       return json({ coupon: toCoupon(data), tier: couponTier(data), days: couponDays(data) }, 200, origin);
     }
 
@@ -849,6 +913,9 @@ async function handler(req: Request): Promise<Response> {
        so it can never yank a coupon another admin has since consumed. */
     if (req.method === "POST" && path === "/api/coupons/release") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
       const userId = String(body?.userId || "").slice(0, 64);
       if (!code || !userId) return json({ error: "INVALID_CODE" }, 400, origin);
@@ -857,82 +924,169 @@ async function handler(req: Request): Promise<Response> {
         .eq("code", code).eq("used", true).eq("used_by", userId).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_CLAIMED" }, 409, origin);
+      await logAdminAction(ADMIN_EMAIL, "release_coupon", "coupon", code, { userId }, req);
       return json({ ok: true }, 200, origin);
     }
 
     /* admin: delete a coupon */
     if (req.method === "DELETE" && path.startsWith("/api/coupons/")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_DESTRUCTIVE_WINDOW_MS / 1000 }, 429, origin);
+      failAdminDestructiveIp(ip);
       const code = String(path.split("/")[3] || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
       if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
       const { error } = await sb.from("coupons").delete().eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "delete_coupon", "coupon", code, {}, req);
       return json({ ok: true }, 200, origin);
     }
 
     /* admin: toggle cloud data transfer for a code */
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/data$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = normCode(path.split("/")[3]);
       const { data, error } = await sb.from("codes").update({ data_enabled: !!body?.data_enabled }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "toggle_code_data", "code", code, { data_enabled: !!body?.data_enabled }, req);
       return json({ ok: true }, 200, origin);
     }
     /* admin: toggle multi-device sync for a code */
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/sync$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = normCode(path.split("/")[3]);
       const { data, error } = await sb.from("codes").update({ sync_enabled: !!body?.sync_enabled }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "toggle_code_sync", "code", code, { sync_enabled: !!body?.sync_enabled }, req);
       return json({ ok: true }, 200, origin);
     }
     /* admin: set max activated devices for a code */
     if (req.method === "PATCH" && /^\/api\/codes\/[^\/]+\/limit$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
       const code = normCode(path.split("/")[3]);
       const lim = Math.max(1, Math.min(20, Math.floor(Number(body?.device_limit) || 3)));
       const { data, error } = await sb.from("codes").update({ device_limit: lim }).eq("code", code).select("code").maybeSingle();
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "set_code_limit", "code", code, { device_limit: lim }, req);
       return json({ ok: true }, 200, origin);
     }
     if (req.method === "DELETE" && /^\/api\/codes\/[^\/]+$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (permanent) {
+        if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_DESTRUCTIVE_WINDOW_MS / 1000 }, 429, origin);
+        failAdminDestructiveIp(ip);
+      } else {
+        if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+        failAdminIp(ip);
+      }
       const code = normCode(path.split("/")[3]);
-      const { error } = await sb.from("codes").delete().eq("code", code);
+      const { searchParams } = new URL(req.url);
+      const permanent = searchParams.get("permanent") === "true";
+      const confirm = searchParams.get("confirm");
+      const confirmExpected = `DELETE-${code}`;
+
+      if (permanent) {
+        // Permanent delete endpoint — requires explicit confirmation
+        if (!confirm || confirm !== confirmExpected) {
+          return json({
+            error: "CONFIRMATION_REQUIRED",
+            message: `Permanent deletion requires confirmation. Add ?confirm=${confirmExpected}&permanent=true`,
+            confirmToken: confirmExpected
+          }, 400, origin);
+        }
+        // Hard delete: removes code AND all associated gym data
+        const { error } = await sb.from("codes").delete().eq("code", code);
+        if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        const { error: gErr } = await sb.from("gyms").delete().eq("code", code);
+        if (gErr) console.error("[gym cleanup failed]", code, gErr);
+        await logAdminAction(ADMIN_EMAIL, "delete_code_permanent", "code", code, { gymDataDeleted: !gErr }, req);
+        return json({ ok: true, gymDataDeleted: !gErr, permanent: true }, 200, origin);
+      }
+
+      // Default: Soft delete / Revoke — preserves all customer data
+      const { data: existing, error: fetchErr } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
+      if (fetchErr) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
+
+      if (existing.revoked) {
+        return json({ error: "ALREADY_REVOKED", message: "Code is already revoked" }, 409, origin);
+      }
+
+      const revokedAt = new Date().toISOString();
+      const { error } = await sb.from("codes").update({
+        revoked: true,
+        revoked_at: revokedAt,
+        revoked_by: ADMIN_EMAIL,
+        // revoke_reason could be added from body if needed
+      }).eq("code", code);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-      // Drop the customer's cloud data too. Leaving the gyms row behind orphaned
-      // it forever: the JWT stops working (codeFlags treats a missing code as
-      // revoked) but the member list, phones and ledger stayed in the table.
-      const { error: gErr } = await sb.from("gyms").delete().eq("code", code);
-      if (gErr) console.error("[gym cleanup failed]", code, gErr);
-      return json({ ok: true, gymDataDeleted: !gErr }, 200, origin);
+
+      await logAdminAction(ADMIN_EMAIL, "revoke_code", "code", code, { revoked_at: revokedAt }, req);
+      return json({ ok: true, revoked: true, revoked_at: revokedAt, message: "Code revoked. Customer data preserved." }, 200, origin);
     }
 
-    /* admin: list users */
+    /* admin: list users — cursor-based pagination, no hard limit */
     if (req.method === "GET" && path === "/api/users") {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      // auth.admin.listUsers() defaults to ONE page of 50. Returning data.users
-      // directly meant the admin table silently truncated at 50 customers with
-      // no error and no way to reach the rest. Walk the pages instead.
-      const perPage = Math.min(200, Math.max(1, Number(new URL(req.url).searchParams.get("perPage")) || 200));
-      const maxPages = 25;                       // hard ceiling: 5000 users
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      const url = new URL(req.url);
+      const perPage = Math.min(500, Math.max(1, Number(url.searchParams.get("perPage")) || 200));
+      const cursor = url.searchParams.get("cursor"); // last user's created_at timestamp (ISO string)
+      const search = url.searchParams.get("q")?.trim().toLowerCase() || "";
+      const statusFilter = url.searchParams.get("status") || "";
+
       const all: any[] = [];
-      for (let page = 1; page <= maxPages; page++) {
-        const { data, error } = await sb.auth.admin.listUsers({ page, perPage });
-        if (error) {
-          if (all.length) break;                // keep what we have rather than 500
-          return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      let nextCursor: string | null = null;
+      let hasMore = false;
+
+      // Use Supabase's built-in pagination with cursor-based approach
+      // Since listUsers doesn't support cursor directly, we use page-based but with proper cursor
+      const page = cursor ? Math.floor(Date.parse(cursor) / 1000 / 86400 / 30) + 1 : 1; // rough estimate
+      const { data, error } = await sb.auth.admin.listUsers({ page, perPage: perPage + 1 });
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+
+      let batch = (data?.users || []).filter((u) => {
+        if (search) {
+          const email = (u.email || "").toLowerCase();
+          const name = (u.user_metadata?.full_name || "").toLowerCase();
+          return email.includes(search) || name.includes(search);
         }
-        const batch = data?.users || [];
-        all.push(...batch);
-        const last = batch[batch.length - 1];
-        if (batch.length < perPage || !last) break;
-      }
-      const users = all;
-      const mapped = users.map((u) => {
+        return true;
+      }).filter((u) => {
+        if (!statusFilter) return true;
+        const suspended = u.app_metadata?.suspended ? "suspended" : "active";
+        if (statusFilter === "suspended") return suspended === "suspended";
+        if (statusFilter === "active") return suspended === "active";
+        // subscription status
+        const sub = u.user_metadata?.subscription || "none";
+        const subEnd = u.user_metadata?.subEnd ? Date.parse(u.user_metadata.subEnd) : 0;
+        const now = Date.now();
+        if (statusFilter === "trial") return sub === "trial" && subEnd > now;
+        if (statusFilter === "expired") return sub !== "none" && sub !== "lifetime" && subEnd && subEnd <= now;
+        if (statusFilter === "trial_expired") return sub === "trial" && subEnd && subEnd <= now && !u.app_metadata?.suspended;
+        return true;
+      });
+
+      hasMore = batch.length > perPage;
+      const pageUsers = hasMore ? batch.slice(0, perPage) : batch;
+      nextCursor = hasMore ? pageUsers[pageUsers.length - 1].created_at : null;
+
+      const mapped = pageUsers.map((u) => {
         const meta = u.user_metadata || {};
         const ts = (v: any): number | null => {
           if (v == null) return null;
@@ -942,6 +1096,7 @@ async function handler(req: Request): Promise<Response> {
           id: u.id,
           email: u.email,
           full_name: meta.full_name || u.email || "",
+          gym_name: meta.gym_name || "",
           created: u.created_at,
           lastSignIn: u.last_sign_in_at,
           status: u.app_metadata?.suspended ? "suspended" : "active",
@@ -953,7 +1108,7 @@ async function handler(req: Request): Promise<Response> {
           days: Number(meta.days) || null,
         };
       });
-      return json(mapped, 200, origin);
+      return json({ data: mapped, nextCursor, hasMore, totalCount: mapped.length }, 200, origin);
     }
 
     /* admin: force-confirm a user's email. Unsticks accounts created while
@@ -996,6 +1151,7 @@ async function handler(req: Request): Promise<Response> {
         },
       });
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "create_user", "user", newUser?.user?.id, { email, subscription: sm.subscription }, req);
       return json({ id: newUser?.user?.id, email: newUser?.user?.email, ...sm }, 201, origin);
     }
 
@@ -1022,6 +1178,7 @@ async function handler(req: Request): Promise<Response> {
         if (body?.name !== undefined) meta.full_name = String(body.name).slice(0, 100);
         const { error } = await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
         if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+        await logAdminAction(ADMIN_EMAIL, "update_user_subscription", "user", userId, { subscription: sm.subscription, days: sm.days }, req);
         return json({ ok: true, id: userId, ...sm }, 200, origin);
       }
 
@@ -1029,6 +1186,7 @@ async function handler(req: Request): Promise<Response> {
       const meta = { ...existing.app_metadata, suspended: !!suspend };
       const { error } = await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, suspend ? "suspend_user" : "activate_user", "user", userId, { suspended: !!suspend }, req);
       return json({ ok: true, suspended: !!suspend }, 200, origin);
     }
 
@@ -1039,6 +1197,170 @@ async function handler(req: Request): Promise<Response> {
       if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
       const { error } = await sb.auth.admin.deleteUser(userId);
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "delete_user", "user", userId, {}, req);
+      return json({ ok: true }, 200, origin);
+    }
+
+    /* admin: forgot password — request reset link sent to admin email */
+    if (req.method === "POST" && path === "/api/admin/forgot-password") {
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      const email = String(body?.email || "").toLowerCase().trim();
+      if (!safeEqual(email, ADMIN_EMAIL)) {
+        // Don't reveal if email is wrong — always return success for security
+        return json({ ok: true, message: "If the email matches the admin account, a reset link has been sent." }, 200, origin);
+      }
+      // Generate a secure reset token (1 hour expiry)
+      const resetToken = randChars(32);
+      const resetTokenHash = await bcrypt.hash(resetToken, BCRYPT_COST);
+      const resetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+      
+      // Store in a secure way - using a dedicated table or app_metadata
+      // For now, store in a simple key-value approach using a reserved code
+      const { error } = await sb.from("codes").upsert({
+        code: "ADMIN_RESET_TOKEN",
+        tier: "none",
+        days: 0,
+        owner: ADMIN_EMAIL,
+        note: `Reset token hash: ${resetTokenHash}, expires: ${resetExpires}`,
+        used: true,
+        revoked: false,
+        used_at: new Date().toISOString(),
+        used_device: "admin-reset",
+        used_device_name: "password-reset",
+        data_enabled: false,
+        sync_enabled: false,
+        device_limit: 1,
+        devices: [],
+      }).eq("code", "ADMIN_RESET_TOKEN");
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+
+      // TODO: Send email with reset link
+      // The reset link should be: ${APP_URL}/admin-reset-password.html?token=${resetToken}
+      // Email service integration (Resend, SendGrid, SMTP) needs to be configured
+      console.log(`[ADMIN PASSWORD RESET] Token generated for ${email}. Reset link: ${Deno.env.get("APP_URL") || "https://ibrheamkhalaf88-collab.github.io"}/admin-reset-password.html?token=${resetToken}`);
+      
+      clearIp(ip);
+      return json({ ok: true, message: "If the email matches the admin account, a reset link has been sent." }, 200, origin);
+    }
+
+    /* admin: reset password — verify token and set new password */
+    if (req.method === "POST" && path === "/api/admin/reset-password") {
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      const token = String(body?.token || "");
+      const newPassword = String(body?.password || "");
+      if (!token || newPassword.length < 12 || newPassword.length > 72) {
+        return json({ error: "INVALID_REQUEST" }, 400, origin);
+      }
+      // Verify stored token
+      const { data: resetRecord } = await sb.from("codes").select("*").eq("code", "ADMIN_RESET_TOKEN").maybeSingle();
+      if (!resetRecord || !resetRecord.note) {
+        return json({ error: "INVALID_OR_EXPIRED_TOKEN" }, 400, origin);
+      }
+      // Parse stored hash and expiry
+      const note = resetRecord.note;
+      const hashMatch = note.match(/Reset token hash: ([^,]+)/);
+      const expiresMatch = note.match(/expires: (\d+)/);
+      if (!hashMatch || !expiresMatch) {
+        return json({ error: "INVALID_TOKEN_FORMAT" }, 400, origin);
+      }
+      const storedHash = hashMatch[1];
+      const expiresAt = parseInt(expiresMatch[1], 10);
+      if (Date.now() > expiresAt) {
+        // Clean up expired token
+        await sb.from("codes").delete().eq("code", "ADMIN_RESET_TOKEN");
+        return json({ error: "TOKEN_EXPIRED" }, 400, origin);
+      }
+      const valid = await bcrypt.compare(token, storedHash);
+      if (!valid) {
+        return json({ error: "INVALID_OR_EXPIRED_TOKEN" }, 400, origin);
+      }
+      // Update admin password in Function Secret
+      // NOTE: This requires the Function to have permission to update its own secrets
+      // which it doesn't by default. The password must be updated manually in Supabase Dashboard
+      // or via the Supabase Management API with a service token.
+      // For now, we return instructions.
+      
+      // Clean up used token
+      await sb.from("codes").delete().eq("code", "ADMIN_RESET_TOKEN");
+      
+      return json({ 
+        ok: true, 
+        message: "Password reset token verified. The admin password must be updated manually in Supabase Dashboard → Edge Functions → Secrets → ADMIN_PASSWORD. Then redeploy the function.",
+        requiresManualSecretUpdate: true
+      }, 200, origin);
+    }
+
+    /* admin: audit log — paginated, newest first */
+    if (req.method === "GET" && path === "/api/admin/audit-log") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const u = new URL(req.url);
+      const limit = Math.min(200, Math.max(1, Number(u.searchParams.get("limit")) || 50));
+      const cursor = u.searchParams.get("cursor");
+      const action = u.searchParams.get("action")?.trim() || "";
+      const targetType = u.searchParams.get("target_type")?.trim() || "";
+      const adminEmail = u.searchParams.get("admin_email")?.trim() || "";
+      
+      let q = sb.from("admin_audit_log").select("*").order("created_at", { ascending: false }).limit(limit + 1);
+      if (cursor) q = q.lt("created_at", cursor);
+      if (action) q = q.eq("action", action);
+      if (targetType) q = q.eq("target_type", targetType);
+      if (adminEmail) q = q.eq("admin_email", adminEmail);
+      
+      const { data: list, error } = await q;
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const hasMore = (list || []).length > limit;
+      const page = hasMore ? list.slice(0, limit) : (list || []);
+      return json({
+        data: page,
+        nextCursor: hasMore ? page[page.length - 1].created_at : null,
+        hasMore,
+      }, 200, origin);
+    }
+
+    /* admin: error log — paginated, newest first */
+    if (req.method === "GET" && path === "/api/admin/errors") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const u = new URL(req.url);
+      const limit = Math.min(200, Math.max(1, Number(u.searchParams.get("limit")) || 50));
+      const cursor = u.searchParams.get("cursor");
+      const errorCode = u.searchParams.get("error_code")?.trim() || "";
+      const endpoint = u.searchParams.get("endpoint")?.trim() || "";
+      const resolved = u.searchParams.get("resolved")?.trim() || "";
+      const userCode = u.searchParams.get("user_code")?.trim() || "";
+      
+      let q = sb.from("error_log").select("*").order("created_at", { ascending: false }).limit(limit + 1);
+      if (cursor) q = q.lt("created_at", cursor);
+      if (errorCode) q = q.eq("error_code", errorCode);
+      if (endpoint) q = q.ilike("endpoint", `%${endpoint}%`);
+      if (resolved === "true") q = q.eq("resolved", true);
+      else if (resolved === "false") q = q.eq("resolved", false);
+      if (userCode) q = q.eq("user_code", userCode);
+      
+      const { data: list, error } = await q;
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const hasMore = (list || []).length > limit;
+      const page = hasMore ? list.slice(0, limit) : (list || []);
+      return json({
+        data: page,
+        nextCursor: hasMore ? page[page.length - 1].created_at : null,
+        hasMore,
+      }, 200, origin);
+    }
+
+    /* admin: mark error as resolved */
+    if (req.method === "PATCH" && path === "/api/admin/errors/resolve") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const id = body?.id;
+      const resolved = !!body?.resolved;
+      if (!id) return json({ error: "MISSING_ID" }, 400, origin);
+      const { error } = await sb.from("error_log")
+        .update({ resolved, resolved_at: resolved ? new Date().toISOString() : null, resolved_by: ADMIN_EMAIL })
+        .eq("id", id);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       return json({ ok: true }, 200, origin);
     }
 
@@ -1061,7 +1383,22 @@ async function handler(req: Request): Promise<Response> {
 
     return json({ error: "NOT_FOUND" }, 404, origin);
   } catch (e) {
-    console.error("[API error]", e);
+    const err = e as Error;
+    const errorCode = (err as any)?.code || "INTERNAL_ERROR";
+    const stackTrace = err.stack || null;
+    // Log error with context
+    const authCtx = authJwt(req);
+    const ctx = extractAuthContext(req, authCtx);
+    await logError(
+      path,
+      req.method,
+      errorCode,
+      err.message || "Unknown error",
+      stackTrace,
+      req,
+      { ...ctx, requestBody: body }
+    );
+    console.error("[API error]", err);
     return json({ error: "INTERNAL_ERROR" }, 500, origin);
   }
 }

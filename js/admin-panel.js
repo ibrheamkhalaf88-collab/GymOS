@@ -9,16 +9,30 @@ import { appConfig } from './config.js';
 import { demoUsersAll, demoUsersSave, findDemoUser, demoAll as demoCodesAll } from './db.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ---------- Auth guard: MUST be the first executable code ----------
 // Runs before anything else so no runtime error below can ever bypass login.
 const TOKEN = sessionStorage.getItem('dp_admin_token') || '';
-const IS_DEMO = sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-');
+let IS_DEMO = !appConfig.isProduction && (sessionStorage.getItem('dp_demo_admin') === '1' || TOKEN.startsWith('demo-'));
+
+// In production, demo mode is completely disabled
+if (appConfig.isProduction && IS_DEMO) {
+  sessionStorage.removeItem('dp_demo_admin');
+  IS_DEMO = false;
+}
 
 if (!TOKEN) {
   window.location.href = 'admin-login.html';
   throw new Error('no admin token');
+}
+
+// Helper to block cloud API calls in demo mode
+function assertOnlineMode(featureName) {
+  if (IS_DEMO) {
+    showToast(`${featureName} يتطلب الوضع الأونلاين (Online Mode) — غير متاح في Demo Mode`, 'error');
+    return false;
+  }
+  return true;
 }
 
 // ---------- HTML escaping (XSS prevention) ----------
@@ -52,11 +66,6 @@ function showToast(msg, type = 'success') {
     el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
     setTimeout(() => el.remove(), 300);
   }, 3000);
-}
-
-// Legacy alias for compatibility
-function toast(msg, type = 'ok') {
-  showToast(msg, type === 'err' ? 'error' : 'success');
 }
 
 // ---------- Confirmation Dialog ----------
@@ -131,6 +140,9 @@ const elements = {
   statusFilter: $('#statusFilter'),
   refreshBtn: $('#refreshBtn'),
   addUserBtn: $('#addUserBtn'),
+  exportUsersXlsxBtn: $('#exportUsersXlsxBtn'),
+  exportUsersCsvBtn: $('#exportUsersCsvBtn'),
+  importUsersBtn: $('#importUsersBtn'),
 
   // Admin info
   adminEmailDisplay: $('#adminEmailDisplay'),
@@ -246,11 +258,15 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Initialize UI for demo/online mode
-elements.modeBadge.textContent = IS_DEMO ? 'OFFLINE / محلي' : 'ONLINE / أونلاين';
-elements.modeBadge.style.color = IS_DEMO ? '#ff9800' : '#CCFF00';
-elements.modeBadge.style.borderColor = IS_DEMO ? '#ff980055' : '#CCFF0055';
+const modeText = IS_DEMO ? 'OFFLINE / محلي (Demo)' : (appConfig.isProduction ? 'ONLINE / إنتاج' : 'ONLINE / تطوير');
+const modeColor = IS_DEMO ? '#ff9800' : '#CCFF00';
+const modeBorder = IS_DEMO ? '#ff980055' : '#CCFF0055';
+
+elements.modeBadge.textContent = modeText;
+elements.modeBadge.style.color = modeColor;
+elements.modeBadge.style.borderColor = modeBorder;
 elements.adminEmailDisplay.textContent = IS_DEMO
-  ? 'admin@gym.local'
+  ? 'admin@gym.local (Demo)'
   : (((() => {
       try {
         return JSON.parse(localStorage.getItem('dp_current_user') || 'null');
@@ -298,7 +314,8 @@ function normalizeUser(u) {
   return {
     id: u.id,
     email: u.email,
-    name: u.full_name || u.name || '',
+    name: u.full_name || u.gym_name || u.name || '',
+    gym_name: u.gym_name || '',
     status: u.status || 'active',
     subscription: u.subTier || u.subscription || 'none',
     subStart: ts(u.subStart),
@@ -386,31 +403,47 @@ function couponDaysOf(k) {
 }
 
 // ---------- Load Users ----------
-async function loadUsers() {
+let usersCursor = null;
+let usersHasMore = false;
+
+async function loadUsers(append = false) {
   if (loading) return;
   loading = true;
-  elements.usersTableBody.innerHTML = `
-    <tr>
-      <td colspan="9">
-        <div class="empty-state">
-          <span class="icon">⏳</span>
-          <p class="empty-state-title">Loading users...</p>
-          <p class="empty-state-text">جاري تحميل قائمة المستخدمين</p>
-        </div>
-      </td>
-    </tr>`;
+  if (!append) {
+    elements.usersTableBody.innerHTML = `
+      <tr>
+        <td colspan="9">
+          <div class="empty-state">
+            <span class="icon">⏳</span>
+            <p class="empty-state-title">Loading users...</p>
+            <p class="empty-state-text">جاري تحميل قائمة المستخدمين</p>
+          </div>
+        </td>
+      </tr>`;
+  }
 
-  let users;
+  let data, statsRes;
   try {
     if (IS_DEMO) throw new Error('demo');
-    const [data, statsRes] = await Promise.all([
-      api('/api/users'),
-      // New columns (member count / last sync) ride on the backup endpoint's
-      // stats scope. Optional on purpose: a stats failure must never hide users.
+    const params = new URLSearchParams();
+    if (usersCursor) params.set('cursor', usersCursor);
+    params.set('perPage', '200');
+    const search = elements.searchInput.value.trim();
+    if (search) params.set('q', search);
+    const status = elements.statusFilter.value;
+    if (status !== 'all') params.set('status', status);
+    
+    const [apiRes, stats] = await Promise.all([
+      api(`/api/users?${params.toString()}`),
       api('/api/admin/backup?scope=stats').catch(() => null),
     ]);
-    users = (data || []).map(u => normalizeUser({ ...u, _demo: false }));
+    data = apiRes;
+    statsRes = stats;
+    usersHasMore = data.hasMore === true;
+    usersCursor = data.nextCursor || null;
+    const users = (data.data || []).map(u => normalizeUser({ ...u, _demo: false }));
     attachGymStats(users, (statsRes && statsRes.stats) || []);
+    if (append) allUsers.push(...users); else allUsers = users;
   } catch (err) {
     if (!IS_DEMO) {
       console.log('Admin API error:', err.message);
@@ -419,27 +452,73 @@ async function loadUsers() {
         window.location.href = 'admin-login.html';
         return;
       }
-      users = [];
-      elements.usersTableBody.innerHTML = `
-        <tr>
-          <td colspan="9">
-            <div class="empty-state">
-              <span class="icon">⚠️</span>
-              <p class="empty-state-title">API Error / خطأ في الاتصال</p>
-              <p class="empty-state-text">${esc(err.message)} — راجع الاتصال / أعد تسجيل الدخول</p>
-            </div>
-          </td>
-        </tr>`;
+      if (!append) {
+        allUsers = [];
+        elements.usersTableBody.innerHTML = `
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">
+                <span class="icon">⚠️</span>
+                <p class="empty-state-title">API Error / خطأ في الاتصال</p>
+                <p class="empty-state-text">${esc(err.message)} — راجع الاتصال / أعد تسجيل الدخول</p>
+              </div>
+            </td>
+          </tr>`;
+      }
       loading = false;
       return;
     }
-    users = (await demoGetUsers()).map(u => normalizeUser({ ...u, _demo: true }));
+    const users = (await demoGetUsers()).map(u => normalizeUser({ ...u, _demo: true }));
+    if (append) allUsers.push(...users); else allUsers = users;
   }
 
-  allUsers = users;
-  renderUsers(users);
-  updateStats(users);
+  if (!append) {
+    renderUsers(allUsers);
+    updateStats(allUsers);
+  } else {
+    // Append mode: just render the new users
+    const startIdx = allUsers.length - (data?.data?.length || 0);
+    const newUsers = allUsers.slice(startIdx);
+    appendUsersToTable(newUsers);
+    updateStats(allUsers);
+  }
   loading = false;
+}
+
+function appendUsersToTable(users) {
+  const tbody = elements.usersTableBody;
+  if (!tbody) return;
+  const rows = users.map(u => `
+    <tr class="hover:bg-[#171717]/50 transition-colors">
+      <td>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color: var(--accent);">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
+          <span>${esc(u.name || '—')}</span>
+        </div>
+      </td>
+      <td class="font-headline text-sm" style="color: var(--accent);">${esc(u.gym_name || '—')}</td>
+      <td class="font-mono text-sm" style="color: var(--accent);">${esc(u.email || '—')}</td>
+      <td class="font-mono text-xs opacity-70" title="${escAttr(u.id || '')}">${esc(shortId(u.id))}</td>
+      <td>${esc(TIER_LABEL[u.subscription] || u.subscription || 'None')}</td>
+      <td class="whitespace-nowrap">${expiryText(u)}</td>
+      <td class="text-center font-mono text-sm">${(u._gymCodes || []).length ? u._members : '<span class="opacity-40">—</span>'}</td>
+      <td class="text-xs whitespace-nowrap">${(u._gymCodes || []).length && u._lastSync ? fmtSync(u._lastSync) : '<span class="opacity-40">—</span>'}</td>
+      <td>${tierBadge(u)}</td>
+      <td>
+        <div class="flex gap-1 flex-wrap justify-end">
+          <button class="btn btn-secondary btn-sm" data-action="viewdata" data-id="${escAttr(u.id)}" title="عرض بيانات السحابة لهذا الحساب">👁 View / بيانات</button>
+          <button class="btn btn-secondary btn-sm" data-action="backup" data-id="${escAttr(u.id)}" title="تنزيل نسخة JSON من بيانات الحساب">⬇ Backup / نسخ</button>
+          <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${escAttr(u.id)}" title="استعادة بيانات من ملف JSON">⬆ Restore / استعادة</button>
+          <button class="btn btn-secondary btn-sm" data-action="edit" data-id="${escAttr(u.id)}">✎ Edit / تعديل</button>
+          ${u.status === 'suspended'
+            ? `<button class="btn btn-success btn-sm" data-action="activate" data-id="${escAttr(u.id)}">▶️ Activate / تفعيل</button>`
+            : `<button class="btn btn-warning btn-sm" data-action="suspend" data-id="${escAttr(u.id)}">⏸️ Suspend / تعليق</button>`}
+        </div>
+      </td>
+    </tr>`).join('');
+  tbody.insertAdjacentHTML('beforeend', rows);
+  
+  // Event delegation on table body handles all actions — no per-row binding needed
 }
 
 // ---------- Render Users ----------
@@ -487,7 +566,7 @@ function renderUsers(users) {
   if (!list.length) {
     elements.usersTableBody.innerHTML = `
       <tr>
-        <td colspan="9">
+        <td colspan="10">
           <div class="empty-state">
             <span class="icon">👤</span>
             <p class="empty-state-title">No users found / لا توجد مستخدمين</p>
@@ -506,6 +585,7 @@ function renderUsers(users) {
           <span>${esc(u.name || '—')}</span>
         </div>
       </td>
+      <td class="font-headline text-sm" style="color: var(--accent);">${esc(u.gym_name || '—')}</td>
       <td class="font-mono text-sm" style="color: var(--accent);">${esc(u.email || '—')}</td>
       <td class="font-mono text-xs opacity-70" title="${escAttr(u.id || '')}">${esc(shortId(u.id))}</td>
       <td>${esc(TIER_LABEL[u.subscription] || u.subscription || 'None')}</td>
@@ -769,6 +849,99 @@ elements.userForm.addEventListener('submit', async (e) => {
   }
 });
 
+// ---------- Users Import / Export (Excel / CSV) ----------
+async function exportUsersXLSX() {
+  try {
+    const { store } = await import('./store.js');
+    const blob = await store.exportToXLSX();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gymos-users-${fileStamp()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('Users exported to Excel / تم تصدير المستخدمين إلى Excel', 'success');
+  } catch (err) {
+    console.error('[export xlsx]', err);
+    showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
+async function exportUsersCSV() {
+  try {
+    const { store } = await import('./store.js');
+    const blob = store.exportToCSV();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gymos-users-${fileStamp()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    showToast('Users exported to CSV / تم تصدير المستخدمين إلى CSV', 'success');
+  } catch (err) {
+    console.error('[export csv]', err);
+    showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
+async function importUsers() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls,.csv';
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    input.remove();
+    if (!file) return;
+
+    const confirmed = await showConfirm({
+      title: 'Import Users / استيراد المستخدمين',
+      message: `This will import users from "${file.name}". Existing users (by email) will be updated, new users added. A backup of current users will be downloaded first. / سيستورد المستخدمين من "${file.name}". المستخدمون الحاليون (بالبريد) سيتم تحديثهم، والجدد سيضافون. نسخة احتياطية ستُنزل أولاً.`,
+      icon: '📥',
+      iconColor: '#CCFF00',
+      okText: 'Import / استيراد',
+      okClass: 'btn-primary',
+      cancelText: 'Cancel / إلغاء',
+    });
+    if (!confirmed) return;
+
+    // Backup current users first
+    try {
+      const { store } = await import('./store.js');
+      const backup = store.exportAll();
+      downloadJson(`gymos-pre-import-${fileStamp()}.json`, backup);
+    } catch (e) {
+      console.warn('pre-import backup failed', e);
+    }
+
+    loading = true;
+    try {
+      const { store } = await import('./store.js');
+      const result = await store.importFromFile(file, { skipDuplicates: false });
+      showToast(`Import done: ${result.added} added, ${result.updated} updated${result.errors.length ? `, ${result.errors.length} errors` : ''}`, result.errors.length ? 'warning' : 'success');
+      if (result.errors.length) {
+        console.warn('Import errors:', result.errors);
+      }
+      await loadUsers();
+    } catch (err) {
+      console.error('[import]', err);
+      showToast('Import failed: ' + err.message, 'error');
+    } finally {
+      loading = false;
+    }
+  });
+  document.body.appendChild(input);
+  input.click();
+}
+
+// Wire up import/export buttons
+elements.exportUsersXlsxBtn?.addEventListener('click', exportUsersXLSX);
+elements.exportUsersCsvBtn?.addEventListener('click', exportUsersCSV);
+elements.importUsersBtn?.addEventListener('click', importUsers);
+
 // ---------- Cloud data: View / Backup / Restore (Phase C) ----------
 function findGymUser(id) {
   return allUsers.find(u => u.id === id) || null;
@@ -778,7 +951,8 @@ function findGymUser(id) {
 // has nothing to fetch. Returns the user's codes, or null after explaining why.
 function gymCodesFor(u) {
   if (!u) { showToast('User not found / المستخدم غير موجود', 'error'); return null; }
-  if (u._demo || IS_DEMO) { showToast('Cloud data is online-only / بيانات السحابة متاحة في الوضع الأونلاين فقط', 'error'); return null; }
+  if (!assertOnlineMode('بيانات السحابة')) return null;
+  if (u._demo) { showToast('Demo users have no cloud data / مستخدمو Demo ليس لديهم بيانات سحابية', 'error'); return null; }
   const codes = u._gymCodes || [];
   if (!codes.length) { showToast('No activation code bound to this account / لا يوجد كود مرتبط بهذا الحساب', 'error'); return null; }
   return codes;
@@ -1048,15 +1222,43 @@ elements.usersTableBody.addEventListener('click', async (e) => {
 });
 
 // ---------- Filters / Refresh ----------
-elements.searchInput.addEventListener('input', () => renderUsers(allUsers));
-elements.statusFilter.addEventListener('change', () => renderUsers(allUsers));
-elements.refreshBtn.addEventListener('click', loadUsers);
+let searchDebounce = null;
+elements.searchInput.addEventListener('input', () => {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    usersCursor = null;
+    usersHasMore = false;
+    loadUsers(false);
+  }, 300);
+});
+elements.statusFilter.addEventListener('change', () => {
+  usersCursor = null;
+  usersHasMore = false;
+  loadUsers(false);
+});
+elements.refreshBtn.addEventListener('click', () => {
+  usersCursor = null;
+  usersHasMore = false;
+  loadUsers(false);
+});
+
+// Load more users on scroll (infinite scroll)
+let scrollLoading = false;
+window.addEventListener('scroll', () => {
+  if (scrollLoading || !usersHasMore || loading) return;
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const scrollHeight = document.documentElement.scrollHeight;
+  const clientHeight = document.documentElement.clientHeight;
+  if (scrollTop + clientHeight >= scrollHeight - 200) {
+    scrollLoading = true;
+    loadUsers(true).finally(() => { scrollLoading = false; });
+  }
+});
 
 // ============================================================
 // ACTIVATION CODES
 // ============================================================
 
-let codeListPage = 0;
 const CODE_PAGE_SIZE = 50;
 
 // Load activation codes
