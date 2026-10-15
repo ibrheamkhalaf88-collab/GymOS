@@ -142,7 +142,9 @@
     <p class="text-xs opacity-60" style="color:#c4c9ac;">© 2026 Digital Pulse — All rights reserved</p>
   </footer>
 
-  <script>
+  <script type="module">
+    import { appConfig } from './js/config.js';
+
     const $ = (sel) => document.querySelector(sel);
     const msg = $('#adminLoginMsg');
     const btn = $('#adminLoginBtn');
@@ -171,8 +173,8 @@
           </svg>`;
     }
 
-    // Supabase anon key (public by design; the admin password lives only server-side)
-    const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13ZmJndWNheWpnYmJ2Y3llbGJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NDQwMjEsImV4cCI6MjEwMzMyMDAyMX0.FP2qGp9pNhnC17xhBLN_81Pz0Lg1PS4B04VRrd7M9hY';
+    // Supabase anon key + API URL come from js/config.js (single source of truth)
+    const ANON_KEY = appConfig.supabaseAnonKey;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -191,7 +193,7 @@
 
       // Authenticate via the GymOS Edge Function (admin JWT)
       try {
-        const res = await fetch('https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api/api/admin/login', {
+        const res = await fetch(`${appConfig.apiUrl}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
           body: JSON.stringify({ email, password }),

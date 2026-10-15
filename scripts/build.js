@@ -1,6 +1,9 @@
 // Build script for production/staging
-// Usage: NODE_ENV=production node scripts/build.js [--output dist]
-//        NODE_ENV=development node scripts/build.js [--output dist]
+// Usage: node scripts/build.js [--output dist] [--production]
+//        NODE_ENV=production node scripts/build.js [--output dist]   (still supported)
+//
+// The --production flag exists because `NODE_ENV=production node ...` is not
+// portable: it fails on Windows cmd/PowerShell (npm scripts run via cmd.exe).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -9,7 +12,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const NODE_ENV = process.env.NODE_ENV || "development";
-const IS_PROD = NODE_ENV === "production";
+const IS_PROD = NODE_ENV === "production" || process.argv.includes("--production");
 
 const OUTPUT_DIR = process.argv.includes("--output")
   ? path.join(ROOT, process.argv[process.argv.indexOf("--output") + 1])

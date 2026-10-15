@@ -6,8 +6,8 @@
     "main": "index.html",
     "scripts": {
         "dev": "npx serve -l 5173 .",
-        "build:dev": "NODE_ENV=development node scripts/build.js --output dist",
-        "build:prod": "NODE_ENV=production node scripts/build.js --output dist",
+        "build:dev": "node scripts/build.js --output dist",
+        "build:prod": "node scripts/build.js --output dist --production",
         "sync": "node scripts/sync-www.js",
         "cap:init": "npx cap init",
         "cap:add:android": "npx cap add android",

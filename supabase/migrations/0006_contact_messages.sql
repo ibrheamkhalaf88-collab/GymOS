@@ -2,9 +2,6 @@
 -- Stores messages sent via the contact form.
 -- RLS: disabled; served only via the gymos-api Edge Function (service_role).
 
--- Drop any leftover rows from an earlier run.
-DELETE FROM public.contact_messages;
-
 CREATE TABLE IF NOT EXISTS public.contact_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL CHECK (char_length(name) >= 1 AND char_length(name) <= 120),
