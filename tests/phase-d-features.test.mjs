@@ -126,14 +126,14 @@ test("build-apk.yml: release APK runs only on version tags, builds Release APK, 
   assert.doesNotMatch(ciYml, /assembleRelease/);
 });
 
-test("version consistency: package.json, config.js, build.gradle all show 1.4.0", () => {
+test("version consistency: package.json, config.js, build.gradle all show 1.4.2", () => {
   const pkg = read("package.json");
   const config = read("js/config.js");
   const gradle = read("android/app/build.gradle");
-  assert.match(pkg, /"version": "1.4.0"/);
-  assert.match(config, /appVersion: "1.4.0"/);
-  assert.match(gradle, /versionName "1.4.0"/);
-  assert.match(gradle, /versionCode 13/);
+  assert.match(pkg, /"version": "1.4.2"/);
+  assert.match(config, /appVersion: "1.4.2"/);
+  assert.match(gradle, /versionName "1.4.2"/);
+  assert.match(gradle, /versionCode 14/);
 });
 
 test("index.html: APK download button uses correct GitHub releases download URL", () => {
