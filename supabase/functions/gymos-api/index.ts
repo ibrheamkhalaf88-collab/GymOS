@@ -985,6 +985,13 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "DELETE" && /^\/api\/codes\/[^\/]+$/.test(path)) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const ip = clientIp(req);
+      // Parse first: `permanent` picks the rate-limit bucket, and a TDZ use
+      // before this declaration threw a ReferenceError on every delete.
+      const code = normCode(path.split("/")[3]);
+      const { searchParams } = new URL(req.url);
+      const permanent = searchParams.get("permanent") === "true";
+      const confirm = searchParams.get("confirm");
+      const confirmExpected = `DELETE-${code}`;
       if (permanent) {
         if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_DESTRUCTIVE_WINDOW_MS / 1000 }, 429, origin);
         failAdminDestructiveIp(ip);
@@ -992,11 +999,6 @@ async function handler(req: Request): Promise<Response> {
         if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
         failAdminIp(ip);
       }
-      const code = normCode(path.split("/")[3]);
-      const { searchParams } = new URL(req.url);
-      const permanent = searchParams.get("permanent") === "true";
-      const confirm = searchParams.get("confirm");
-      const confirmExpected = `DELETE-${code}`;
 
       if (permanent) {
         // Permanent delete endpoint — requires explicit confirmation

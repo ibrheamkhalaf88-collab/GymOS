@@ -16,6 +16,7 @@ const apiTs = read("supabase/functions/gymos-api/index.ts");
 const indexHtml = read("index.html");
 const driveCallback = readFileSync("C:/Users/Lenovo/Documents/digital-pulse/auth/drive-callback.html", "utf8");
 const ciYml = read(".github/workflows/ci.yml");
+const buildApkYml = read(".github/workflows/build-apk.yml");
 
 test("app.js: promptGymName saves gym_name to localStorage", () => {
   assert.match(appJs, /localStorage\.setItem\('dp_gym_name', name\)/);
@@ -107,14 +108,20 @@ test("drive-callback.html: calls drive backup connect endpoint", () => {
   assert.match(driveCallback, /appConfig\.apiUrl/);
 });
 
-test("ci.yml: release-apk job runs only on version tags, builds Release APK, uses keystore from base64 secret", () => {
-  assert.match(ciYml, /startsWith\(github\.ref, 'refs\/tags\/v'\)/);
-  assert.match(ciYml, /assembleRelease/);
-  assert.match(ciYml, /KEYSTORE_BASE64/);
-  assert.match(ciYml, /base64 -d > android\/digitalpulse-release\.jks/);
-  assert.match(ciYml, /app-release\.apk/);
-  assert.match(ciYml, /make_latest: true/);
-  assert.match(ciYml, /if: startsWith\(github\.ref, 'refs\/tags\/v'\)/);
+// Android/release ownership lives in build-apk.yml: it is the only workflow
+// that runs Gradle, so the signed asset must be named app-release.apk there
+// (index.html downloads releases/latest/download/app-release.apk).
+test("build-apk.yml: release APK runs only on version tags, builds Release APK, uses keystore from base64 secret", () => {
+  assert.match(buildApkYml, /startsWith\(github\.ref, 'refs\/tags\/v'\)/);
+  assert.match(buildApkYml, /assembleRelease/);
+  assert.match(buildApkYml, /KEYSTORE_BASE64/);
+  assert.match(buildApkYml, /base64 -d > android\/digitalpulse-release\.jks/);
+  assert.match(buildApkYml, /app-release\.apk/);
+  assert.match(buildApkYml, /make_latest: true/);
+  assert.match(buildApkYml, /if: startsWith\(github\.ref, 'refs\/tags\/v'\)/);
+  // quality gates stay in ci.yml, which must never deploy (races deploy-pages.yml)
+  assert.doesNotMatch(ciYml, /deploy-pages:/);
+  assert.doesNotMatch(ciYml, /assembleRelease/);
 });
 
 test("version consistency: package.json, config.js, build.gradle all show 1.4.0", () => {

@@ -12,6 +12,13 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Job-level so the step `if:` guards can read them — the `secrets`
+      # context is not allowed in `steps.if`.
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,7 +50,25 @@ jobs:
           mkdir -p output
           cp android/app/build/outputs/apk/debug/app-debug.apk output/DigitalPulse-debug.apk
 
-      # Release APK on version tags (signed with debug key for testing)
+      # Release APK on version tags. index.html downloads
+      # releases/latest/download/app-release.apk, so the attached asset MUST
+      # be named app-release.apk. Without keystore.properties Gradle falls
+      # back to the debug signing key (android/app/build.gradle), which keeps
+      # tag builds working until the KEYSTORE_* secrets are configured.
+      - name: Restore keystore from base64 secret
+        if: startsWith(github.ref, 'refs/tags/v') && env.KEYSTORE_BASE64 != ''
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > android/digitalpulse-release.jks
+          ls -la android/digitalpulse-release.jks
+
+      - name: Create keystore.properties from secrets
+        if: startsWith(github.ref, 'refs/tags/v') && env.KEYSTORE_PASSWORD != '' && env.KEY_ALIAS != '' && env.KEY_PASSWORD != ''
+        # printf (not a heredoc): a quoted format string keeps $ and backticks
+        # inside the password literal, and nothing is echoed to the log.
+        run: |
+          printf 'storeFile=digitalpulse-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/keystore.properties
+
       - name: Build Release APK (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         working-directory: android
@@ -53,7 +78,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -p output
-          cp android/app/build/outputs/apk/release/app-release.apk output/DigitalPulse-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk output/app-release.apk
 
       - name: Upload Debug APK artifact
         uses: actions/upload-artifact@v4
@@ -65,7 +90,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: output/DigitalPulse-release.apk
+          files: output/app-release.apk
+          make_latest: true
 
   # ── Windows desktop build (Electron portable exe) ──
   desktop:
