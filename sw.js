@@ -1,6 +1,6 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v14";
+const CACHE = "dp-cache-v15";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
@@ -12,6 +12,7 @@ const ASSETS = [
   // uncached module returns HTML where JS is expected and the whole app dies
   // on a cold offline start. Precache them.
   "js/app.js", "js/access.js", "js/store.js", "js/db.js", "js/license.js",
+  "js/version.js",
   "js/i18n.js", "js/ui.js", "js/validate.js", "js/config.js",
   "js/supabase-client.js", "js/login.js", "js/activate.js", "js/signup.js",
   "js/admin.js", "js/admin-auth.js",

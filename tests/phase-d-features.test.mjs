@@ -126,14 +126,20 @@ test("build-apk.yml: release APK runs only on version tags, builds Release APK, 
   assert.doesNotMatch(ciYml, /assembleRelease/);
 });
 
-test("version consistency: package.json, config.js, build.gradle all show 1.4.2", () => {
+test("version consistency: package.json, config.js, build.gradle, build.js and sw.js all show 1.4.3", () => {
   const pkg = read("package.json");
   const config = read("js/config.js");
   const gradle = read("android/app/build.gradle");
-  assert.match(pkg, /"version": "1.4.2"/);
-  assert.match(config, /appVersion: "1.4.2"/);
-  assert.match(gradle, /versionName "1.4.2"/);
-  assert.match(gradle, /versionCode 14/);
+  const build = read("scripts/build.js");
+  const sw = read("sw.js");
+  assert.match(pkg, /"version": "1\.4\.3"/);
+  assert.match(config, /appVersion: "1\.4\.3"/);
+  assert.match(build, /appVersion: "1\.4\.3"/);
+  assert.match(gradle, /versionName "1\.4\.3"/);
+  assert.match(gradle, /versionCode 15/);
+  // Cache name must move with the release or the service worker keeps serving
+  // the previous (possibly broken) js/app.js forever.
+  assert.match(sw, /dp-cache-v15/);
 });
 
 test("index.html: APK download button uses correct GitHub releases download URL", () => {
@@ -147,4 +153,86 @@ test("index.html: version note fetches from GitHub API with error handling", () 
   assert.match(indexHtml, /res\.status === 404/);
   assert.match(indexHtml, /res\.status === 403/);
   assert.match(indexHtml, /Rate limited/);
+});
+
+// ---------- In-app self-update (native APK only) ----------
+// The feature spans three layers that silently fell out of sync once already
+// (MainActivity never registered the plugin, so the web layer saw an undefined
+// plugin and quietly opened a browser). These tests pin the contract.
+
+const mainActivityJava = read("android/app/src/main/java/com/digitalpulse/gym/MainActivity.java");
+const autoUpdaterJava = read("android/app/src/main/java/com/digitalpulse/gym/AutoUpdaterPlugin.java");
+const androidManifest = read("android/app/src/main/AndroidManifest.xml");
+const filePathsXml = read("android/app/src/main/res/xml/file_paths.xml");
+const swJs = read("sw.js");
+
+test("app.js: update check is native-only and degrades on web without throwing", () => {
+  assert.match(appJs, /import \{ isNativeApp \} from "\.\/native-oauth\.js"/);
+  assert.match(appJs, /import \{ isNewer, pickApkAsset, normalizeTag \} from "\.\/version\.js"/);
+  // The old build probed for the plugin with a dynamic import that never
+  // resolved under Capacitor 6; isNativeApp() is the supported check.
+  assert.doesNotMatch(appJs, /import\(['"]@capacitor\/core['"]\)/);
+  assert.match(appJs, /if \(!isNativeApp\(\)\) \{/);
+  // Throttled so a cold start does not burn GitHub's anonymous rate limit.
+  assert.match(appJs, /UPDATE_CHECK_INTERVAL = 6 \* 3600 \* 1000/);
+  assert.match(appJs, /enforceUpdateIfNeeded\(\)\.catch\(\(\) => \{\}\)/);
+});
+
+test("app.js: install flow checks permission, reports progress and falls back to the APK link", () => {
+  assert.match(appJs, /updater\.checkInstallPermission\(\)/);
+  assert.match(appJs, /updater\.openInstallSettings\(\)/);
+  assert.match(appJs, /updater\.downloadAndInstall\(\{ url: apkUrl \}\)/);
+  assert.match(appJs, /addListener\("downloadProgress"/);
+  assert.match(appJs, /addListener\("installResult"/);
+  // No native plugin (old build) must never claim it can install silently.
+  assert.match(appJs, /plugins\.AutoUpdater \|\| null/);
+  assert.match(appJs, /pickApkAsset\(release\) \|\| RELEASES_PAGE/);
+});
+
+test("app.js: profile exposes a manual 'check for updates' control", () => {
+  assert.match(appJs, /id="checkUpdateBtn"/);
+  assert.match(appJs, /\$\("#checkUpdateBtn"\)\.onclick = \(\) => enforceUpdateIfNeeded\(true\)/);
+});
+
+test("MainActivity.java: registers AutoUpdaterPlugin before super.onCreate()", () => {
+  assert.match(mainActivityJava, /registerPlugin\(AutoUpdaterPlugin\.class\);/);
+  // registerPlugin must precede super.onCreate(), which builds the bridge.
+  // Line comments are stripped first: the explanatory comment above the call
+  // mentions super.onCreate() too and would otherwise be matched instead.
+  const code = mainActivityJava
+    .split("\n")
+    .map((line) => line.replace(/\/\/.*$/, ""))
+    .join("\n");
+  assert.ok(
+    code.indexOf("registerPlugin(AutoUpdaterPlugin.class)") < code.indexOf("super.onCreate("),
+    "registerPlugin() must run before super.onCreate()"
+  );
+});
+
+test("AutoUpdaterPlugin.java: exposes the plugin contract the web layer calls", () => {
+  assert.match(autoUpdaterJava, /@CapacitorPlugin\(name = "AutoUpdater"\)/);
+  for (const method of ["checkInstallPermission", "openInstallSettings", "downloadAndInstall"]) {
+    assert.match(autoUpdaterJava, new RegExp(`public void ${method}\\(PluginCall call\\)`));
+  }
+  assert.match(autoUpdaterJava, /notifyListeners\("downloadProgress"/);
+  assert.match(autoUpdaterJava, /notifyListeners\("installResult"/);
+  // PackageInstaller is the documented install path; ACTION_VIEW is the fallback.
+  assert.match(autoUpdaterJava, /getPackageInstaller\(\)/);
+  assert.match(autoUpdaterJava, /STATUS_PENDING_USER_ACTION/);
+  assert.match(autoUpdaterJava, /Intent\.ACTION_VIEW/);
+  // Receiver is registered with the API 33+ flag so the app keeps installing on
+  // Android 14 without an exported-receiver crash.
+  assert.match(autoUpdaterJava, /RECEIVER_NOT_EXPORTED/);
+  // Android 10+ writes the APK to the app-specific dir, so no storage permission.
+  assert.match(autoUpdaterJava, /getExternalFilesDir\(Environment\.DIRECTORY_DOWNLOADS\)/);
+});
+
+test("AndroidManifest.xml: declares install permission and the FileProvider authority", () => {
+  assert.match(androidManifest, /android\.permission\.REQUEST_INSTALL_PACKAGES/);
+  assert.match(filePathsXml, /external-files-path/);
+  assert.match(autoUpdaterJava, /getPackageName\(\) \+ "\.fileprovider"/);
+});
+
+test("sw.js: the new version module is precached with the rest of the app graph", () => {
+  assert.match(swJs, /"js\/version\.js"/);
 });

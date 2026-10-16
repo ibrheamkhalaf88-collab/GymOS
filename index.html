@@ -454,7 +454,7 @@
           return res.json();
         })
         .then(function(data) {
-          var tag = data.tag_name || 'v1.4.2';
+          var tag = data.tag_name || 'v1.4.3';
           noteEl.textContent = 'أحدث إصدار منشور: ' + tag + ' — يحمل أحدث نسخة موقّعة من GitHub Releases';
         })
         .catch(function(err) {

@@ -11,6 +11,8 @@ import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "
 import { sanitizeName, sanitizeAmount, sanitizePhone, validatePassword } from "./validate.js";
 import { appConfig } from "./config.js";
 import { install as installAccess } from "./access.js";
+import { isNativeApp } from "./native-oauth.js";
+import { isNewer, pickApkAsset, normalizeTag } from "./version.js";
 import "./sync-status-ui.js";
 
 // Build-time injected commit SHA (set by CI/CD or local build)
@@ -21,97 +23,158 @@ const screen = document.getElementById("screen");
 let currentTab = "dashboard";
 let charts = [];
 
-// ---------- Force update (native APK only) — auto-download & install ----------
+// ---------- In-app update (native APK only) — download & install in-app ----------
+// Checked on every start (throttled to one GitHub API call per 6h) and on demand
+// from the profile screen. The pure comparison helpers live in js/version.js and
+// the native installer in android/.../AutoUpdaterPlugin.java.
+const UPDATE_CHECK_KEY = "dp_last_version_check";
+const UPDATE_CHECK_INTERVAL = 6 * 3600 * 1000;
+const RELEASES_API = "https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest";
+const RELEASES_PAGE = "https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest";
+
 enforceUpdateIfNeeded().catch(() => {});
 
-async function enforceUpdateIfNeeded() {
-  const isNative = !!(window.Capacitor && window.Capacitor.isNative);
-  if (!isNative) return;
-  
-  const lastCheck = Number(localStorage.getItem("dp_last_version_check") || 0);
-  if (Date.now() - lastCheck < 6 * 3600 * 1000) return;
-  if (!navigator.onLine) return;
-  
+// The version actually installed on the device. Capacitor's App plugin knows it
+// for real; appConfig.appVersion is only the version this bundle was built for.
+async function installedVersion() {
+  const app = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 3000);
-    const res = await fetch("https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest", { 
-      headers: { "Accept": "application/vnd.github+json" }, 
-      signal: ctrl.signal 
+    const info = await app.getInfo();
+    if (info && info.version) return String(info.version);
+  } catch { /* web build, or plugin unavailable */ }
+  return appConfig.appVersion;
+}
+
+async function fetchLatestRelease(timeoutMs = 3000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(RELEASES_API, {
+      headers: { Accept: "application/vnd.github+json" },
+      signal: ctrl.signal,
+      cache: "no-store",
     });
+    if (!res.ok) return null;
+    return await res.json();
+  } finally {
     clearTimeout(t);
-    if (!res.ok) return;
-    const data = await res.json();
-    const latest = String(data.tag_name || "").replace(/^v/, "");
-    if (!latest) return;
-    if (cmpVersion(latest, appConfig.appVersion) > 0) {
-      const apk = (data.assets || []).find((a) => /apk/i.test(a.name || ""));
-      if (apk && apk.browser_download_url) {
-        // Try auto-download and install using Capacitor plugin
-        await autoDownloadAndInstall(apk.browser_download_url);
-      } else {
-        showUpdateOverlay("https://github.com/ibrheamkhalaf88-collab/GymOS/releases/latest");
-      }
-    }
-    localStorage.setItem("dp_last_version_check", String(Date.now()));
-  } catch (e) {
-    if (e && e.name === "AbortError") return;
   }
 }
 
-async function autoDownloadAndInstall(apkUrl) {
-  try {
-    // Check if Capacitor plugin is available
-    const { AutoUpdater } = await import('@capacitor/core').then(m => m.Plugins).catch(() => ({}));
-    if (!AutoUpdater) {
-      console.warn('[AutoUpdater] Plugin not available, showing manual update');
-      showUpdateOverlay(apkUrl);
-      return;
-    }
+// manual=true is the profile button: it reports the outcome either way.
+async function enforceUpdateIfNeeded(manual = false) {
+  if (!isNativeApp()) {
+    if (manual) showToast("التحديث داخل التطبيق متاح بنسخة الأندرويد فقط");
+    return;
+  }
+  if (!navigator.onLine) {
+    if (manual) showToast("ما في إنترنت", "err");
+    return;
+  }
 
-    // Check install permission
-    const permResult = await AutoUpdater.checkInstallPermission();
-    if (!permResult.canInstall) {
-      // Request permission
-      await AutoUpdater.openInstallSettings();
-      // Re-check after user returns
-      const permResult2 = await AutoUpdater.checkInstallPermission();
-      if (!permResult2.canInstall) {
+  const lastCheck = Number(localStorage.getItem(UPDATE_CHECK_KEY) || 0);
+  if (!manual && Date.now() - lastCheck < UPDATE_CHECK_INTERVAL) return;
+
+  let release;
+  try {
+    release = await fetchLatestRelease();
+  } catch {
+    if (manual) showToast("ما قدرنا نتواصل مع سيرفر التحديثات", "err");
+    return;
+  }
+  if (!release) {
+    if (manual) showToast("ما قدرنا نجيب معلومات آخر إصدار", "err");
+    return;
+  }
+
+  const current = await installedVersion();
+  localStorage.setItem(UPDATE_CHECK_KEY, String(Date.now()));
+
+  const latest = normalizeTag(release.tag_name);
+  if (!latest || !isNewer(latest, current)) {
+    if (manual) showToast(`أنت على آخر إصدار (v${current})`);
+    return;
+  }
+
+  await autoDownloadAndInstall(pickApkAsset(release) || RELEASES_PAGE);
+}
+
+function updaterPlugin() {
+  const plugins = (window.Capacitor && window.Capacitor.Plugins) || {};
+  return plugins.AutoUpdater || null;
+}
+
+async function autoDownloadAndInstall(apkUrl) {
+  const updater = updaterPlugin();
+  if (!updater) {
+    // Older build, or the native plugin is not registered: let the browser
+    // handle the download instead of pretending we can install it.
+    showUpdateOverlay(apkUrl);
+    return;
+  }
+
+  try {
+    const perm = await updater.checkInstallPermission().catch(() => ({ canInstall: true }));
+    if (perm && perm.canInstall === false) {
+      showDownloadingOverlay(
+        "نحتاج إذن التثبيت",
+        "فعّل «السماح بتثبيت التطبيقات غير المعروفة» لهذا التطبيق ثم أعد المحاولة."
+      );
+      await updater.openInstallSettings().catch(() => {});
+      const again = await updater.checkInstallPermission().catch(() => ({ canInstall: false }));
+      if (!again || again.canInstall === false) {
         showUpdateOverlay(apkUrl);
         return;
       }
     }
 
-    // Show downloading indicator
     showDownloadingOverlay();
+    await updater.addListener("downloadProgress", (d) => updateDownloadProgress(d)).catch(() => {});
+    await updater.addListener("installResult", (d) => {
+      if (d && d.status === "failed") showUpdateOverlay(apkUrl);
+    }).catch(() => {});
 
-    // Download and install
-    await AutoUpdater.downloadAndInstall({ url: apkUrl });
-    // If we reach here, install intent was launched
-    // The app will be restarted after install
-    
+    // Resolves once the installer has taken over (or a dialog is pending).
+    await updater.downloadAndInstall({ url: apkUrl });
   } catch (e) {
-    console.error('[AutoUpdater] Failed:', e);
+    console.error("[AutoUpdater] Failed:", e);
     showUpdateOverlay(apkUrl);
   }
 }
 
-function showDownloadingOverlay() {
-  document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
-    '<div style="font-size:72px;color:#ccff00">?</div>' +
-    '<h1 style="font-size:24px;margin:0;font-weight:800">جاري تحميل التحديث...</h1>' +
-    '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يرجى الانتظار، يتم تحميل وتثبيت الإصدار الجديد تلقائياً.</p>' +
-    '<div class="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>' +
-    '</div>';
+function updateOverlayShell(title, body) {
+  const el = document.createElement("div");
+  el.id = "dp-update-overlay";
+  el.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif";
+  el.innerHTML =
+    '<div style="font-size:64px;color:#ccff00">?</div>' +
+    '<h1 style="font-size:24px;margin:0;font-weight:800">' + title + '</h1>' +
+    '<p id="dp-update-body" style="color:#bdbdbd;max-width:320px;margin:0;line-height:1.6;direction:rtl">' + body + '</p>' +
+    '<div style="width:min(280px,80vw);height:6px;border-radius:999px;background:#222;overflow:hidden">' +
+    '<div id="dp-update-bar" style="height:100%;width:0%;background:#ccff00;transition:width .2s"></div>' +
+    '</div>' +
+    '<p id="dp-update-pct" style="font-size:12px;color:#888;margin:0" dir="ltr">0%</p>';
+  document.body.appendChild(el);
+  return el;
 }
 
-function cmpVersion(a, b) {
-  const pa = String(a).split(".").map(Number), pb = String(b).split(".").map(Number);
-  for (let i = 0; i < 3; i++) {
-    const x = pa[i] || 0, y = pb[i] || 0;
-    if (x > y) return 1; if (x < y) return -1;
+function showDownloadingOverlay(title, body) {
+  if (document.getElementById("dp-update-overlay")) return;
+  updateOverlayShell(
+    title || "جاري تحميل التحديث...",
+    body || "يتم تحميل وتثبيت الإصدار الجديد داخل التطبيق. لا تسكّر التطبيق."
+  );
+}
+
+function updateDownloadProgress(d) {
+  const pct = d && typeof d.percent === "number" ? d.percent : null;
+  const bar = document.getElementById("dp-update-bar");
+  const label = document.getElementById("dp-update-pct");
+  if (bar && pct !== null) bar.style.width = pct + "%";
+  if (label) {
+    const mb = d && d.bytes ? Math.round((d.bytes / 1048576) * 10) / 10 : 0;
+    label.textContent = pct === null ? mb + " MB" : pct + "% (" + mb + " MB)";
   }
-  return 0;
 }
 
 function sanitizeUrl(url) {
@@ -395,7 +458,7 @@ async function promptGymName(user) {
     // Prevent closing without entering name (for Google users)
     // but allow Escape for non-Google users who might have skipped onboarding
     document.addEventListener('keydown', function onEsc(e) {
-      if (e.key === 'Escape' && !user.app_metadata?.provider === 'google') {
+      if (e.key === 'Escape' && user.app_metadata?.provider !== 'google') {
         modal.remove();
         document.body.style.overflow = '';
         document.removeEventListener('keydown', onEsc);
@@ -403,6 +466,7 @@ async function promptGymName(user) {
       }
     });
   });
+}
 
 // ---------- Helpers ----------
 const DAY = 86400000;
@@ -2480,7 +2544,9 @@ function viewProfile() {
                 <p class="font-arabic text-muted text-[10px] mt-0.5">نسخة الويب والـAPK</p>
                 <p class="text-primary font-headline text-xs mt-1" dir="ltr">v${appConfig.appVersion} (commit ${COMMIT_SHA || "local"})</p>
               </div>
-              <span class="material-symbols-outlined text-primary text-lg">info</span>
+              <button id="checkUpdateBtn" type="button" class="flex items-center gap-1 text-primary text-xs font-label uppercase tracking-widest hover:underline whitespace-nowrap">
+                <span class="material-symbols-outlined text-base">refresh</span>تحقّق
+              </button>
             </div>
             <div class="h-px bg-outline-variant w-full"></div>
             <div class="flex items-center justify-between">
@@ -2674,6 +2740,7 @@ function viewProfile() {
     try { await navigator.clipboard.writeText(`DP-${lic.code}`); showToast("Copied / تم النسخ"); }
     catch { showToast("Copy failed / فشل النسخ", "err"); }
   };
+  $("#checkUpdateBtn").onclick = () => enforceUpdateIfNeeded(true);
   const changeCodeBtn = $("#changeCodeBtn");
   if (changeCodeBtn) changeCodeBtn.onclick = openChangeCode;
   $("#hapticToggle")?.addEventListener("change", (e) =>
