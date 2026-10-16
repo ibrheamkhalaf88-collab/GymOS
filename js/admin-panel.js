@@ -38,11 +38,11 @@ function assertOnlineMode(featureName) {
 // ---------- HTML escaping (XSS prevention) ----------
 const esc = (s) =>
   String(s ?? '')
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&apos;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 // Safe attribute value escaping
 const escAttr = (s) => esc(s).replace(/`/g, '&#96;');
@@ -316,6 +316,8 @@ function normalizeUser(u) {
     email: u.email,
     name: u.full_name || u.gym_name || u.name || '',
     gym_name: u.gym_name || '',
+    created: ts(u.created),
+    lastSignIn: ts(u.lastSignIn),
     status: u.status || 'active',
     subscription: u.subTier || u.subscription || 'none',
     subStart: ts(u.subStart),
@@ -412,7 +414,7 @@ async function loadUsers(append = false) {
   if (!append) {
     elements.usersTableBody.innerHTML = `
       <tr>
-        <td colspan="9">
+        <td colspan="10">
           <div class="empty-state">
             <span class="icon">⏳</span>
             <p class="empty-state-title">Loading users...</p>
@@ -456,7 +458,7 @@ async function loadUsers(append = false) {
         allUsers = [];
         elements.usersTableBody.innerHTML = `
           <tr>
-            <td colspan="9">
+            <td colspan="10">
               <div class="empty-state">
                 <span class="icon">⚠️</span>
                 <p class="empty-state-title">API Error / خطأ في الاتصال</p>
@@ -489,11 +491,14 @@ function appendUsersToTable(users) {
   const tbody = elements.usersTableBody;
   if (!tbody) return;
   const rows = users.map(u => `
-    <tr class="hover:bg-[#171717]/50 transition-colors">
+    <tr class="hover:bg-[#171717]/50 transition-colors" data-open-account="${escAttr(u.id || '')}" style="cursor:pointer;" title="Open Account Detail Center / فتح مركز تفاصيل الحساب">
       <td>
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color: var(--accent);">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
-          <span>${esc(u.name || '—')}</span>
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style="background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent);">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
+          <div style="min-width:0;">
+            <span>${esc(u.name || '—')}</span>
+            <span class="subline">${esc([u.created ? 'Created ' + fmtDay(u.created) : '', u.lastSignIn ? 'Login ' + fmtDay(u.lastSignIn) : ''].filter(Boolean).join(' · '))}</span>
+          </div>
         </div>
       </td>
       <td class="font-headline text-sm" style="color: var(--accent);">${esc(u.gym_name || '—')}</td>
@@ -579,11 +584,14 @@ function renderUsers(users) {
   }
 
   elements.usersTableBody.innerHTML = list.map(u => `
-    <tr class="hover:bg-[#171717]/50 transition-colors">
+    <tr class="hover:bg-[#171717]/50 transition-colors" data-open-account="${escAttr(u.id || '')}" style="cursor:pointer;" title="Open Account Detail Center / فتح مركز تفاصيل الحساب">
       <td>
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-full bg-[#333627] flex items-center justify-center text-xs font-bold" style="color: var(--accent);">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
-          <span>${esc(u.name || '—')}</span>
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0" style="background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent);">${esc((u.name || '?').charAt(0).toUpperCase())}</div>
+          <div style="min-width:0;">
+            <span>${esc(u.name || '—')}</span>
+            <span class="subline">${esc([u.created ? 'Created ' + fmtDay(u.created) : '', u.lastSignIn ? 'Login ' + fmtDay(u.lastSignIn) : ''].filter(Boolean).join(' · '))}</span>
+          </div>
         </div>
       </td>
       <td class="font-headline text-sm" style="color: var(--accent);">${esc(u.gym_name || '—')}</td>
@@ -1811,6 +1819,858 @@ window._openCreate = openCreateUser;
 window._editUser = editUser;
 window._setDays = (d) => { elements.userDays.value = d; refreshPreview(); };
 window._setCodeDays = (d) => { elements.codeDays.value = d; };
+// The modal markup uses inline onclick="closeXxxModal()" — without these
+// exports every ✕ button threw a ReferenceError and modals never closed.
+window.closeUserModal = closeUserModal;
+window.closeCodeModal = closeCodeModal;
+window.closePwModal = closePwModal;
+window.closeCouponModal = closeCouponModal;
 
 // Initial load
 loadUsers();
+
+/* ============================================================
+   ADMIN CONTROL CENTER V2 — frontend-only redesign module.
+   Lives in the existing admin-panel.js (precached) + admin.html.
+   No new endpoints, no duplicate systems. Metrics that the
+   existing backend cannot produce are shown as NOT AVAILABLE.
+   ============================================================ */
+
+// ---------- V2 helpers ----------
+function fmtDay(ms) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtAgo(ms) {
+  if (!ms) return '—';
+  const d = Math.max(0, Date.now() - ms);
+  const m = Math.floor(d / 60000), h = Math.floor(d / 3600000), dd = Math.floor(d / 86400000);
+  const short = dd >= 1 ? dd + 'd' : h >= 1 ? h + 'h' : m >= 1 ? m + 'm' : 'now';
+  return `<span title="${escAttr(new Date(ms).toLocaleString('en-GB'))}">${esc(short)}</span>`;
+}
+function v2Parse(v) { try { return typeof v === 'string' ? JSON.parse(v) : (v || {}); } catch { return {}; } }
+function tlItem(whenMs, html, tone) {
+  return `<div class="tl-item ${tone ? 't-' + tone : ''}"><div class="tl-when">${fmtAgo(whenMs)} · ${esc(fmtDay(whenMs))}</div><div class="tl-what">${html}</div></div>`;
+}
+
+// ---------- V2 charts (pure HTML/CSS — no dependencies) ----------
+function v2Bars(series, color) {
+  const max = Math.max(1, ...series.map(s => s.value));
+  if (!series.length || max === 0) return '<div class="empty-state"><span class="icon">📉</span><p class="empty-state-text">No recorded data yet</p></div>';
+  const bars = series.map(s => `
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; min-width:0;">
+      <div title="${escAttr(s.label + ': ' + s.value)}" style="width:70%; max-width:34px; height:${Math.round(6 + (s.value / max) * 88)}px; border-radius:6px 6px 3px 3px; background:${color}; opacity:${s.value ? 0.9 : 0.25};"></div>
+      <div style="font-size:0.58rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;">${esc(s.label)}</div>
+      <div style="font-size:0.62rem; font-weight:700; color:var(--text);">${s.value}</div>
+    </div>`).join('');
+  return `<div style="display:flex; align-items:flex-end; gap:6px; height:150px; padding-top:4px;">${bars}</div>`;
+}
+function v2Donut(parts) {
+  const total = parts.reduce((a, p) => a + p.value, 0);
+  if (!total) return '<div class="empty-state"><span class="icon">🫧</span><p class="empty-state-text">No accounts yet</p></div>';
+  let acc = 0;
+  const stops = parts.filter(p => p.value > 0).map(p => {
+    const from = (acc / total) * 360; acc += p.value;
+    const to = (acc / total) * 360;
+    return `${p.color} ${from}deg ${to}deg`;
+  }).join(', ');
+  const legend = parts.map(p => `<span><i style="background:${p.color}"></i>${esc(p.label)} <b>${p.value}</b></span>`).join('');
+  return `<div style="display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;">
+    <div style="width:118px; height:118px; border-radius:50%; flex-shrink:0; background:conic-gradient(${stops || 'var(--border) 0deg 360deg)'}; display:flex; align-items:center; justify-content:center;">
+      <div style="width:74px; height:74px; border-radius:50%; background:var(--bg-card); display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div class="font-headline" style="font-size:1.3rem; font-weight:700;">${total}</div>
+        <div style="font-size:0.6rem; color:var(--text-muted); letter-spacing:.1em;">TOTAL</div>
+      </div>
+    </div>
+    <div class="legend" style="flex-direction:column; align-items:flex-start; gap:0.4rem;">${legend}</div>
+  </div>`;
+}
+
+// ---------- V2 fetch caches (60s) ----------
+const V2_CACHE = { errors: null, errorsAt: 0, audit: null, auditAt: 0, codes: null, codesAt: 0, stats: null, statsAt: 0 };
+async function v2FetchErrors(force) {
+  if (IS_DEMO) return [];
+  if (!force && V2_CACHE.errors && Date.now() - V2_CACHE.errorsAt < 60000) return V2_CACHE.errors;
+  const r = await api('/api/admin/errors?limit=200');
+  V2_CACHE.errors = (r && r.data) || []; V2_CACHE.errorsAt = Date.now();
+  return V2_CACHE.errors;
+}
+async function v2FetchAudit(force) {
+  if (IS_DEMO) return [];
+  if (!force && V2_CACHE.audit && Date.now() - V2_CACHE.auditAt < 60000) return V2_CACHE.audit;
+  const r = await api('/api/admin/audit-log?limit=200');
+  V2_CACHE.audit = (r && r.data) || []; V2_CACHE.auditAt = Date.now();
+  return V2_CACHE.audit;
+}
+async function v2FetchCodes(force) {
+  if (IS_DEMO) return [];
+  if (!force && V2_CACHE.codes && Date.now() - V2_CACHE.codesAt < 60000) return V2_CACHE.codes;
+  const r = await api('/api/codes?limit=200');
+  V2_CACHE.codes = Array.isArray(r) ? r : ((r && r.data) || []); V2_CACHE.codesAt = Date.now();
+  return V2_CACHE.codes;
+}
+async function v2FetchStats(force) {
+  if (IS_DEMO) return [];
+  if (!force && V2_CACHE.stats && Date.now() - V2_CACHE.statsAt < 60000) return V2_CACHE.stats;
+  const r = await api('/api/admin/backup?scope=stats').catch(() => null);
+  V2_CACHE.stats = (r && r.stats) || []; V2_CACHE.statsAt = Date.now();
+  return V2_CACHE.stats;
+}
+async function v2FetchGymForCode(code) {
+  if (IS_DEMO || !code) return null;
+  const r = await api('/api/admin/backup?scope=code&code=' + encodeURIComponent(code)).catch(() => null);
+  if (!r) return null;
+  const gyms = Array.isArray(r.gyms) ? r.gyms : (r.gym ? [r.gym] : []);
+  return { codeRow: r.code || null, gyms };
+}
+
+// ---------- V2 i18n ----------
+const V2_I18N = {
+  en: {
+    'nav.overview': 'Overview', 'nav.users': 'Users & Accounts', 'nav.licenses': 'Subscriptions & Licenses',
+    'nav.sync': 'Cloud Sync', 'nav.backups': 'Backups & Recovery', 'nav.activity': 'Sessions & Activity',
+    'nav.security': 'Security & Resets', 'nav.audit': 'Errors & Audit Logs', 'nav.versions': 'App Versions', 'nav.settings': 'Admin Settings',
+    'shell.console': 'Control Center',
+    'act.refresh': 'Refresh', 'act.newUser': 'New user', 'act.newCode': 'New code', 'act.newCoupon': 'Coupon', 'act.logout': 'Logout',
+    'ov.title': 'Overview', 'ov.sub': 'Live snapshot from the existing APIs — nothing fabricated',
+    'ov.total': 'Total accounts', 'ov.active': 'Active', 'ov.trial': 'Trial', 'ov.expired': 'Expired subscriptions',
+    'ov.suspended': 'Suspended', 'ov.syncFail': 'Logged errors', 'ov.syncFailNote': 'unresolved entries in error_log',
+    'ov.online': 'Confirmed online now', 'ov.onlineNote': 'Requires last_seen heartbeat on codes table (extension point identified)',
+    'ov.backups': 'Successful backups', 'ov.backupsNote': 'Drive backup is down (503) — see Backups center',
+    'ov.growth': 'New registrations — last 8 weeks', 'ov.distribution': 'Account status distribution',
+    'ov.recentAdmin': 'Recent administrative activity', 'ov.viewAll': 'View all', 'ov.alerts': 'Security & sync alerts',
+    'us.title': 'Users & Accounts', 'us.sub': 'Click any row to open the Account Detail Center',
+    'li.title': 'Subscriptions & Licenses', 'li.sub': 'Activation codes grant cloud access · coupons grant free days',
+    'sy.title': 'Cloud Sync Center', 'sy.sub': 'Server-persisted sync state per account — traced from JWT to database',
+    'sy.authFail': 'Auth-related failures', 'sy.authFailNote': 'error_log entries with 401/403/FORBIDDEN',
+    'sy.totalErr': 'Total logged errors', 'sy.lastOk': 'Most recent successful sync', 'sy.perAccount': 'Sync status per account', 'sy.jwtNote': 'JWT sync-fix status',
+    'th.account': 'Account', 'th.code': 'Code', 'th.members': 'Members', 'th.lastSync': 'Last successful sync', 'th.health': 'Health',
+    'th.actions': 'Safe recovery', 'th.when': 'When', 'th.error': 'Error', 'th.user': 'User', 'th.status': 'Status',
+    'bk.title': 'Backups & Recovery', 'bk.sub': 'Honest status only — an upload is not proof of recoverability',
+    'bk.verified': 'Restore-verified backups', 'bk.untested': 'UNVERIFIED', 'bk.untestedNote': 'No isolated restore test has been run yet in this environment',
+    'bk.drive': 'Google Drive engine', 'bk.driveNote': 'Boot SyntaxError fixed locally — deploy pending approval',
+    'bk.adminJson': 'Admin JSON snapshots', 'bk.available': 'AVAILABLE', 'bk.adminJsonNote': 'Per-account download + snapshot-first restore below', 'bk.perAccount': 'Recovery posture per account',
+    'ac.title': 'Sessions & Activity', 'ac.sub': 'Only recorded events are shown — presence tracking is not implemented server-side yet',
+    'ac.lastLogin': 'Latest user login (any account)', 'ac.active7': 'Accounts seen in the metadata window',
+    'ac.active7Note': 'Derived from last_sign_in_at — not a live presence signal', 'ac.presence': 'Live presence (online now)',
+    'ac.presenceNote': 'Needs last_seen heartbeat — extension point: codes table + codeFlags()', 'ac.loginsChart': 'Logins per week — last 8 weeks (from account metadata)',
+    'se.title': 'Security & Password Resets', 'se.sub': 'No plaintext passwords are ever displayed or stored',
+    'se.session': 'Admin session', 'se.failedAdmin': 'Failed admin logins', 'se.failedAdminNote': 'From the immutable audit table',
+    'se.resets': 'Password reset links sent', 'se.rls': 'Database isolation', 'se.rlsVal': 'RLS deny-by-default',
+    'se.rlsNote': 'All 7 tables: service-role access only via gymos-api', 'se.recentResets': 'Recent password-reset activity',
+    'au.title': 'System Errors & Audit Logs', 'au.sub': 'Existing admin endpoints, now surfaced', 'au.errors': 'Error log', 'au.audit': 'Admin audit trail',
+    've.title': 'Application Versions', 've.sub': 'Shipped version vs latest GitHub release',
+    've.shipped': 'Shipped app version', 've.latest': 'Latest GitHub release', 've.apk': 'Release assets',
+    've.note': 'Version bumps must move all seven files together (build.gradle, package.json, js/config.js, scripts/build.js, sw.js cache, tests, index.html fallback). The in-app updater compares installedVersion() against the latest release tag.',
+    'st.title': 'Admin Settings', 'st.sub': 'Console preferences & system pointers', 'st.prefs': 'Console preferences',
+    'st.theme': 'Theme', 'st.lang': 'Language', 'st.system': 'System pointers', 'st.auth': 'Auth',
+    'st.isolation': 'Isolation', 'st.isolationVal': 'RLS deny-by-default · service-role only',
+    'st.danger': 'Danger zone', 'st.dangerVal': 'No destructive controls are exposed by design',
+    'dr.overview': 'Overview', 'dr.license': 'License', 'dr.sync': 'Cloud Sync', 'dr.data': 'Customer Data',
+    'dr.backup': 'Backups', 'dr.security': 'Security', 'dr.timeline': 'Activity',
+  },
+  ar: {
+    'nav.overview': 'النظرة العامة', 'nav.users': 'المستخدمون والحسابات', 'nav.licenses': 'الاشتراكات والتراخيص',
+    'nav.sync': 'المزامنة السحابية', 'nav.backups': 'النسخ الاحتياطي والاستعادة', 'nav.activity': 'الجلسات والنشاط',
+    'nav.security': 'الأمان وإعادة التعيين', 'nav.audit': 'الأخطاء وسجل التدقيق', 'nav.versions': 'إصدارات التطبيق', 'nav.settings': 'إعدادات الأدمن',
+    'shell.console': 'مركز التحكم',
+    'act.refresh': 'تحديث', 'act.newUser': 'مستخدم جديد', 'act.newCode': 'كود تفعيل', 'act.newCoupon': 'كوبون', 'act.logout': 'خروج',
+    'ov.title': 'النظرة العامة', 'ov.sub': 'لقطة حيّة من الواجهات الموجودة — بلا أي أرقام مفبركة',
+    'ov.total': 'إجمالي الحسابات', 'ov.active': 'نشط', 'ov.trial': 'تجريبي', 'ov.expired': 'اشتراكات منتهية',
+    'ov.suspended': 'موقوف', 'ov.syncFail': 'الأخطاء المسجّلة', 'ov.syncFailNote': 'سجلات غير معالجة في error_log',
+    'ov.online': 'متصلون الآن (مؤكد)', 'ov.onlineNote': 'يتطلب عمود last_seen بجدول codes (نقطة امتداد محددة)',
+    'ov.backups': 'نسخ ناجحة', 'ov.backupsNote': 'نسخ Drive معطّل (503) — راجع مركز النسخ',
+    'ov.growth': 'التسجيلات الجديدة — آخر 8 أسابيع', 'ov.distribution': 'توزيع حالات الحسابات',
+    'ov.recentAdmin': 'أحدث العمليات الإدارية', 'ov.viewAll': 'عرض الكل', 'ov.alerts': 'تنبيهات الأمان والمزامنة',
+    'us.title': 'المستخدمون والحسابات', 'us.sub': 'اضغط أي صف لفتح مركز تفاصيل الحساب',
+    'li.title': 'الاشتراكات والتراخيص', 'li.sub': 'أكواد التفعيل تمنح وصولاً سحابياً · الكوبونات تمنح أياماً مجانية',
+    'sy.title': 'مركز المزامنة السحابية', 'sy.sub': 'حالة المزامنة لكل حساب — من الـJWT حتى قاعدة البيانات',
+    'sy.authFail': 'إخفاقات المصادقة', 'sy.authFailNote': 'سجلات 401/403/FORBIDDEN في error_log',
+    'sy.totalErr': 'إجمالي الأخطاء المسجلة', 'sy.lastOk': 'أحدث مزامنة ناجحة', 'sy.perAccount': 'حالة المزامنة لكل حساب', 'sy.jwtNote': 'حالة إصلاح JWT للمزامنة',
+    'th.account': 'الحساب', 'th.code': 'الكود', 'th.members': 'الأعضاء', 'th.lastSync': 'آخر مزامنة ناجحة', 'th.health': 'الصحة',
+    'th.actions': 'استعادة آمنة', 'th.when': 'متى', 'th.error': 'الخطأ', 'th.user': 'المستخدم', 'th.status': 'الحالة',
+    'bk.title': 'النسخ الاحتياطي والاستعادة', 'bk.sub': 'حالة صادقة فقط — نجاح الرفع ليس دليلاً على قابلية الاستعادة',
+    'bk.verified': 'نسخ مُتحقق منها بالاستعادة', 'bk.untested': 'غير مُتحقق', 'bk.untestedNote': 'لم يُنفَّذ اختبار استعادة معزول بعد بهذه البيئة',
+    'bk.drive': 'محرك Google Drive', 'bk.driveNote': 'الـSyntaxError أُصلح محلياً — النشر بانتظار الموافقة',
+    'bk.adminJson': 'لقطات JSON إدارية', 'bk.available': 'متاح', 'bk.adminJsonNote': 'تنزيل لكل حساب + استعادة بلقطة أولية أدناه', 'bk.perAccount': 'وضع الاستعادة لكل حساب',
+    'ac.title': 'الجلسات والنشاط', 'ac.sub': 'تُعرض الأحداث المسجلة فقط — لا يوجد تتبع حضور سيرفري بعد',
+    'ac.lastLogin': 'آخر دخول مستخدم (أي حساب)', 'ac.active7': 'حسابات ظهرت بنافذة البيانات الوصفية',
+    'ac.active7Note': 'مشتق من last_sign_in_at — ليس مؤشر حضور حياً', 'ac.presence': 'الحضور الحيّ (متصل الآن)',
+    'ac.presenceNote': 'يتطلب last_seen — نقطة الامتداد: جدول codes + codeFlags()', 'ac.loginsChart': 'الدخول أسبوعياً — آخر 8 أسابيع (من بيانات الحساب)',
+    'se.title': 'الأمان وإعادة التعيين', 'se.sub': 'لا تُعرض كلمات المرور نصاً صريحاً ولا تُخزن أبداً',
+    'se.session': 'جلسة الأدمن', 'se.failedAdmin': 'دخول أدمن فاشل', 'se.failedAdminNote': 'من جدول التدقيق غير القابل للتعديل',
+    'se.resets': 'روابط إعادة تعيين أُرسلت', 'se.rls': 'عزل قاعدة البيانات', 'se.rlsVal': 'RLS رفض افتراضي',
+    'se.rlsNote': 'كل الجداول الـ7: وصول service-role فقط عبر gymos-api', 'se.recentResets': 'أحدث نشاط إعادة تعيين',
+    'au.title': 'أخطاء النظام وسجل التدقيق', 'au.sub': 'واجهات الأدمن الموجودة — صارت ظاهرة', 'au.errors': 'سجل الأخطاء', 'au.audit': 'سجل تدقيق الأدمن',
+    've.title': 'إصدارات التطبيق', 've.sub': 'النسخة المنشورة مقابل آخر إصدار على GitHub',
+    've.shipped': 'نسخة التطبيق المنشورة', 've.latest': 'أحدث إصدار GitHub', 've.apk': 'ملفات الإصدار',
+    've.note': 'رفع الإصدار لازم يحرّك الملفات السبعة معاً (build.gradle, package.json, js/config.js, scripts/build.js, كاش sw.js, الاختبارات, index.html). المحدّث الذاتي يقارن النسخة المثبتة مع آخر tag.',
+    'st.title': 'إعدادات الأدمن', 'st.sub': 'تفضيلات الكونسول ومؤشرات النظام', 'st.prefs': 'تفضيلات الكونسول',
+    'st.theme': 'الثيم', 'st.lang': 'اللغة', 'st.system': 'مؤشرات النظام', 'st.auth': 'المصادقة',
+    'st.isolation': 'العزل', 'st.isolationVal': 'RLS رفض افتراضي · service-role فقط',
+    'st.danger': 'منطقة الخطر', 'st.dangerVal': 'لا توجد عناصر تحكم مدمرة بالتصميم',
+    'dr.overview': 'نظرة عامة', 'dr.license': 'الترخيص', 'dr.sync': 'المزامنة', 'dr.data': 'بيانات العملاء',
+    'dr.backup': 'النسخ', 'dr.security': 'الأمان', 'dr.timeline': 'النشاط',
+  },
+};
+function v2Lang() { return localStorage.getItem('dp_admin_lang') || 'ar'; }
+function applyI18n() {
+  const lang = v2Lang();
+  const dict = V2_I18N[lang] || V2_I18N.en;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const k = el.getAttribute('data-i18n');
+    if (dict[k]) el.textContent = dict[k];
+  });
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const seg = document.querySelector('#stLangSeg');
+  if (seg) seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.langPick === lang));
+}
+function setLang(lang) {
+  localStorage.setItem('dp_admin_lang', lang);
+  applyI18n();
+  const active = document.querySelector('.v2-view.active');
+  if (active) showView(active.id.replace('view-', '')); // re-render with new labels
+}
+
+// ---------- V2 theme ----------
+function setTheme(t) {
+  if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('dp_admin_theme', t);
+  const seg = document.querySelector('#stThemeSeg');
+  if (seg) seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.themePick === t));
+}
+
+// ---------- V2 router ----------
+const V2_LOADERS = {};
+function showView(name) {
+  const view = document.getElementById('view-' + name);
+  if (!view) return;
+  document.querySelectorAll('.v2-view').forEach(v => v.classList.remove('active'));
+  view.classList.add('active');
+  document.querySelectorAll('.v2-nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  document.body.classList.remove('sidebar-open');
+  if (location.hash !== '#view-' + name) history.replaceState(null, '', '#view-' + name);
+  if (V2_LOADERS[name]) { try { V2_LOADERS[name](); } catch (e) { console.error('V2 loader failed:', e); } }
+}
+
+// ---------- V2: Overview ----------
+function weeklyBuckets(field) {
+  const weeks = [];
+  const now = new Date();
+  for (let i = 7; i >= 0; i--) {
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7 + 1);
+    const start = new Date(end.getTime() - 7 * 86400000);
+    weeks.push({ start: start.getTime(), end: end.getTime(), label: new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: 0 });
+  }
+  for (const u of allUsers) {
+    const t = Number(u[field] || 0);
+    if (!t) continue;
+    const b = weeks.find(w => t >= w.start && t < w.end + 7 * 86400000);
+    if (b) b.value++;
+  }
+  return weeks;
+}
+async function refreshOverview() {
+  const now = Date.now();
+  const suspended = allUsers.filter(u => u.status === 'suspended').length;
+  const ovS = document.getElementById('ovSuspended'); if (ovS) ovS.textContent = String(suspended);
+  const reg30 = allUsers.filter(u => u.created && u.created > now - 30 * 86400000).length;
+  const regNote = document.getElementById('ovRegNote');
+  if (regNote) regNote.textContent = '+' + reg30 + ' في آخر 30 يوم / in last 30 days';
+  const growthEl = document.getElementById('ovGrowthChart');
+  if (growthEl) growthEl.innerHTML = v2Bars(weeklyBuckets('created'), 'var(--accent)');
+
+  const active = allUsers.filter(u => u.status !== 'suspended' && u.subscription !== 'none' && (!u.subEnd || u.subEnd > now)).length;
+  const trial = allUsers.filter(u => u.subscription === 'trial' && u.subEnd && u.subEnd > now && u.status !== 'suspended').length;
+  const expired = allUsers.filter(u => u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now).length;
+  const lifetime = allUsers.filter(u => u.subscription === 'lifetime' && u.status !== 'suspended').length;
+  const none = allUsers.filter(u => u.subscription === 'none' && u.status !== 'suspended').length;
+  const donutEl = document.getElementById('ovDonut');
+  if (donutEl) donutEl.innerHTML = v2Donut([
+    { label: 'Active', value: Math.max(0, active - trial - lifetime), color: 'var(--success)' },
+    { label: 'Trial', value: trial, color: 'var(--info)' },
+    { label: 'Lifetime', value: lifetime, color: 'var(--accent)' },
+    { label: 'Expired', value: expired, color: 'var(--danger)' },
+    { label: 'Suspended', value: suspended, color: 'var(--warning)' },
+    { label: 'None', value: none, color: 'var(--text-muted)' },
+  ]);
+
+  try {
+    const errs = await v2FetchErrors();
+    const unresolved = errs.filter(e => !e.resolved);
+    const sf = document.getElementById('ovSyncFail'); if (sf) sf.textContent = String(unresolved.length);
+    const sfn = document.getElementById('ovSyncFailNote'); if (sfn) sfn.textContent = unresolved.length + ' / ' + errs.length + ' unresolved';
+    const alertsEl = document.getElementById('ovAlerts');
+    if (alertsEl) {
+      const topErrs = unresolved.slice(0, 4);
+      alertsEl.innerHTML = topErrs.length
+        ? topErrs.map(e => tlItem(ts(e.created_at), `<b>${esc(e.error_code || 'ERR')}</b> — ${esc((e.error_message || e.endpoint || '').slice(0, 90))}`, 'red')).join('')
+        : '<div class="empty-state"><span class="icon">✅</span><p class="empty-state-text">No unresolved alerts / لا تنبيهات معلقة</p></div>';
+    }
+  } catch { const sf = document.getElementById('ovSyncFail'); if (sf) sf.textContent = '—'; }
+
+  try {
+    const audit = await v2FetchAudit();
+    const act = document.getElementById('ovActivity');
+    if (act) act.innerHTML = audit.slice(0, 8).map(e => tlItem(ts(e.created_at), `<b>${esc(e.action)}</b> ${e.target_type ? '· ' + esc(e.target_type) + ' ' + esc(shortId(e.target_id)) : ''} <span style="color:var(--text-muted)">— ${esc(e.admin_email || '')}</span>`)).join('');
+  } catch { const act = document.getElementById('ovActivity'); if (act) act.innerHTML = '<div class="empty-state"><p class="empty-state-text">Audit log unavailable</p></div>'; }
+}
+
+// ---------- V2: Cloud Sync view ----------
+function syncHealthOf(lastSyncMs) {
+  if (!lastSyncMs) return '<span class="badge badge-neutral">No sync yet</span>';
+  const age = Date.now() - lastSyncMs;
+  if (age < 7 * 86400000) return '<span class="badge badge-success">Healthy</span>';
+  if (age < 30 * 86400000) return '<span class="badge badge-warning">Stale</span>';
+  return '<span class="badge badge-danger">Very stale</span>';
+}
+async function refreshSyncView() {
+  const health = document.getElementById('syApiHealth');
+  try {
+    await api('/api/health');
+    if (health) { health.textContent = 'REACHABLE'; health.style.color = 'var(--success)'; }
+    const hn = document.getElementById('syApiHealthNote'); if (hn) hn.textContent = 'GET /api/health returned 200';
+  } catch (e) {
+    if (health) { health.textContent = 'UNREACHABLE'; health.style.color = 'var(--danger)'; }
+    const hn = document.getElementById('syApiHealthNote'); if (hn) hn.textContent = String(e.message || e).slice(0, 80);
+  }
+  try {
+    const errs = await v2FetchErrors();
+    const authFail = errs.filter(e => /401|403|FORBIDDEN|UNAUTHORIZED|AUTH/i.test(String(e.error_code || '') + ' ' + String(e.endpoint || '')));
+    const af = document.getElementById('syAuthFail'); if (af) af.textContent = String(authFail.length);
+    const te = document.getElementById('syTotalErr'); if (te) te.textContent = String(errs.length);
+  } catch { const af = document.getElementById('syAuthFail'); if (af) af.textContent = '—'; }
+  try {
+    const stats = await v2FetchStats();
+    let maxSync = 0;
+    const byOwner = new Map();
+    for (const s of stats) {
+      const key = String(s.owner || '').toLowerCase();
+      if (!byOwner.has(key)) byOwner.set(key, []);
+      byOwner.get(key).push(s);
+      maxSync = Math.max(maxSync, Number(s.lastSync) || 0);
+    }
+    const lo = document.getElementById('syLastOk'); if (lo) lo.innerHTML = maxSync ? fmtSync(maxSync) + ' · ' + fmtAgo(maxSync) : '—';
+    const body = document.getElementById('syTableBody');
+    if (body) {
+      body.innerHTML = stats.length ? stats.map(s => {
+        const u = allUsers.find(x => String(x.email || '').toLowerCase() === String(s.owner || '').toLowerCase() || (x._gymCodes || []).includes(s.code));
+        return `<tr>
+          <td>${esc(u ? (u.name || u.email || '—') : (s.owner || '—'))}${u ? `<span class="subline">${esc(u.email || '')}</span>` : ''}</td>
+          <td class="mono">${esc(s.code || '—')}</td>
+          <td class="text-center font-mono">${Number(s.members) || 0}</td>
+          <td>${s.lastSync ? fmtSync(Number(s.lastSync)) + ' <span class="subline">' + fmtAgo(Number(s.lastSync)) + '</span>' : '<span class="opacity-40">—</span>'}</td>
+          <td>${syncHealthOf(Number(s.lastSync) || 0)}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="5"><div class="empty-state"><span class="icon">☁️</span><p class="empty-state-text">No cloud sync rows recorded yet</p></div></td></tr>';
+    }
+  } catch {
+    const body = document.getElementById('syTableBody');
+    if (body) body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p class="empty-state-text">Failed to load sync stats</p></div></td></tr>';
+  }
+}
+
+// ---------- V2: Backups view ----------
+async function refreshBackupsView() {
+  const drive = document.getElementById('bkDrive');
+  try {
+    const r = await fetch(API_BASE.replace('/gymos-api', '/gymos-drive-backup') + '/health', { method: 'GET' });
+    if (r.ok) { if (drive) { drive.textContent = 'UP'; drive.style.color = 'var(--success)'; } }
+    else { if (drive) { drive.textContent = 'DOWN (' + r.status + ')'; drive.style.color = 'var(--danger)'; } }
+  } catch { if (drive) { drive.textContent = 'DOWN'; drive.style.color = 'var(--danger)'; } }
+  const body = document.getElementById('bkTableBody');
+  if (!body) return;
+  try {
+    const stats = await v2FetchStats();
+    if (!stats.length) { body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">☁️</span><p class="empty-state-text">No accounts with cloud data yet</p></div></td></tr>'; return; }
+    body.innerHTML = stats.map(s => {
+      const u = allUsers.find(x => String(x.email || '').toLowerCase() === String(s.owner || '').toLowerCase() || (x._gymCodes || []).includes(s.code));
+      const uid = u ? u.id : '';
+      const actions = uid ? `
+        <div class="flex gap-1 flex-wrap justify-end">
+          <button class="btn btn-secondary btn-sm" data-bk="view" data-id="${escAttr(uid)}">👁</button>
+          <button class="btn btn-secondary btn-sm" data-bk="backup" data-id="${escAttr(uid)}">⬇</button>
+          <button class="btn btn-secondary btn-sm" data-bk="restore" data-id="${escAttr(uid)}">⬆</button>
+        </div>` : '<span class="na-pill">account not on this page</span>';
+      return `<tr>
+        <td>${esc(u ? (u.name || u.email || '—') : (s.owner || '—'))}${u ? `<span class="subline">${esc(u.email || '')}</span>` : ''}</td>
+        <td class="mono">${esc(s.code || '—')}</td>
+        <td class="text-center font-mono">${Number(s.members) || 0}</td>
+        <td>${s.lastSync ? fmtSync(Number(s.lastSync)) + ' <span class="subline">' + fmtAgo(Number(s.lastSync)) + '</span>' : '<span class="opacity-40">—</span>'}</td>
+        <td>${actions}</td>
+      </tr>`;
+    }).join('');
+  } catch {
+    body.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p class="empty-state-text">Failed to load recovery posture</p></div></td></tr>';
+  }
+}
+
+// ---------- V2: Sessions & Activity view ----------
+async function refreshActivityView() {
+  const seen = allUsers.filter(u => u.lastSignIn);
+  const latest = seen.reduce((m, u) => Math.max(m, u.lastSignIn), 0);
+  const ll = document.getElementById('acLastLogin');
+  if (ll) ll.innerHTML = latest ? fmtSync(latest) + ' <span class="subline">' + fmtAgo(latest) + '</span>' : '—';
+  const a7 = document.getElementById('acActive7');
+  if (a7) a7.textContent = String(seen.filter(u => u.lastSignIn > Date.now() - 7 * 86400000).length);
+  const chart = document.getElementById('acLoginsChart');
+  if (chart) chart.innerHTML = v2Bars(weeklyBuckets('lastSignIn'), 'var(--info)');
+}
+
+// ---------- V2: Security view ----------
+async function refreshSecurityView() {
+  const token = sessionStorage.getItem('dp_admin_token') || '';
+  const sess = document.getElementById('seSession');
+  const note = document.getElementById('seSessionNote');
+  if (sess) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1] || '{}'));
+      const exp = payload.exp ? payload.exp * 1000 : 0;
+      sess.textContent = payload.admin ? 'HS256 admin JWT' : 'session token';
+      if (note) note.textContent = exp ? 'Expires ' + fmtDay(exp) + ' · sessionStorage (per tab)' : 'sessionStorage (per tab)';
+    } catch { sess.textContent = 'session token'; if (note) note.textContent = 'sessionStorage (per tab)'; }
+  }
+  try {
+    const audit = await v2FetchAudit();
+    const failed = audit.filter(e => e.action === 'login_failed');
+    const resets = audit.filter(e => e.action === 'send_reset_email' || e.action === 'reset_password' || /reset/i.test(String(e.action)));
+    const fa = document.getElementById('seFailedAdmin'); if (fa) fa.textContent = String(failed.length);
+    const rs = document.getElementById('seResets'); if (rs) rs.textContent = String(resets.length);
+    const list = document.getElementById('seResetList');
+    if (list) {
+      list.innerHTML = resets.length
+        ? resets.slice(0, 8).map(e => {
+            const d = v2Parse(e.details);
+            const target = (d && (d.email || d.user_email)) || e.target_id || '';
+            return tlItem(ts(e.created_at), `<b>${esc(e.action)}</b> → ${esc(String(target).slice(0, 60))} <span style="color:var(--text-muted)">by ${esc(e.admin_email || '')}</span>`, 'green');
+          }).join('')
+        : '<div class="empty-state"><span class="icon">📭</span><p class="empty-state-text">No reset activity recorded yet</p></div>';
+    }
+  } catch { const fa = document.getElementById('seFailedAdmin'); if (fa) fa.textContent = '—'; }
+}
+
+// ---------- V2: Errors & Audit view ----------
+async function refreshAuditView(force) {
+  const errBody = document.getElementById('auErrBody');
+  try {
+    const errs = await v2FetchErrors(force);
+    const cnt = document.getElementById('auErrCount'); if (cnt) cnt.textContent = String(errs.length);
+    if (errBody) {
+      errBody.innerHTML = errs.length ? errs.map(e => `<tr>
+        <td class="text-xs whitespace-nowrap">${fmtDay(ts(e.created_at))} <span class="subline">${fmtAgo(ts(e.created_at))}</span></td>
+        <td class="mono text-xs">${esc((e.method || '') + ' ' + (e.endpoint || '')).slice(0, 42)}</td>
+        <td class="mono text-xs" style="color:var(--danger);">${esc(e.error_code || '—')}</td>
+        <td class="text-xs" style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escAttr(String(e.error_message || ''))}">${esc(String(e.error_message || '—').slice(0, 70))}</td>
+        <td class="mono text-xs">${esc(shortId(e.user_code || e.user_id || e.gym_code))}</td>
+        <td>${e.resolved ? '<span class="badge badge-success">resolved</span>' : '<span class="badge badge-danger">open</span>'}</td>
+        <td><button class="btn ${e.resolved ? 'btn-secondary' : 'btn-success'} btn-sm" data-err-resolve="${escAttr(String(e.id))}" data-resolved="${e.resolved ? '1' : '0'}">${e.resolved ? 'Reopen' : 'Resolve'}</button></td>
+      </tr>`).join('') : '<tr><td colspan="7"><div class="empty-state"><span class="icon">✅</span><p class="empty-state-text">No errors recorded — clean log</p></div></td></tr>';
+    }
+  } catch {
+    if (errBody) errBody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p class="empty-state-text">Failed to load error log</p></div></td></tr>';
+  }
+  const audList = document.getElementById('auAuditList');
+  try {
+    const audit = await v2FetchAudit(force);
+    const cnt = document.getElementById('auAuditCount'); if (cnt) cnt.textContent = String(audit.length);
+    if (audList) {
+      audList.innerHTML = audit.slice(0, 50).map(e => {
+        const d = v2Parse(e.details);
+        const detailStr = Object.keys(d || {}).length ? `<details style="margin-top:4px;"><summary style="cursor:pointer; font-size:0.68rem; color:var(--text-muted);">details</summary><pre class="mono" style="font-size:0.62rem; color:var(--text-muted); white-space:pre-wrap; margin:4px 0 0;">${esc(JSON.stringify(d, null, 1).slice(0, 400))}</pre></details>` : '';
+        return tlItem(ts(e.created_at), `<b>${esc(e.action)}</b> ${e.target_type ? '· ' + esc(e.target_type) + ' ' + esc(shortId(e.target_id)) : ''} <span style="color:var(--text-muted)">— ${esc(e.admin_email || '')}</span>${detailStr}`, e.action === 'login_failed' ? 'red' : '');
+      }).join('') || '<div class="empty-state"><p class="empty-state-text">No audit entries yet</p></div>';
+    }
+  } catch {
+    if (audList) audList.innerHTML = '<div class="empty-state"><p class="empty-state-text">Failed to load audit trail</p></div>';
+  }
+}
+
+// ---------- V2: Versions view ----------
+async function refreshVersionsView() {
+  const shipped = document.getElementById('veShipped');
+  const badge = document.getElementById('v2VersionBadge');
+  const v = (appConfig && appConfig.appVersion) || '?';
+  if (shipped) shipped.textContent = String(v);
+  if (badge) badge.textContent = String(v);
+  try {
+    const r = await fetch('https://api.github.com/repos/ibrheamkhalaf88-collab/GymOS/releases/latest');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const rel = await r.json();
+    const lat = document.getElementById('veLatest');
+    if (lat) lat.textContent = String(rel.tag_name || '—');
+    const latN = document.getElementById('veLatestNote');
+    if (latN) latN.textContent = 'published ' + (rel.published_at ? fmtDay(Date.parse(rel.published_at)) : '—');
+    const assets = document.getElementById('veAssets');
+    if (assets) assets.textContent = (rel.assets || []).map(a => a.name).join(' · ') || 'none';
+  } catch (e) {
+    const lat = document.getElementById('veLatest');
+    if (lat) { lat.textContent = 'unavailable'; lat.style.color = 'var(--text-muted)'; }
+    const latN = document.getElementById('veLatestNote');
+    if (latN) latN.textContent = String(e.message || e).slice(0, 60);
+  }
+}
+
+// ---------- V2: Account Detail Drawer ----------
+let drCurrent = null; // current account user object
+function dispatchRowAction(action, id, email) {
+  // Reuse the audited users-table delegation (confirm dialogs, audit, refresh)
+  const btn = document.createElement('button');
+  btn.dataset.action = action;
+  if (id) btn.dataset.id = id;
+  if (email) btn.dataset.email = email;
+  btn.style.display = 'none';
+  elements.usersTableBody.appendChild(btn);
+  btn.click();
+  btn.remove();
+}
+function drKv(rows) {
+  return rows.map(r => `<dt>${esc(r[0])}</dt><dd>${r[1]}</dd>`).join('');
+}
+function userCodesOf(u, codes) {
+  const email = String(u.email || '').toLowerCase();
+  return (codes || []).filter(c => String(c.owner || '').toLowerCase() === email || String(c.owner || '') === 'user:' + u.id);
+}
+async function openAccount(id) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) { showToast('Account not on this page — refresh first', 'error'); return; }
+  drCurrent = u;
+  const ov = document.getElementById('drawerOverlay');
+  if (!ov) return;
+  ov.classList.remove('hidden');
+  const av = document.getElementById('drAvatar');
+  if (av) av.textContent = (u.name || '?').charAt(0).toUpperCase();
+  const nm = document.getElementById('drName'); if (nm) nm.textContent = u.name || u.email || '—';
+  const em = document.getElementById('drEmail'); if (em) em.textContent = u.email || '—';
+  const st = document.getElementById('drStatusBadge');
+  if (st) { st.innerHTML = tierBadge(u); }
+  drShowTab('overview');
+}
+function closeDrawer() {
+  const ov = document.getElementById('drawerOverlay');
+  if (ov) ov.classList.add('hidden');
+  drCurrent = null;
+}
+function drShowTab(name) {
+  document.querySelectorAll('#drTabs button').forEach(b => b.classList.toggle('active', b.dataset.drtab === name));
+  document.querySelectorAll('.drawer-tabpanel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('drt-' + name);
+  if (panel) panel.classList.add('active');
+  const R = {
+    overview: drRenderOverview, license: drRenderLicense, sync: drRenderSync,
+    data: drRenderData, backup: drRenderBackup, security: drRenderSecurity, timeline: drRenderTimeline,
+  }[name];
+  if (R) { try { R(drCurrent); } catch (e) { console.error('drawer tab failed:', e); } }
+}
+function drRenderOverview(u) {
+  if (!u) return;
+  const kv = document.getElementById('drOverviewKv');
+  if (!kv) return;
+  const now = Date.now();
+  const daysLeft = u.subEnd ? Math.max(0, Math.ceil((u.subEnd - now) / 86400000)) : null;
+  kv.innerHTML = drKv([
+    ['User ID', `<span class="mono copyable" data-copy="${escAttr(u.id || '')}" title="Click to copy">${esc(u.id || '—')}</span>`],
+    ['Email', `<span class="copyable" data-copy="${escAttr(u.email || '')}">${esc(u.email || '—')}</span>`],
+    ['Gym name', esc(u.gym_name || '—')],
+    ['Registered', u.created ? esc(fmtDay(u.created)) + ' <span class="subline">' + fmtAgo(u.created) + '</span>' : '<span class="na-pill">NOT AVAILABLE</span>'],
+    ['Account status', u.status === 'suspended' ? '<span class="badge badge-danger">suspended</span>' : '<span class="badge badge-success">active</span>'],
+    ['Subscription', esc(TIER_LABEL[u.subscription] || u.subscription || '—')],
+    ['Expires', u.subEnd ? esc(fmtDay(u.subEnd)) : (u.subscription === 'lifetime' ? 'lifetime' : '—')],
+    ['Days remaining', daysLeft != null ? String(daysLeft) : (u.subscription === 'lifetime' ? 'unlimited' : '—')],
+    ['Last login', u.lastSignIn ? esc(fmtDay(u.lastSignIn)) + ' <span class="subline">' + fmtAgo(u.lastSignIn) + '</span>' : '<span class="na-pill">NOT AVAILABLE</span>'],
+    ['Last activity', '<span class="na-pill">NOT AVAILABLE</span>'],
+    ['Presence', '<span class="na-pill">NOT AVAILABLE</span>'],
+    ['App version', '<span class="na-pill">NOT TRACKED</span>'],
+  ]);
+  kv.querySelectorAll('[data-copy]').forEach(el => el.addEventListener('click', () => {
+    navigator.clipboard.writeText(el.dataset.copy || '').then(() => showToast('Copied / تم النسخ', 'success')).catch(() => {});
+  }));
+}
+async function drRenderLicense(u) {
+  const panel = document.getElementById('drt-license');
+  if (!panel || !u) return;
+  panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
+  const codes = await v2FetchCodes().catch(() => []);
+  const mine = userCodesOf(u, codes);
+  const rows = mine.length ? mine.map(c => {
+    const exp = (Number(c.days) > 0 && c.used_at) ? Date.parse(c.used_at) + Number(c.days) * 86400000 : null;
+    return `<div class="result-box" style="margin-bottom:0.6rem; flex-wrap:wrap;">
+      <span class="result-code" style="font-size:1.05rem;">${esc(c.code)}</span>
+      <span class="badge ${c.revoked ? 'badge-danger' : 'badge-success'}">${c.revoked ? 'revoked' : 'active'}</span>
+      <span class="text-xs" style="color:var(--text-muted);">tier ${esc(c.tier || '—')} · ${Number(c.days) || 0}d · ${exp ? 'ends ' + esc(fmtDay(exp)) : (Number(c.days) > 0 ? 'never used' : 'lifetime')}</span>
+      <button class="btn btn-danger btn-sm" data-dr-revoke="${escAttr(c.code)}" ${c.revoked ? 'disabled' : ''}>Revoke</button>
+    </div>`;
+  }).join('') : '<div class="empty-state"><span class="icon">🔑</span><p class="empty-state-text">No activation code is linked to this account yet</p></div>';
+  panel.innerHTML = `
+    <dl class="kv" style="margin-bottom:1rem;">
+      ${drKv([
+        ['Activation date', u.subStart ? esc(fmtDay(u.subStart)) : (mine[0] && mine[0].used_at ? esc(fmtDay(Date.parse(mine[0].used_at))) : '—')],
+        ['Expiration', u.subEnd ? esc(fmtDay(u.subEnd)) : '—'],
+        ['Trial status', u.subscription === 'trial' ? 'trial plan' : '—'],
+      ])}
+    </dl>
+    <div class="chart-title" style="margin-bottom:0.5rem;">Linked codes</div>
+    ${rows}
+    <div class="chart-title" style="margin:1rem 0 0.5rem;">Controls</div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-secondary btn-sm" data-dr-act="edit">✎ Edit subscription</button>
+      ${u.status === 'suspended'
+        ? '<button class="btn btn-success btn-sm" data-dr-act="activate">▶️ Reactivate</button>'
+        : '<button class="btn btn-warning btn-sm" data-dr-act="suspend">⏸ Suspend</button>'}
+      <button class="btn btn-secondary btn-sm" data-dr-act="send-reset">🔑 Send password reset</button>
+      <button class="btn btn-secondary btn-sm" data-dr-assign="1">🔗 Assign code by email</button>
+    </div>
+    <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">Custom exact expiry dates are not supported by the existing API (it computes from +days). Extend via Edit subscription instead.</p>
+  `;
+  panel.querySelectorAll('[data-dr-act]').forEach(b => b.addEventListener('click', () => {
+    dispatchRowAction(b.dataset.drAct, u.id, u.email);
+    setTimeout(() => closeDrawer(), 400);
+  }));
+  panel.querySelectorAll('[data-dr-revoke]').forEach(b => b.addEventListener('click', async () => {
+    const code = b.dataset.drRevoke;
+    const ok = await showConfirm({ title: 'Revoke code', message: 'Revoking ' + code + ' blocks its cloud access immediately. Customer data is never deleted.', icon: '🚫', iconColor: '#fb5b74', okText: 'Revoke', okClass: 'btn-danger' });
+    if (!ok) return;
+    try { await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: true }) }); showToast('Code revoked', 'success'); drRenderLicense(u); }
+    catch (e) { showToast('Revoke failed: ' + e.message, 'error'); }
+  }));
+  const assignBtn = panel.querySelector('[data-dr-assign]');
+  if (assignBtn) assignBtn.addEventListener('click', async () => {
+    if (!mine.length) { showToast('Create a code first (New code button)', 'error'); return; }
+    const unlinked = mine;
+    const code = unlinked.length === 1 ? unlinked[0].code : (window.prompt('Code to link (' + unlinked.map(c => c.code).join(', ') + '):', unlinked[0].code) || '');
+    if (!code) return;
+    const owner = (window.prompt('Owner email for ' + code + ':', u.email || '') || '').trim().toLowerCase();
+    if (!owner) return;
+    const ok = await showConfirm({ title: 'Link code to account', message: code + ' will be owned by ' + owner, icon: '🔗', iconColor: '#38bdf8', okText: 'Link', okClass: 'btn-primary' });
+    if (!ok) return;
+    try { await api('/api/codes/' + encodeURIComponent(code) + '/owner', { method: 'PATCH', body: JSON.stringify({ owner }) }); showToast('Code linked (audited)', 'success'); V2_CACHE.codes = null; drRenderLicense(u); }
+    catch (e) { showToast('Link failed: ' + e.message, 'error'); }
+  });
+}
+async function drRenderSync(u) {
+  const panel = document.getElementById('drt-sync');
+  if (!panel || !u) return;
+  panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
+  const codes = await v2FetchCodes().catch(() => []);
+  const mine = userCodesOf(u, codes);
+  let html = '';
+  for (const c of mine) {
+    const g = await v2FetchGymForCode(c.code);
+    const rows = (g && g.gyms || []).map(x => `<tr>
+      <td class="mono text-xs">${esc(x.device_id || '(shared)')}</td>
+      <td>${x.saved_at ? esc(fmtDay(Date.parse(x.saved_at))) + ' <span class="subline">' + fmtAgo(Date.parse(x.saved_at)) + '</span>' : '—'}</td>
+    </tr>`).join('');
+    html += `<div class="chart-title" style="margin-bottom:0.4rem;">Code ${esc(c.code)}</div>
+      <table class="data-table" style="margin-bottom:1rem;"><thead><tr><th>Device row</th><th>Last saved</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="2"><span class="opacity-40">No cloud rows for this code</span></td></tr>'}</tbody></table>`;
+  }
+  let errHtml = '';
+  try {
+    const errs = (await v2FetchErrors()).filter(e => (e.user_code && mine.some(c => c.code === e.user_code)) || (e.user_id && e.user_id === u.id));
+    errHtml = `<div class="chart-title" style="margin:0.6rem 0 0.4rem;">Recorded errors for this account</div>` + (errs.length
+      ? '<div class="timeline">' + errs.slice(0, 6).map(e => tlItem(ts(e.created_at), `<b>${esc(e.error_code || 'ERR')}</b> ${esc(String(e.error_message || '').slice(0, 80))}`, 'red')).join('') + '</div>'
+      : '<p class="text-xs" style="color:var(--text-muted);">None recorded / لا أخطاء مسجلة</p>');
+  } catch { errHtml = ''; }
+  panel.innerHTML = (html || '<div class="empty-state"><span class="icon">☁️</span><p class="empty-state-text">This account has no linked code, so it cannot use cloud sync yet</p></div>') + errHtml +
+    `<p class="text-xs" style="color:var(--text-muted); margin-top:0.8rem;">The client retries failed syncs automatically every 20s while the app is open; no server-side retry endpoint exists.</p>`;
+}
+async function drRenderData(u) {
+  const panel = document.getElementById('drt-data');
+  if (!panel || !u) return;
+  panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
+  const codes = await v2FetchCodes().catch(() => []);
+  const mine = userCodesOf(u, codes);
+  if (!mine.length) { panel.innerHTML = '<div class="empty-state"><span class="icon">🗂️</span><p class="empty-state-text">No code linked — no cloud data exists for this account</p></div>'; return; }
+  let html = '';
+  for (const c of mine) {
+    const g = await v2FetchGymForCode(c.code);
+    const data = (g && g.gyms || []).reduce((acc, x) => ({ ...(acc || {}), ...(x.data || {}) }), {}) || {};
+    const members = Array.isArray(data.members) ? data.members : [];
+    const ledger = Array.isArray(data.ledger) ? data.ledger : [];
+    const revenue = ledger.reduce((s, e) => s + (Number(e && (e.amount != null ? e.amount : (e.total != null ? e.total : 0))) || 0), 0);
+    const counts = ['members', 'memberships', 'devices', 'trainers', 'ledger', 'checkins', 'notifications'].map(k =>
+      `<span class="badge ${Array.isArray(data[k]) ? 'badge-info' : 'badge-neutral'}">${esc(k)}: ${Array.isArray(data[k]) ? data[k].length : '—'}</span>`).join(' ');
+    const preview = members.slice(0, 5).map(m => `<li style="font-size:0.78rem; margin-bottom:2px;">${esc(String(m.name || '—').slice(0, 40))} <span class="subline" style="display:inline;">${m.expiresAt ? 'ends ' + esc(fmtDay(ts(m.expiresAt))) : ''}</span></li>`).join('');
+    html += `<div class="chart-title" style="margin-bottom:0.4rem;">Code ${esc(c.code)} — read-only summary</div>
+      <div style="margin-bottom:0.6rem;">${counts}</div>
+      <dl class="kv" style="margin-bottom:0.8rem;">
+        <dt>Recorded revenue (ledger)</dt><dd class="mono">${revenue ? revenue.toLocaleString('en-US') : '0'}</dd>
+        <dt>Last updated</dt><dd>${(g && g.gyms || []).reduce((m, x) => Math.max(m, x.saved_at ? Date.parse(x.saved_at) : 0), 0) ? fmtAgo((g.gyms).reduce((m, x) => Math.max(m, x.saved_at ? Date.parse(x.saved_at) : 0), 0)) : '—'}</dd>
+      </dl>
+      ${members.length ? `<div class="chart-title" style="margin-bottom:0.3rem;">Members preview (first 5 of ${members.length})</div><ul style="padding-inline-start:1.1rem;">${preview}</ul>` : ''}
+      <p class="text-xs" style="color:var(--text-muted); margin:0.6rem 0 1.2rem;">Full records stay in the account's own cloud row; this drawer never mixes accounts and never edits customer data.</p>`;
+  }
+  panel.innerHTML = html;
+}
+async function drRenderBackup(u) {
+  const panel = document.getElementById('drt-backup');
+  if (!panel || !u) return;
+  const codes = (await v2FetchCodes().catch(() => []));
+  const mine = userCodesOf(u, codes);
+  panel.innerHTML = `
+    <dl class="kv" style="margin-bottom:1rem;">
+      ${drKv([
+        ['Latest backup', '<span class="na-pill">NOT AVAILABLE</span> (Drive engine is down — deploy pending)'],
+        ['Backup integrity', '<span class="badge badge-warning">UNVERIFIED</span> <span class="subline">no isolated restore test has been run</span>'],
+        ['Recovery points', mine.length ? '1 cloud copy per code (mutable, no history)' : '—'],
+      ])}
+    </dl>
+    <div class="chart-title" style="margin-bottom:0.5rem;">Safe recovery actions</div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-secondary btn-sm" data-dr-act="viewdata">👁 View cloud data</button>
+      <button class="btn btn-secondary btn-sm" data-dr-act="backup">⬇ Download JSON snapshot</button>
+      <button class="btn btn-secondary btn-sm" data-dr-act="restore">⬆ Restore (snapshot-first)</button>
+    </div>
+    <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">Restore replaces the shared cloud row and hands back a snapshot of the previous data first. It never touches other accounts.</p>
+  `;
+  panel.querySelectorAll('[data-dr-act]').forEach(b => b.addEventListener('click', () => {
+    dispatchRowAction(b.dataset.drAct, u.id, u.email);
+    setTimeout(() => closeDrawer(), 400);
+  }));
+}
+async function drRenderSecurity(u) {
+  const panel = document.getElementById('drt-security');
+  if (!panel || !u) return;
+  let errHtml = '';
+  try {
+    const errs = (await v2FetchErrors()).filter(e => e.user_id && e.user_id === u.id);
+    errHtml = errs.length ? '<div class="chart-title" style="margin:0.8rem 0 0.4rem;">Recorded failures</div><div class="timeline">' + errs.slice(0, 5).map(e => tlItem(ts(e.created_at), `<b>${esc(e.error_code || 'ERR')}</b> ${esc(String(e.error_message || '').slice(0, 70))}`, 'red')).join('') + '</div>' : '';
+  } catch { errHtml = ''; }
+  panel.innerHTML = `
+    <dl class="kv" style="margin-bottom:1rem;">
+      ${drKv([
+        ['Last authenticated activity', u.lastSignIn ? esc(fmtDay(u.lastSignIn)) + ' <span class="subline">' + fmtAgo(u.lastSignIn) + '</span>' : '<span class="na-pill">NOT AVAILABLE</span>'],
+        ['Failed login events', '<span class="na-pill">NOT AVAILABLE</span> <span class="subline">user-side login failures are not logged by the existing API</span>'],
+        ['Active sessions / revoke', '<span class="na-pill">NOT AVAILABLE</span> <span class="subline">GoTrue admin sign-out is not exposed by the existing API</span>'],
+        ['Suspension state', u.status === 'suspended' ? '<span class="badge badge-danger">suspended</span>' : '<span class="badge badge-success">active</span>'],
+      ])}
+    </dl>
+    <div class="chart-title" style="margin-bottom:0.5rem;">Controls</div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-secondary btn-sm" data-dr-act="send-reset">🔑 Initiate password reset</button>
+      ${u.status === 'suspended'
+        ? '<button class="btn btn-success btn-sm" data-dr-act="activate">▶️ Reactivate</button>'
+        : '<button class="btn btn-warning btn-sm" data-dr-act="suspend">⏸ Suspend</button>'}
+    </div>
+    <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">The reset link is emailed by GoTrue — no password is ever displayed here. Suspension never deletes customer data.</p>
+  ` + errHtml;
+  panel.querySelectorAll('[data-dr-act]').forEach(b => b.addEventListener('click', () => {
+    dispatchRowAction(b.dataset.drAct, u.id, u.email);
+    setTimeout(() => closeDrawer(), 400);
+  }));
+}
+async function drRenderTimeline(u) {
+  const panel = document.getElementById('drt-timeline');
+  if (!panel || !u) return;
+  panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
+  const items = [];
+  if (u.created) items.push({ t: u.created, html: '<b>Account registered</b> (Supabase auth)', tone: 'green' });
+  if (u.lastSignIn) items.push({ t: u.lastSignIn, html: '<b>Last sign-in</b>', tone: '' });
+  if (u.subStart) items.push({ t: u.subStart, html: '<b>Subscription window started</b>', tone: '' });
+  try {
+    const codes = await v2FetchCodes().catch(() => []);
+    const mine = userCodesOf(u, codes);
+    const audit = await v2FetchAudit().catch(() => []);
+    const needle = [u.id, String(u.email || '').toLowerCase(), ...mine.map(c => c.code)].filter(Boolean).map(String);
+    for (const e of audit) {
+      const d = v2Parse(e.details);
+      const hay = JSON.stringify([e.target_id, e.target_type, d]).toLowerCase();
+      if (needle.some(n => hay.includes(String(n).toLowerCase()))) {
+        items.push({ t: ts(e.created_at), html: `<b>${esc(e.action)}</b> <span style="color:var(--text-muted)">by ${esc(e.admin_email || '')}</span>`, tone: e.action === 'login_failed' ? 'red' : '' });
+      }
+    }
+  } catch { /* timeline shows recorded items only */ }
+  items.sort((a, b) => (b.t || 0) - (a.t || 0));
+  panel.innerHTML = items.length
+    ? '<div class="timeline">' + items.slice(0, 30).map(i => tlItem(i.t, i.html, i.tone)).join('') + '</div>'
+    : '<div class="empty-state"><span class="icon">📜</span><p class="empty-state-text">No recorded events for this account yet — nothing is fabricated</p></div>';
+}
+
+// ---------- V2 init ----------
+V2_LOADERS.overview = refreshOverview;
+V2_LOADERS.sync = refreshSyncView;
+V2_LOADERS.backups = refreshBackupsView;
+V2_LOADERS.activity = refreshActivityView;
+V2_LOADERS.security = refreshSecurityView;
+V2_LOADERS.audit = () => refreshAuditView(false);
+V2_LOADERS.versions = refreshVersionsView;
+
+function v2Init() {
+  applyI18n();
+  setTheme(localStorage.getItem('dp_admin_theme') || 'dark');
+
+  // Sidebar navigation
+  document.querySelectorAll('.v2-nav-item').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+  document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => showView(b.dataset.goto)));
+  const burger = document.getElementById('v2Burger');
+  if (burger) burger.addEventListener('click', () => document.body.classList.toggle('sidebar-open'));
+  const scrim = document.getElementById('sidebarScrim');
+  if (scrim) scrim.addEventListener('click', () => document.body.classList.remove('sidebar-open'));
+
+  // Topbar toggles
+  const themeBtn = document.getElementById('v2ThemeBtn');
+  if (themeBtn) themeBtn.addEventListener('click', () => setTheme(document.documentElement.hasAttribute('data-theme') ? 'dark' : 'light'));
+  const langBtn = document.getElementById('v2LangBtn');
+  if (langBtn) langBtn.addEventListener('click', () => setLang(v2Lang() === 'ar' ? 'en' : 'ar'));
+
+  // Settings segments
+  document.querySelectorAll('#stThemeSeg button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.themePick)));
+  document.querySelectorAll('#stLangSeg button').forEach(b => b.addEventListener('click', () => setLang(b.dataset.langPick)));
+
+  // Row click → Account Detail Center (buttons keep their own handlers)
+  if (elements.usersTableBody) {
+    elements.usersTableBody.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action], button, a, input, select')) return;
+      const row = e.target.closest('[data-open-account]');
+      if (row) openAccount(row.dataset.openAccount);
+    });
+  }
+
+  // Drawer controls
+  const drCloseBtn = document.getElementById('drClose');
+  if (drCloseBtn) drCloseBtn.addEventListener('click', closeDrawer);
+  const drOverlay = document.getElementById('drawerOverlay');
+  if (drOverlay) drOverlay.addEventListener('click', (e) => { if (e.target === drOverlay) closeDrawer(); });
+  document.querySelectorAll('#drTabs button').forEach(b => b.addEventListener('click', () => drShowTab(b.dataset.drtab)));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+  // Backups center per-row actions (reuse audited flows)
+  const bkBody = document.getElementById('bkTableBody');
+  if (bkBody) bkBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-bk]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const map = { view: 'viewdata', backup: 'backup', restore: 'restore' };
+    dispatchRowAction(map[btn.dataset.bk] || btn.dataset.bk, id);
+  });
+
+  // Errors resolve/reopen
+  const errBody = document.getElementById('auErrBody');
+  if (errBody) errBody.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-err-resolve]');
+    if (!btn) return;
+    const id = btn.dataset.errResolve;
+    const resolved = btn.dataset.resolved !== '1';
+    try {
+      await api('/api/admin/errors/resolve', { method: 'PATCH', body: JSON.stringify({ id, resolved }) });
+      showToast(resolved ? 'Error marked resolved (audited)' : 'Error reopened', 'success');
+      V2_CACHE.errors = null;
+      refreshAuditView(true);
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+  });
+  const errRef = document.getElementById('auErrRefresh');
+  if (errRef) errRef.addEventListener('click', () => refreshAuditView(true));
+  const audRef = document.getElementById('auAuditRefresh');
+  if (audRef) audRef.addEventListener('click', () => refreshAuditView(true));
+
+  // Boot view from hash, then periodic overview refresh
+  const initial = (location.hash.match(/view-([a-z]+)/) || [])[1];
+  showView(initial && document.getElementById('view-' + initial) ? initial : 'overview');
+  setInterval(() => {
+    const active = document.querySelector('.v2-view.active');
+    if (active && active.id === 'view-overview') refreshOverview().catch(() => {});
+  }, 90000);
+  window.__V2_OK = true; // QA probe: v2Init completed all wiring
+}
+v2Init();

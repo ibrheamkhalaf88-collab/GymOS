@@ -65,9 +65,15 @@
         const apiUrl = (appConfig.apiUrl || '').replace(/\/+$/, '');
         const driveApiUrl = apiUrl.replace('/gymos-api', '/gymos-drive-backup');
 
+        const auth = localStorage.getItem('dp_jwt') || sessionStorage.getItem('dp_jwt') || '';
         const res = await fetch(`${driveApiUrl}/connect`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // The function requires the same JWT the app uses for sync
+            // (authUser). Without it every connect attempt returned 401.
+            ...(auth ? { Authorization: `Bearer ${auth}` } : {}),
+          },
           body: JSON.stringify({ code, redirectUri: window.location.origin + '/auth/drive-callback.html' }),
         });
 

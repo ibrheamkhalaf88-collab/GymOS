@@ -34,7 +34,7 @@ jobs:
           curl -s -X PATCH -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             -H "Content-Type: application/json" \
             "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
-            -d "{\"smtp_host\":\"smtp.gmail.com\",\"smtp_port\":587,\"smtp_admin_email\":\"digitalpulse.ps@gmail.com\",\"smtp_sender_name\":\"Digital Pulse\",\"smtp_user\":\"digitalpulse.ps@gmail.com\",\"smtp_pass\":\"$SMTP_APP_PASSWORD\"}" \
+            -d "{\"smtp_host\":\"smtp.gmail.com\",\"smtp_port\":\"587\",\"smtp_admin_email\":\"digitalpulse.ps@gmail.com\",\"smtp_sender_name\":\"Digital Pulse\",\"smtp_user\":\"digitalpulse.ps@gmail.com\",\"smtp_pass\":\"$SMTP_APP_PASSWORD\"}" \
             | jq '{smtp_host, smtp_port, smtp_user, smtp_sender_name, smtp_admin_email}'
 
       - name: Confirm applied config

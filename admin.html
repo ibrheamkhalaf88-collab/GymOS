@@ -20,25 +20,41 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
+      /* V2 Control Center — true black + brand lime (matches the app theme) */
       --bg: #000000;
       --bg-elevated: #0a0a0a;
       --bg-card: #0d0d0d;
-      --border: #2a2a2a;
-      --border-bright: #444933;
+      --border: #262626;
+      --border-bright: #3f442e;
       --text: #e2e4cf;
       --text-muted: #8b917a;
       --accent: #CCFF00;
       --accent-dim: #B8E600;
+      --brand: #CCFF00;
       --danger: #ff3366;
       --danger-dim: #cc2952;
       --warning: #ff9800;
       --info: #8888ff;
       --success: #25D366;
-      --radius: 12px;
-      --radius-sm: 8px;
-      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      --shadow-glow: 0 0 40px rgba(204, 255, 0, 0.15);
-      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --radius: 14px;
+      --radius-sm: 9px;
+      --shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+      --shadow-glow: 0 0 40px rgba(204, 255, 0, 0.13);
+      --transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+      --sidebar-w: 248px;
+    }
+    html[data-theme="light"] {
+      --bg: #f4f6ef;
+      --bg-elevated: #ffffff;
+      --bg-card: #ffffff;
+      --border: #e3e6d8;
+      --border-bright: #c9cfae;
+      --text: #1c2113;
+      --text-muted: #63684f;
+      --accent: #5c7a00;
+      --accent-dim: #4a6300;
+      --shadow: 0 8px 28px rgba(28, 33, 19, 0.10);
+      --shadow-glow: 0 0 30px rgba(92, 122, 0, 0.12);
     }
 
     * { box-sizing: border-box; }
@@ -489,6 +505,190 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
+
+    /* ============================================================
+       V2 CONTROL CENTER — layout, sidebar, views, drawer, charts
+       ============================================================ */
+    body.v2 { background: var(--bg); }
+    body.v2 .cyber-grid { background-image: none; }
+
+    .v2-shell { display: flex; min-height: 100dvh; }
+
+    /* Sidebar */
+    .v2-sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      border-inline-end: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      overflow-y: auto;
+      z-index: 40;
+      transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .v2-brand { display: flex; align-items: center; gap: 0.75rem; padding: 1.1rem 1.1rem 0.9rem; }
+    .v2-brand-mark {
+      width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+      background: var(--accent);
+      display: flex; align-items: center; justify-content: center; color: #000;
+      box-shadow: var(--shadow-glow);
+    }
+    .v2-nav { display: flex; flex-direction: column; gap: 2px; padding: 0.75rem 0.6rem 1.5rem; }
+    .v2-nav-label { font-size: 0.625rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-muted); padding: 0.9rem 0.75rem 0.35rem; }
+    .v2-nav-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.75rem; border-radius: 10px;
+      font-family: 'Space Grotesk', 'Tajawal', sans-serif;
+      font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.02em;
+      color: var(--text-muted); background: transparent; border: 1px solid transparent;
+      cursor: pointer; text-align: start; width: 100%;
+      transition: var(--transition);
+    }
+    .v2-nav-item:hover { color: var(--text); background: rgba(127, 148, 184, 0.08); }
+    .v2-nav-item.active {
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+    }
+    .v2-nav-item .nv-ico { width: 17px; height: 17px; flex-shrink: 0; opacity: 0.9; }
+
+    /* Main column */
+    .v2-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .v2-topbar {
+      display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+      padding: 0.7rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(10px);
+      position: sticky; top: 0; z-index: 35;
+    }
+    .v2-burger { display: none; }
+    .v2-content { flex: 1; padding: 1.4rem 1.4rem 3rem; }
+
+    /* Views */
+    .v2-view { display: none; }
+    .v2-view.active { display: block; animation: fadeInUp 0.45s cubic-bezier(0.32, 0.72, 0, 1); }
+    .view-title { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.1rem; flex-wrap: wrap; }
+    .view-title h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.45rem; font-weight: 700; letter-spacing: -0.01em; }
+    .view-title .sub { color: var(--text-muted); font-size: 0.8125rem; }
+
+    /* Double-bezel panel */
+    .v2-panel {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 1.15rem;
+      padding: 0.375rem;
+      box-shadow: var(--shadow);
+    }
+    .v2-panel-inner {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: calc(1.15rem - 0.375rem);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+    html[data-theme="light"] .v2-panel-inner { box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6); }
+
+    /* Bento stat grid */
+    .bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.85rem; }
+    @media (max-width: 1100px) { .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .bento { grid-template-columns: 1fr; } }
+    .bento-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.95rem 1.05rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .bento-card:hover { border-color: var(--border-bright); transform: translateY(-1px); }
+    .bento-card .k { font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+    .bento-card .v { font-family: 'Space Grotesk', sans-serif; font-size: 1.65rem; font-weight: 700; line-height: 1.15; margin-top: 0.25rem; }
+    .bento-card .n { font-size: 0.68rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .bento-card.tone-cyan .v { color: var(--accent); }
+    .bento-card.tone-green .v { color: var(--success); }
+    .bento-card.tone-amber .v { color: var(--warning); }
+    .bento-card.tone-red .v { color: var(--danger); }
+    .bento-card.tone-violet .v { color: var(--info); }
+    .bento-card.tone-muted .v { color: var(--text-muted); }
+    .bento-span-2 { grid-column: span 2; }
+    @media (max-width: 560px) { .bento-span-2 { grid-column: span 1; } }
+
+    /* Charts (inline SVG, no dependencies) */
+    .chart-wrap { padding: 1rem 1.15rem 1.15rem; }
+    .chart-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+    .chart-title { font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+    .legend { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.7rem; color: var(--text-muted); }
+    .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-inline-end: 5px; vertical-align: -1px; }
+
+    /* Timeline */
+    .timeline { position: relative; padding-inline-start: 1.15rem; }
+    .timeline::before { content: ''; position: absolute; inset-inline-start: 4px; top: 6px; bottom: 6px; width: 1px; background: var(--border); }
+    .tl-item { position: relative; padding: 0.45rem 0 0.45rem 0.35rem; }
+    .tl-item::before { content: ''; position: absolute; inset-inline-start: -1.15rem; top: 0.85rem; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+    .tl-item.t-red::before { background: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent); }
+    .tl-item.t-green::before { background: var(--success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 18%, transparent); }
+    .tl-item.t-amber::before { background: var(--warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning) 18%, transparent); }
+    .tl-when { font-size: 0.68rem; color: var(--text-muted); font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.04em; }
+    .tl-what { font-size: 0.8125rem; margin-top: 0.1rem; }
+
+    /* Segmented control (tabs) */
+    .seg { display: inline-flex; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; padding: 3px; flex-wrap: wrap; }
+    .seg button {
+      padding: 0.42rem 0.85rem; border-radius: 8px; border: none; cursor: pointer;
+      font-family: 'Space Grotesk', 'Tajawal', sans-serif; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.03em; color: var(--text-muted); background: transparent; transition: var(--transition);
+    }
+    .seg button:hover { color: var(--text); }
+    .seg button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+
+    /* Drawer (account detail center) */
+    .drawer-overlay {
+      position: fixed; inset: 0; z-index: 1200; background: rgba(4, 8, 18, 0.72);
+      backdrop-filter: blur(6px); opacity: 0; visibility: hidden;
+      transition: opacity 0.3s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.3s;
+    }
+    .drawer-overlay:not(.hidden) { opacity: 1; visibility: visible; }
+    .drawer {
+      position: fixed; top: 0; bottom: 0; inset-inline-end: 0; z-index: 1210;
+      width: min(720px, 96vw); background: var(--bg-card);
+      border-inline-start: 1px solid var(--border-bright);
+      box-shadow: var(--shadow);
+      transform: translateX(calc(100% * var(--dir, 1))); 
+      transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+      display: flex; flex-direction: column;
+    }
+    html[dir="rtl"] .drawer { --dir: -1; }
+    .drawer-overlay:not(.hidden) .drawer { transform: translateX(0); }
+    .drawer-head { padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.9rem; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 1.1rem 1.25rem 2rem; }
+    .kv { display: grid; grid-template-columns: 150px 1fr; gap: 0.45rem 0.9rem; font-size: 0.8125rem; }
+    .kv dt { color: var(--text-muted); }
+    .kv dd { color: var(--text); font-weight: 600; word-break: break-word; }
+    .subline { display: block; font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.02em; }
+    .na-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-muted); border: 1px dashed var(--border-bright); border-radius: 999px; padding: 2px 8px; }
+    .drawer-tabpanel { display: none; }
+    .drawer-tabpanel.active { display: block; animation: fadeInUp 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+
+    /* Mono chip + copy affordance */
+    .mono { font-family: 'Space Grotesk', ui-monospace, monospace; }
+    .copyable { cursor: copy; border-bottom: 1px dashed var(--border-bright); }
+    .copyable:hover { color: var(--accent); }
+
+    /* Sidebar collapse on mobile */
+    @media (max-width: 900px) {
+      .v2-sidebar { position: fixed; inset-inline-start: 0; transform: translateX(calc(-100% * var(--dir, 1))); box-shadow: var(--shadow); }
+      html[dir="rtl"] .v2-sidebar { --dir: -1; }
+      body.sidebar-open .v2-sidebar { transform: translateX(0); }
+      .v2-burger { display: inline-flex; }
+      .v2-content { padding: 1rem 0.9rem 2.5rem; }
+    }
+    .sidebar-scrim { position: fixed; inset: 0; z-index: 39; background: rgba(4,8,18,.5); opacity: 0; visibility: hidden; transition: opacity .3s; }
+    body.sidebar-open .sidebar-scrim { opacity: 1; visibility: visible; }
   </style>
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -497,7 +697,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
 </head>
-<body class="font-body min-h-screen flex flex-col antialiased cyber-grid">
+<body class="font-body min-h-screen flex flex-col antialiased v2">
 
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container"></div>
@@ -515,151 +715,207 @@
     </div>
   </div>
 
-  <!-- Top Header -->
-  <header class="flex justify-between items-center h-16 w-full z-50 border-b border-[var(--border-bright)]" style="background: var(--bg);">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-        <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-      </div>
-      <div>
-        <span class="font-headline text-sm tracking-widest uppercase" style="color: var(--accent);">Admin Dashboard</span>
-        <span class="arabic-text text-xs opacity-60 block" dir="rtl">لوحة التحكم</span>
-      </div>
-    </div>
-    <div class="flex items-center gap-3">
-      <span id="modeBadge" class="text-[10px] font-headline tracking-widest uppercase px-2 py-1 rounded border" style="color: var(--info); border-color: rgba(136,136,255,0.3);">OFFLINE / محلي</span>
-      <span id="adminEmailDisplay" class="text-sm opacity-70 hidden sm:inline"></span>
-      <button id="adminLogoutBtn" class="btn btn-ghost btn-sm text-xs" style="color: var(--danger);">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        <span class="hidden sm:inline">Logout</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- Stats Bar -->
-  <div class="flex flex-wrap items-center gap-3 p-4 border-b border-[var(--border-bright)]" style="background: var(--bg-elevated);">
-    <div class="stat-card" style="border-color: rgba(204,255,0,0.3);">
-      <div class="stat-icon" style="background: rgba(204,255,0,0.15); color: var(--accent);">👥</div>
-      <div class="stat-info">
-        <span class="stat-label arabic-text">إجمالي المستخدمين</span>
-        <span id="statTotal" class="stat-value" style="color: var(--accent);">0</span>
-      </div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(37,211,102,0.3);">
-      <div class="stat-icon" style="background: rgba(37,211,102,0.15); color: var(--success);">✅</div>
-      <div class="stat-info">
-        <span class="stat-label arabic-text">نشطين</span>
-        <span id="statActive" class="stat-value" style="color: var(--success);">0</span>
-      </div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(136,136,255,0.3);">
-      <div class="stat-icon" style="background: rgba(136,136,255,0.15); color: var(--info);">🧪</div>
-      <div class="stat-info">
-        <span class="stat-label arabic-text">فترة تجريبية</span>
-        <span id="statTrial" class="stat-value" style="color: var(--info);">0</span>
-      </div>
-    </div>
-    <div class="stat-card" style="border-color: rgba(255,51,102,0.3);">
-      <div class="stat-icon" style="background: rgba(255,51,102,0.15); color: var(--danger);">⏰</div>
-      <div class="stat-info">
-        <span class="stat-label arabic-text">منتهية</span>
-        <span id="statExpired" class="stat-value" style="color: var(--danger);">0</span>
-      </div>
-    </div>
-    <div class="ml-auto flex gap-2 flex-wrap">
-      <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh data">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        <span>تحديث</span>
-      </button>
-      <button id="addUserBtn" class="btn btn-primary btn-sm">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>مستخدم جديد</span>
-      </button>
-      <button id="addCodeBtn" class="btn btn-success btn-sm">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 12h12"/><path d="M12 6v12"/></svg>
-        <span>كود تفعيل</span>
-      </button>
-      <button id="addCouponBtn" class="btn btn-secondary btn-sm">
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 5v14H5V5h14m0-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
-        <span>كوبون</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Main Content -->
-  <main class="flex-1 overflow-auto p-4 md:p-6 space-y-4">
-
-    <!-- Search & Filter -->
-    <div class="admin-card animate-fade-in-up">
-      <div class="flex flex-wrap items-center gap-4 p-4">
-        <div class="flex-1 min-w-[200px] relative">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input id="searchInput" type="text" placeholder="Search by name or email... / البحث بالاسم أو البريد" class="input pl-10" style="background: var(--bg);" />
+  <div class="v2-shell">
+    <!-- ===== Sidebar ===== -->
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+    <aside class="v2-sidebar" id="v2Sidebar" aria-label="Admin navigation">
+      <div class="v2-brand">
+        <div class="v2-brand-mark">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
         </div>
-        <select id="statusFilter" class="input w-auto min-w-[180px]" style="background: var(--bg);">
-          <option value="all">All / الكل</option>
-          <option value="active">✅ Active / نشط</option>
-          <option value="trial">🧪 Trial / تجريبي</option>
-          <option value="trial_expired">⏳ Pending Activation / بانتظار التفعيل</option>
-          <option value="expired">⏰ Expired / منتهي</option>
-          <option value="suspended">🚫 Suspended / موقوف</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Users Table Section -->
-    <section class="section-card animate-fade-in-up" style="animation-delay: 0.05s;">
-      <div class="section-header">
-        <h2 class="section-title">
-          <span class="icon">👥</span>
-          Users / المستخدمين
-          <span id="usersCount" class="section-count">0</span>
-        </h2>
-        <div class="flex items-center gap-2">
-          <button id="exportUsersXlsxBtn" class="btn btn-secondary btn-sm" title="Export all users to Excel (.xlsx)">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Export XLSX</span>
-          </button>
-          <button id="exportUsersCsvBtn" class="btn btn-secondary btn-sm" title="Export all users to CSV">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Export CSV</span>
-          </button>
-          <button id="importUsersBtn" class="btn btn-primary btn-sm" title="Import users from Excel/CSV">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span>Import</span>
-          </button>
+        <div>
+          <div class="font-headline text-[13px] font-bold tracking-[0.14em]" style="color: var(--text);">DIGITAL PULSE</div>
+          <div class="arabic-text text-[11px]" style="color: var(--text-muted);">مركز تحكّم الأدمن</div>
         </div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="data-table" id="usersTable">
-          <thead>
-            <tr>
-              <th style="width: 20%;">User / المستخدم</th>
-              <th style="width: 14%;">Gym Name / اسم الجيم</th>
-              <th style="width: 16%;">Email / البريد</th>
-              <th style="width: 10%;">User ID / المعرّف</th>
-              <th style="width: 10%;">Plan / الباقة</th>
-              <th style="width: 9%;">Expires / الانتهاء</th>
-              <th style="width: 7%; text-align: center;">Members / الأعضاء</th>
-              <th style="width: 11%;">Last sync / آخر مزامنة</th>
-              <th style="width: 6%;">Status / الحالة</th>
-              <th style="width: 26%; text-align: right;">Actions / إجراءات</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody">
-            <tr>
-              <td colspan="10">
-                <div class="empty-state">
-                  <span class="icon">⏳</span>
-                  <p class="empty-state-title">Loading users...</p>
-                  <p class="empty-state-text">جاري تحميل قائمة المستخدمين</p>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <nav class="v2-nav" id="v2Nav">
+        <button class="v2-nav-item active" data-view="overview"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span data-i18n="nav.overview">Overview</span></button>
+        <button class="v2-nav-item" data-view="users"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 15.2c2.8.2 5 1.8 5.8 4.3"/></svg><span data-i18n="nav.users">Users & Accounts</span></button>
+        <button class="v2-nav-item" data-view="licenses"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.6"/></svg><span data-i18n="nav.licenses">Subscriptions & Licenses</span></button>
+        <button class="v2-nav-item" data-view="sync"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span data-i18n="nav.sync">Cloud Sync</span></button>
+        <button class="v2-nav-item" data-view="backups"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg><span data-i18n="nav.backups">Backups & Recovery</span></button>
+        <button class="v2-nav-item" data-view="activity"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2.5-6 4 12L16 12h5"/></svg><span data-i18n="nav.activity">Sessions & Activity</span></button>
+        <button class="v2-nav-item" data-view="security"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-3.6 8-10V5l-8-3-8 3v7c0 6.4 8 10 8 10z"/><path d="M9.2 12l2 2 3.8-4"/></svg><span data-i18n="nav.security">Security & Resets</span></button>
+        <button class="v2-nav-item" data-view="audit"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9.5 12h6M9.5 15.5h6M9.5 8.5h2"/></svg><span data-i18n="nav.audit">Errors & Audit Logs</span></button>
+        <button class="v2-nav-item" data-view="versions"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l6 3v5c0 4.4-2.6 8.1-6 10-3.4-1.9-6-5.6-6-10V6z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/></svg><span data-i18n="nav.versions">App Versions</span></button>
+        <button class="v2-nav-item" data-view="settings"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.7a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.7h4l.4-2.7a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg><span data-i18n="nav.settings">Admin Settings</span></button>
+      </nav>
+      <div style="margin-top:auto; padding: 0.9rem 1.1rem; border-top: 1px solid var(--border); font-size: 0.66rem; color: var(--text-muted);">
+        <span class="mono">v<span id="v2VersionBadge">…</span></span> · <span data-i18n="shell.console">Control Center</span>
       </div>
-    </section>
+    </aside>
+
+    <!-- ===== Main column ===== -->
+    <div class="v2-main">
+      <div class="v2-topbar">
+        <button id="v2Burger" class="btn btn-ghost btn-sm v2-burger" aria-label="Menu">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <span id="modeBadge" class="text-[10px] font-headline tracking-widest uppercase px-2 py-1 rounded border" style="color: var(--info); border-color: color-mix(in srgb, var(--info) 35%, transparent);">OFFLINE / محلي</span>
+        <div class="flex-1"></div>
+        <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh data">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          <span data-i18n="act.refresh">تحديث</span>
+        </button>
+        <button id="addUserBtn" class="btn btn-primary btn-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span data-i18n="act.newUser">مستخدم جديد</span>
+        </button>
+        <button id="addCodeBtn" class="btn btn-success btn-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 12h12"/><path d="M12 6v12"/></svg>
+          <span data-i18n="act.newCode">كود تفعيل</span>
+        </button>
+        <button id="addCouponBtn" class="btn btn-secondary btn-sm">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 5v14H5V5h14m0-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z"/></svg>
+          <span data-i18n="act.newCoupon">كوبون</span>
+        </button>
+        <button id="v2ThemeBtn" class="btn btn-ghost btn-sm" aria-label="Toggle theme" title="Theme / الثيم">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <button id="v2LangBtn" class="btn btn-ghost btn-sm" aria-label="Toggle language" title="العربية / English" style="font-weight:800;">ع/EN</button>
+        <span id="adminEmailDisplay" class="text-sm opacity-70 hidden md:inline"></span>
+        <button id="adminLogoutBtn" class="btn btn-ghost btn-sm text-xs" style="color: var(--danger);">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="hidden sm:inline" data-i18n="act.logout">Logout</span>
+        </button>
+      </div>
+
+      <div class="v2-content" id="v2Content">
+        <!-- ============ OVERVIEW ============ -->
+        <div class="v2-view active" id="view-overview">
+          <div class="view-title">
+            <h1 data-i18n="ov.title">Overview</h1>
+            <span class="sub" data-i18n="ov.sub">Live snapshot from the existing APIs — nothing fabricated</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="ov.total">Total accounts</div><div class="v" id="statTotal">0</div><div class="n" id="ovRegNote"></div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="ov.active">Active</div><div class="v" id="statActive">0</div></div>
+            <div class="bento-card tone-violet"><div class="k" data-i18n="ov.trial">Trial</div><div class="v" id="statTrial">0</div></div>
+            <div class="bento-card tone-red"><div class="k" data-i18n="ov.expired">Expired subscriptions</div><div class="v" id="statExpired">0</div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="ov.suspended">Suspended</div><div class="v" id="ovSuspended">0</div></div>
+            <div class="bento-card tone-red"><div class="k" data-i18n="ov.syncFail">Sync/API errors (24h log)</div><div class="v" id="ovSyncFail">0</div><div class="n" id="ovSyncFailNote"></div></div>
+            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.online">Confirmed online now</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.onlineNote">Requires last_seen heartbeat on codes table (extension point identified)</div></div>
+            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.backups">Successful backups</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.backupsNote">Drive backup is down (503) — see Backups center</div></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items:start;">
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="chart-wrap">
+                <div class="chart-head"><span class="chart-title" data-i18n="ov.growth">New registrations — last 8 weeks</span></div>
+                <div id="ovGrowthChart"></div>
+              </div>
+            </div></div>
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="chart-wrap">
+                <div class="chart-head"><span class="chart-title" data-i18n="ov.distribution">Account status distribution</span></div>
+                <div id="ovDonut"></div>
+              </div>
+            </div></div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; margin-top: 1rem; align-items:start;">
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="chart-wrap">
+                <div class="chart-head"><span class="chart-title" data-i18n="ov.recentAdmin">Recent administrative activity</span><button class="btn btn-ghost btn-sm" data-goto="audit" style="font-size:.65rem;" data-i18n="ov.viewAll">View all</button></div>
+                <div id="ovActivity" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div>
+              </div>
+            </div></div>
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="chart-wrap">
+                <div class="chart-head"><span class="chart-title" data-i18n="ov.alerts">Security & sync alerts</span></div>
+                <div id="ovAlerts" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+
+        <!-- ============ USERS & ACCOUNTS ============ -->
+        <div class="v2-view active" id="view-users">
+          <div class="view-title">
+            <h1 data-i18n="us.title">Users & Accounts</h1>
+            <span class="sub" data-i18n="us.sub">Click any row to open the Account Detail Center</span>
+          </div>
+
+          <!-- Search & Filter -->
+          <div class="admin-card animate-fade-in-up">
+            <div class="flex flex-wrap items-center gap-4 p-4">
+              <div class="flex-1 min-w-[200px] relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input id="searchInput" type="text" placeholder="Search by name or email... / البحث بالاسم أو البريد" class="input pl-10" style="background: var(--bg);" />
+              </div>
+              <select id="statusFilter" class="input w-auto min-w-[180px]" style="background: var(--bg);">
+                <option value="all">All / الكل</option>
+                <option value="active">✅ Active / نشط</option>
+                <option value="trial">🧪 Trial / تجريبي</option>
+                <option value="trial_expired">⏳ Pending Activation / بانتظار التفعيل</option>
+                <option value="expired">⏰ Expired / منتهي</option>
+                <option value="suspended">🚫 Suspended / موقوف</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Users Table Section -->
+          <section class="section-card animate-fade-in-up" style="animation-delay: 0.05s;">
+            <div class="section-header">
+              <h2 class="section-title">
+                <span class="icon">👥</span>
+                Users / المستخدمين
+                <span id="usersCount" class="section-count">0</span>
+              </h2>
+              <div class="flex items-center gap-2">
+                <button id="exportUsersXlsxBtn" class="btn btn-secondary btn-sm" title="Export all users to Excel (.xlsx)">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Export XLSX</span>
+                </button>
+                <button id="exportUsersCsvBtn" class="btn btn-secondary btn-sm" title="Export all users to CSV">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Export CSV</span>
+                </button>
+                <button id="importUsersBtn" class="btn btn-primary btn-sm" title="Import users from Excel/CSV">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Import</span>
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="usersTable">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">User / المستخدم</th>
+                    <th style="width: 14%;">Gym Name / اسم الجيم</th>
+                    <th style="width: 16%;">Email / البريد</th>
+                    <th style="width: 10%;">User ID / المعرّف</th>
+                    <th style="width: 10%;">Plan / الباقة</th>
+                    <th style="width: 9%;">Expires / الانتهاء</th>
+                    <th style="width: 7%; text-align: center;">Members / الأعضاء</th>
+                    <th style="width: 11%;">Last sync / آخر مزامنة</th>
+                    <th style="width: 6%;">Status / الحالة</th>
+                    <th style="width: 26%; text-align: right;">Actions / إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <tr>
+                    <td colspan="10">
+                      <div class="empty-state">
+                        <span class="icon">⏳</span>
+                        <p class="empty-state-title">Loading users...</p>
+                        <p class="empty-state-text">جاري تحميل قائمة المستخدمين</p>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+        </div><!-- /view-users -->
+
+        <!-- ============ SUBSCRIPTIONS & LICENSES ============ -->
+        <div class="v2-view" id="view-licenses">
+          <div class="view-title">
+            <h1 data-i18n="li.title">Subscriptions & Licenses</h1>
+            <span class="sub" data-i18n="li.sub">Activation codes grant cloud access · coupons grant free days</span>
+          </div>
 
     <!-- Activation Codes Section -->
     <section class="section-card animate-fade-in-up" style="animation-delay: 0.1s;">
@@ -737,13 +993,216 @@
         </div>
       </div>
     </section>
+        </div><!-- /view-licenses -->
 
-  </main>
+        <!-- ============ CLOUD SYNC CENTER ============ -->
+        <div class="v2-view" id="view-sync">
+          <div class="view-title">
+            <h1 data-i18n="sy.title">Cloud Sync Center</h1>
+            <span class="sub" data-i18n="sy.sub">Server-persisted sync state per account — traced from JWT to database</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k">gymos-api</div><div class="v" style="font-size:1.05rem;" id="syApiHealth">Checking…</div><div class="n" id="syApiHealthNote"></div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="sy.authFail">Auth-related failures</div><div class="v" id="syAuthFail">0</div><div class="n" data-i18n="sy.authFailNote">error_log entries with 401/403/FORBIDDEN</div></div>
+            <div class="bento-card tone-red"><div class="k" data-i18n="sy.totalErr">Total logged errors</div><div class="v" id="syTotalErr">0</div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="sy.lastOk">Most recent successful sync</div><div class="v" style="font-size:1.1rem;" id="syLastOk">—</div></div>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">🔄</span><span data-i18n="sy.perAccount">Sync status per account</span></h2></div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="syTable">
+                <thead><tr>
+                  <th data-i18n="th.account">Account</th><th data-i18n="th.code">Code</th><th data-i18n="th.members">Members</th><th data-i18n="th.lastSync">Last successful sync</th><th data-i18n="th.health">Health</th>
+                </tr></thead>
+                <tbody id="syTableBody"><tr><td colspan="5"><div class="empty-state"><span class="icon">⏳</span></div></td></tr></tbody>
+              </table>
+            </div>
+          </div></div>
+          <div class="v2-panel" style="margin-top:1rem;"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">🛠️</span><span data-i18n="sy.jwtNote">JWT sync-fix status</span></h2></div>
+            <div class="chart-wrap text-sm" style="color: var(--text-muted);" id="syJwtNote">
+              The historical "sync silently fails after JWT expiry" defect is being fixed server-side (remint + <span class="mono">/api/auth/refresh</span>) in the current release train. Until that ships, an expired code-JWT shows the auth banner and sync pauses instead of pushing blind.
+            </div>
+          </div></div>
+        </div>
+
+        <!-- ============ BACKUPS & RECOVERY ============ -->
+        <div class="v2-view" id="view-backups">
+          <div class="view-title">
+            <h1 data-i18n="bk.title">Backups & Recovery</h1>
+            <span class="sub" data-i18n="bk.sub">Honest status only — an upload is not proof of recoverability</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="bk.verified">Restore-verified backups</div><div class="v" style="font-size:1.05rem;"><span class="na-pill" data-i18n="bk.untested">UNVERIFIED</span></div><div class="n" data-i18n="bk.untestedNote">No isolated restore test has been run yet in this environment</div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="bk.drive">Google Drive engine</div><div class="v" id="bkDrive" style="font-size:1.05rem;">DOWN (503)</div><div class="n" data-i18n="bk.driveNote">Boot SyntaxError fixed locally — deploy pending approval</div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="bk.adminJson">Admin JSON snapshots</div><div class="v" style="font-size:1.05rem;" data-i18n="bk.available">AVAILABLE</div><div class="n" data-i18n="bk.adminJsonNote">Per-account download + snapshot-first restore below</div></div>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">☁️</span><span data-i18n="bk.perAccount">Recovery posture per account</span></h2></div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="bkTable">
+                <thead><tr>
+                  <th data-i18n="th.account">Account</th><th data-i18n="th.code">Code</th><th data-i18n="th.members">Members</th><th data-i18n="th.lastSync">Cloud copy age</th><th data-i18n="th.actions">Safe recovery</th>
+                </tr></thead>
+                <tbody id="bkTableBody"><tr><td colspan="5"><div class="empty-state"><span class="icon">⏳</span></div></td></tr></tbody>
+              </table>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- ============ SESSIONS & ACTIVITY ============ -->
+        <div class="v2-view" id="view-activity">
+          <div class="view-title">
+            <h1 data-i18n="ac.title">Sessions & Activity</h1>
+            <span class="sub" data-i18n="ac.sub">Only recorded events are shown — presence tracking is not implemented server-side yet</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="ac.lastLogin">Latest user login (any account)</div><div class="v" style="font-size:1.1rem;" id="acLastLogin">—</div></div>
+            <div class="bento-card tone-violet"><div class="k" data-i18n="ac.active7">Accounts seen in the metadata window</div><div class="v" id="acActive7">0</div><div class="n" data-i18n="ac.active7Note">Derived from last_sign_in_at — not a live presence signal</div></div>
+            <div class="bento-card tone-muted"><div class="k" data-i18n="ac.presence">Live presence (online now)</div><div class="v" style="font-size:1rem;"><span class="na-pill">NOT AVAILABLE</span></div><div class="n" data-i18n="ac.presenceNote">Needs last_seen heartbeat — extension point: codes table + codeFlags()</div></div>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="chart-wrap">
+              <div class="chart-head"><span class="chart-title" data-i18n="ac.loginsChart">Logins per week — last 8 weeks (from account metadata)</span></div>
+              <div id="acLoginsChart"></div>
+            </div>
+          </div></div>
+        </div>
+
+        <!-- ============ SECURITY & RESETS ============ -->
+        <div class="v2-view" id="view-security">
+          <div class="view-title">
+            <h1 data-i18n="se.title">Security & Password Resets</h1>
+            <span class="sub" data-i18n="se.sub">No plaintext passwords are ever displayed or stored</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="se.session">Admin session</div><div class="v" style="font-size:1rem;" id="seSession">—</div><div class="n" id="seSessionNote"></div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="se.failedAdmin">Failed admin logins</div><div class="v" id="seFailedAdmin">0</div><div class="n" data-i18n="se.failedAdminNote">From the immutable audit table</div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="se.resets">Password reset links sent</div><div class="v" id="seResets">0</div></div>
+            <div class="bento-card tone-violet"><div class="k" data-i18n="se.rls">Database isolation</div><div class="v" style="font-size:0.95rem;" data-i18n="se.rlsVal">RLS deny-by-default</div><div class="n" data-i18n="se.rlsNote">All 7 tables: service-role access only via gymos-api</div></div>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">🔑</span><span data-i18n="se.recentResets">Recent password-reset activity</span></h2></div>
+            <div class="chart-wrap"><div id="seResetList" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div></div>
+          </div></div>
+        </div>
+
+        <!-- ============ ERRORS & AUDIT ============ -->
+        <div class="v2-view" id="view-audit">
+          <div class="view-title">
+            <h1 data-i18n="au.title">System Errors & Audit Logs</h1>
+            <span class="sub" data-i18n="au.sub">Existing admin endpoints, now surfaced</span>
+          </div>
+          <div class="v2-panel" style="margin-bottom:1rem;"><div class="v2-panel-inner">
+            <div class="section-header">
+              <h2 class="section-title"><span class="icon">🐞</span><span data-i18n="au.errors">Error log</span><span id="auErrCount" class="section-count">0</span></h2>
+              <button id="auErrRefresh" class="btn btn-secondary btn-sm" data-i18n="act.refresh">تحديث</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="auErrTable">
+                <thead><tr><th data-i18n="th.when">When</th><th>Endpoint</th><th data-i18n="th.code">Code</th><th data-i18n="th.error">Error</th><th data-i18n="th.user">User</th><th data-i18n="th.status">Status</th><th></th></tr></thead>
+                <tbody id="auErrBody"><tr><td colspan="7"><div class="empty-state"><span class="icon">⏳</span></div></td></tr></tbody>
+              </table>
+            </div>
+          </div></div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="section-header">
+              <h2 class="section-title"><span class="icon">📜</span><span data-i18n="au.audit">Admin audit trail</span><span id="auAuditCount" class="section-count">0</span></h2>
+              <button id="auAuditRefresh" class="btn btn-secondary btn-sm" data-i18n="act.refresh">تحديث</button>
+            </div>
+            <div class="chart-wrap"><div id="auAuditList" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div></div>
+          </div></div>
+        </div>
+
+        <!-- ============ APP VERSIONS ============ -->
+        <div class="v2-view" id="view-versions">
+          <div class="view-title">
+            <h1 data-i18n="ve.title">Application Versions</h1>
+            <span class="sub" data-i18n="ve.sub">Shipped version vs latest GitHub release</span>
+          </div>
+          <div class="bento" style="margin-bottom: 1rem;">
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="ve.shipped">Shipped app version</div><div class="v" id="veShipped">—</div><div class="n">js/config.js → appVersion</div></div>
+            <div class="bento-card tone-violet"><div class="k" data-i18n="ve.latest">Latest GitHub release</div><div class="v" id="veLatest">—</div><div class="n" id="veLatestNote"></div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="ve.apk">Release assets</div><div class="v" style="font-size:1rem;" id="veAssets">—</div></div>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="chart-wrap text-sm" style="color: var(--text-muted); line-height: 1.8;" data-i18n="ve.note">
+              Version bumps must move all seven files together (build.gradle, package.json, js/config.js, scripts/build.js, sw.js cache, tests, index.html fallback). The in-app updater compares installedVersion() against the latest release tag.
+            </div>
+          </div></div>
+        </div>
+
+        <!-- ============ ADMIN SETTINGS ============ -->
+        <div class="v2-view" id="view-settings">
+          <div class="view-title">
+            <h1 data-i18n="st.title">Admin Settings</h1>
+            <span class="sub" data-i18n="st.sub">Console preferences & system pointers</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;">
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="section-header"><h2 class="section-title"><span class="icon">🎛️</span><span data-i18n="st.prefs">Console preferences</span></h2></div>
+              <div class="chart-wrap space-y-3">
+                <div class="flex items-center justify-between"><span style="font-size:.8125rem;" data-i18n="st.theme">Theme</span><div class="seg" id="stThemeSeg"><button data-theme-pick="dark" class="active">Dark</button><button data-theme-pick="light">Light</button></div></div>
+                <div class="flex items-center justify-between"><span style="font-size:.8125rem;" data-i18n="st.lang">Language</span><div class="seg" id="stLangSeg"><button data-lang-pick="en">English</button><button data-lang-pick="ar">العربية</button></div></div>
+              </div>
+            </div></div>
+            <div class="v2-panel"><div class="v2-panel-inner">
+              <div class="section-header"><h2 class="section-title"><span class="icon">🧭</span><span data-i18n="st.system">System pointers</span></h2></div>
+              <dl class="kv chart-wrap" style="margin:0;">
+                <dt>API</dt><dd class="mono" style="font-size:.75rem;">gymos-api (Edge Function)</dd>
+                <dt data-i18n="st.auth">Auth</dt><dd>Supabase GoTrue + HS256 admin JWT</dd>
+                <dt data-i18n="st.isolation">Isolation</dt><dd data-i18n="st.isolationVal">RLS deny-by-default · service-role only</dd>
+                <dt data-i18n="st.danger">Danger zone</dt><dd data-i18n="st.dangerVal">No destructive controls are exposed by design</dd>
+              </dl>
+            </div></div>
+          </div>
+        </div>
+
+      </div><!-- /v2-content -->
+    </div><!-- /v2-main -->
+  </div><!-- /v2-shell -->
 
   <!-- Footer -->
-  <footer class="flex justify-center items-center py-4 border-t border-[var(--border-bright)]" style="background: var(--bg);">
+  <footer class="flex justify-center items-center py-4 border-t border-[var(--border)]" style="background: var(--bg);">
     <p class="text-xs opacity-60 arabic-text" style="color: var(--text-muted);">© 2026 Digital Pulse — All rights reserved</p>
   </footer>
+
+  <!-- ===== ACCOUNT DETAIL DRAWER ===== -->
+  <div id="drawerOverlay" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-label="Account detail">
+    <aside class="drawer" id="accountDrawer">
+      <div class="drawer-head">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold" style="background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent);" id="drAvatar">?</div>
+        <div style="flex:1; min-width:0;">
+          <div class="font-headline font-bold" style="font-size:1rem;" id="drName">—</div>
+          <div class="text-xs" style="color: var(--text-muted);" id="drEmail">—</div>
+        </div>
+        <span id="drStatusBadge"></span>
+        <button class="btn btn-ghost btn-sm" id="drClose" aria-label="Close drawer">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding: 0.75rem 1.25rem 0; border-bottom: 1px solid var(--border);">
+        <div class="seg" id="drTabs">
+          <button data-drtab="overview" class="active" data-i18n="dr.overview">Overview</button>
+          <button data-drtab="license" data-i18n="dr.license">License</button>
+          <button data-drtab="sync" data-i18n="dr.sync">Cloud Sync</button>
+          <button data-drtab="data" data-i18n="dr.data">Customer Data</button>
+          <button data-drtab="backup" data-i18n="dr.backup">Backups</button>
+          <button data-drtab="security" data-i18n="dr.security">Security</button>
+          <button data-drtab="timeline" data-i18n="dr.timeline">Activity</button>
+        </div>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-tabpanel active" id="drt-overview"><dl class="kv" id="drOverviewKv"></dl></div>
+        <div class="drawer-tabpanel" id="drt-license"></div>
+        <div class="drawer-tabpanel" id="drt-sync"></div>
+        <div class="drawer-tabpanel" id="drt-data"></div>
+        <div class="drawer-tabpanel" id="drt-backup"></div>
+        <div class="drawer-tabpanel" id="drt-security"></div>
+        <div class="drawer-tabpanel" id="drt-timeline"></div>
+      </div>
+    </aside>
+  </div>
 
   <!-- ===== MODALS ===== -->
 

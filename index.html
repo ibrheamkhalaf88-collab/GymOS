@@ -19,6 +19,25 @@
     var native = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
       || window.location.protocol === "app:";
     if (native) { window.location.replace("login.html"); }
+
+    // Supabase password-recovery links land here with hash params like
+    // #access_token=...&refresh_token=...&type=recovery. Forward to the
+    // reset page so the user can set a new password immediately.
+    try {
+      var search = window.location.search || '';
+      var hash   = window.location.hash || '';
+      var qsParams = new URLSearchParams(search);
+      var hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+      var type = qsParams.get('type') || hashParams.get('type');
+      if (type === 'recovery') {
+        var keep = [];
+        ['access_token','refresh_token','expires_in','expires_at','token_type'].forEach(function(k){
+          var v = hashParams.get(k) || qsParams.get(k);
+          if (v) keep.push(k + '=' + encodeURIComponent(v));
+        });
+        window.location.replace('reset-password.html' + (keep.length ? '?' + keep.join('&') : ''));
+      }
+    } catch (e) {}
   } catch (e) {}
 })();
 </script>
@@ -454,7 +473,7 @@
           return res.json();
         })
         .then(function(data) {
-          var tag = data.tag_name || 'v1.4.3';
+          var tag = data.tag_name || 'v1.4.4';
           noteEl.textContent = 'أحدث إصدار منشور: ' + tag + ' — يحمل أحدث نسخة موقّعة من GitHub Releases';
         })
         .catch(function(err) {
