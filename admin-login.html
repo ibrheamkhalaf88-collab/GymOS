@@ -134,6 +134,13 @@
         </button>
 
         <div id="adminLoginMsg" class="h-6"></div>
+
+        <!-- Forgot password trigger -->
+        <p class="text-center pt-2">
+          <a href="#" id="forgotPwdLink" class="text-xs underline opacity-60 hover:opacity-100 transition-opacity" style="color:#C3F400;">
+            Forgot password? / نسيت كلمة السر؟
+          </a>
+        </p>
       </form>
     </div>
   </main>
@@ -175,6 +182,29 @@
 
     // Supabase anon key + API URL come from js/config.js (single source of truth)
     const ANON_KEY = appConfig.supabaseAnonKey;
+
+    /* -------- Forgot password -------- */
+    $('#forgotPwdLink').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = $('#adminEmail').value.trim().toLowerCase();
+      if (!email) {
+        setMsg('Enter your email first / أدخل بريدك الإلكتروني أولاً');
+        return;
+      }
+      try {
+        let sb = null;
+        try { const mod = await import('./js/supabase-client.js'); sb = mod.supabase; } catch { /* offline */ }
+        if (!sb) throw new Error('offline');
+        const { error } = await sb.auth.resetPasswordForEmail(email, {
+          redirectTo: `${location.origin}${location.pathname.replace(/admin-login\.html$/, '')}reset-password.html`
+        });
+        if (error) throw error;
+        setMsg(`✅ Reset email sent to ${email} / تم إرسال رابط الاستعادة إلى بريدك`, '#CCFF00');
+      } catch (err) {
+        console.error('[admin-login] forgotPwd:', err);
+        setMsg('Could not send reset email — try again / تعذر إرسال إيميل الاستعادة');
+      }
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
