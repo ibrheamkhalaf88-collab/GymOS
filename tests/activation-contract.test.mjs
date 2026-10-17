@@ -203,6 +203,12 @@ test('composer renders lifetime as unlimited — never 36500 days or year 2126',
   // Documenting the legacy value in a comment is fine — computing it is not.
   assert.ok(!/36500\s*\*\s*86400000/.test(api),
     '§10.5: no endpoint may compute a fake +36500-day subEnd any more — legacy values are read as lifetime instead');
+  // Regression guard (live E2E 2026-10-17): a NEW-style lifetime stored as
+  // {subTier:'lifetime', subEnd:null} must hit the lifetime branch too —
+  // previously only the legacy fake-end lifetime did, and null-subEnd
+  // lifetime displayed as "monthly".
+  assert.match(cluster, /tier === "lifetime" \|\| \(end != null && end - \(start \?\? now\) > LIFETIME_MIN_MS\)/,
+    '§10.5: the lifetime branch must trigger on tier alone, not only on a non-null fake end');
 });
 
 test('composer parses mixed ISO-string / epoch-ms timestamps (live data is mixed)', () => {

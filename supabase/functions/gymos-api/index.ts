@@ -158,8 +158,11 @@ function accountStatusOf(rec: any, meta: any, opts: { appSuspended?: boolean; co
   } else if (tier && tier !== "none") {
     const start = parseWhen(meta?.subStart);
     let end = parseWhen(meta?.subEnd);
-    // lifetime ⇒ subEnd null in OUTPUT even when stored as the fake +36500d
-    if (end != null && (tier === "lifetime" || end - (start ?? now) > LIFETIME_MIN_MS)) {
+    // lifetime ⇒ subEnd null in OUTPUT — both storage styles: the legacy fake
+    // +36500d value AND the new subMeta style (subTier lifetime, subEnd null).
+    // Before this fix a null-subEnd lifetime fell through and displayed as
+    // "monthly" (live E2E caught it on set_unlimited).
+    if (tier === "lifetime" || (end != null && end - (start ?? now) > LIFETIME_MIN_MS)) {
       end = null; plan = "lifetime"; unlimited = true;
     } else {
       plan = ["trial", "monthly", "yearly"].includes(tier) ? tier : "monthly";
