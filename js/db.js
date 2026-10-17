@@ -7,6 +7,7 @@
 //   codesDb.activate / verifyClientLogin / setClientPassword /
 //   changeClientPassword / loadGym / saveGym / create / list /
 //   get / remove / setRevoked / adminSignIn / adminSignOut / onAuth
+// Plus: getJwt / setJwt / clearJwt / remintJwt (JWT lifecycle helpers)
 // ============================================================
 
 import { appConfig } from "./config.js";
@@ -37,14 +38,18 @@ export function getJwt() {
 
 export function setJwt(token) {
   try {
-    localStorage.setItem(JWT_KEY, token || "");
-    sessionStorage.setItem(JWT_KEY, token || "");
     if (token) {
+      localStorage.setItem(JWT_KEY, token);
+      sessionStorage.setItem(JWT_KEY, token);
       // jsonwebtoken exp is in seconds; mirror it locally so an expired token is
       // never sent (and the UI can prompt for a fresh login instead).
       const exp = Number(String(token).split(".")[1] ? (JSON.parse(atob(String(token).split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).exp || 0) : 0) * 1000;
       if (exp) localStorage.setItem(jwtExpiryKey(), String(exp));
     } else {
+      // clearJwt-style wipe: an empty-string token used to LINGER as dp_jwt=""
+      // and dp_jwt_exp stayed stale, confusing the next getJwt() read.
+      localStorage.removeItem(JWT_KEY);
+      sessionStorage.removeItem(JWT_KEY);
       localStorage.removeItem(jwtExpiryKey());
     }
   } catch { /* private mode */ }
@@ -123,6 +128,46 @@ export function findLinkedCode(accessToken, deviceId, deviceName) {
 /** Mint the trial code for a freshly created account (server enforces 1/user). */
 export function mintLinkedTrial(accessToken, deviceId) {
   return bearerApi("/api/trial", accessToken, { deviceId });
+}
+
+/* ---------------- JWT re-mint (expired / lost / rotated token) ----------------
+   A 401 mid-sync used to loop forever: the token was dead but nothing ever
+   re-minted it. Recovery paths, in order:
+     1. A live Supabase email session → POST /api/auth/mine (same device).
+     2. Code-only device → POST /api/auth/refresh — the server re-mints ONLY
+        for a deviceId already registered to the code (never widens access).
+   Returns the fresh token, or null when both paths fail (caller surfaces an
+   auth failure instead of retrying the doomed request). */
+const isAuthErr = (e) => e?.status === 401 || e?.code === "UNAUTHORIZED";
+
+/** Decode a JWT payload and return its `code` claim (or null when unreadable). */
+function jwtPayloadCode(token) {
+  try {
+    const parts = String(token || "").split(".");
+    const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
+    return JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)))?.code || null;
+  } catch { return null; }
+}
+
+export async function remintJwt(code) {
+  clearJwt();
+  const deviceId = localStorage.getItem("dp_device_id") || "";
+  try {
+    const { supabase } = await import("./supabase-client.js");
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        const res = await findLinkedCode(session.access_token, deviceId, navigator.userAgent.slice(0, 40));
+        if (res?.record?.code && res?.token) { setJwt(res.token); return res.token; }
+      }
+    }
+  } catch { /* no email session — fall through to the code-only path */ }
+  if (!code || !deviceId) return null;
+  try {
+    const r = await api("/api/auth/refresh", { method: "POST", body: { code, deviceId } });
+    if (r?.token) { setJwt(r.token); return r.token; }
+  } catch { /* device not registered / code revoked / rate-limited */ }
+  return null;
 }
 
 /* ---------------- Shared helpers ---------------- */
@@ -464,61 +509,61 @@ export const codesDb = {
     return { ok: true };
   },
 
-  async loadGym(_code) {
+  async loadGym(code) {
     if (!onlineMode()) return null;
     try {
       const g = await api("/api/gym", { auth: true });
       return g && g.data ? g : null;
-    } catch { return null; }
+    } catch (err) {
+      // A dead JWT must NEVER read as "cloud empty" — that made syncNow push
+      // the whole local dump over whatever was really there. Distinguish:
+      // network/other errors keep the old null, auth errors re-mint once and
+      // then surface { auth: true } so the caller can abort the sync.
+      if (!isAuthErr(err)) return null;
+      if (!(await remintJwt(code))) return { auth: true };
+      try {
+        const g = await api("/api/gym", { auth: true });
+        return g && g.data ? g : null;
+      } catch (e2) { return isAuthErr(e2) ? { auth: true } : null; }
+    }
   },
 
   async saveGym(code, data) {
-    if (!onlineMode()) return false;
+    if (!onlineMode()) return { ok: false, auth: false };
     // The server keys this write by the JWT's code and ignores the body's code.
     // If the stored token belongs to a DIFFERENT code (stale licence after a
     // switch), the push would silently land in the old account's cloud row.
-    let jwtCode = null;
-    try {
-      const parts = (localStorage.getItem("dp_jwt") || "").split(".");
-      const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
-      const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
-      jwtCode = payload.code || null;
-    } catch { /* unreadable token — the server remains the authority */ }
-    
+    // Read through the expiry-aware getJwt() — the raw dp_jwt read here used
+    // to happily decode an EXPIRED token and skip the refresh entirely.
+    let jwtCode = jwtPayloadCode(getJwt());
     if (jwtCode && code && jwtCode !== code) {
-      // JWT code doesn't match license code — try to refresh JWT via /api/auth/mine
       console.warn("[GymOS] saveGym: JWT code mismatch, attempting to refresh...");
-      try {
-        const { supabase } = await import("./supabase-client.js");
-        if (supabase) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token) {
-            const { findLinkedCode } = await import("./db.js");
-            const res = await findLinkedCode(session.access_token, localStorage.getItem("dp_device_id") || "", navigator.userAgent.slice(0, 40));
-            if (res?.record?.code && res?.token) {
-              const { setJwt } = await import("./db.js");
-              setJwt(res.token);
-              console.log("[GymOS] saveGym: JWT refreshed successfully");
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[GymOS] saveGym: JWT refresh failed:", e?.message);
+      if (!(await remintJwt(code))) {
+        console.warn("[GymOS] saveGym blocked: could not re-mint a token");
+        return { ok: false, auth: true };
       }
-      // Re-check after refresh attempt
-      try {
-        const parts = (localStorage.getItem("dp_jwt") || "").split(".");
-        const b64 = parts[1] ? parts[1].replace(/-/g, "+").replace(/_/g, "/") : "";
-        const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
-        jwtCode = payload.code || null;
-      } catch {}
+      jwtCode = jwtPayloadCode(getJwt());
       if (jwtCode && code && jwtCode !== code) {
         console.warn("[GymOS] saveGym blocked: token belongs to a different code");
-        return false;
+        return { ok: false, auth: true };
       }
     }
-    try { await api("/api/gym", { method: "PUT", auth: true, body: data }); return true; }
-    catch { return false; }
+    try {
+      await api("/api/gym", { method: "PUT", auth: true, body: data });
+      return { ok: true, auth: false };
+    } catch (err) {
+      if (!isAuthErr(err)) return { ok: false, auth: false };
+      // Dead JWT (expired/lost/rotated) → the endless silent 401 loop fix:
+      // clear + re-mint ONCE, retry the PUT exactly once, then surface an
+      // auth-specific failure ({ ok:false, auth:true }) instead of a bare false.
+      if (!(await remintJwt(code))) return { ok: false, auth: true };
+      try {
+        await api("/api/gym", { method: "PUT", auth: true, body: data });
+        return { ok: true, auth: false };
+      } catch (e2) {
+        return { ok: false, auth: isAuthErr(e2) };
+      }
+    }
   },
 };
 

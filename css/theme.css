@@ -912,3 +912,319 @@ select.dp-field {
 .bg-frost { background: var(--frost) !important; }
 .bg-surface { background: var(--surface) !important; }
 .bg-bg { background: var(--bg) !important; }
+
+/* ============================================================
+   DP TABLE — professional finance table (Ledger view)
+   ============================================================ */
+/* Arabic inside table/register cells: Space Grotesk (font-headline) has no
+   Arabic glyphs and the browser's default fallback renders broken Urdu-style
+   letterforms. Pin the bilingual stack so Arabic always lands on Tajawal. */
+.dp-table td, .dp-table th,
+.dp-register-row { font-family: "Manrope", "Tajawal", sans-serif; }
+.dp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.dp-table thead th {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.75rem 1rem;
+  text-align: start; /* RTL-aware: follows reading direction */
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dp-table tbody td {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--border-soft);
+  vertical-align: middle;
+}
+.dp-table tbody tr:first-child td { border-top: none; }
+.dp-table tbody tr {
+  transition: background var(--transition-fast) var(--ease-out);
+}
+.dp-table tbody tr:hover { background: var(--surface-hover); }
+.dp-table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: end; /* RTL-aware: digits align to the inline end */
+  white-space: nowrap;
+  font-weight: 700;
+}
+/* Secondary columns hidden on small phones (<=639px) */
+@media (max-width: 639px) {
+  .dp-hide-sm { display: none; }
+}
+/* Totals strip under the table — flex row that wraps on narrow screens */
+.dp-total-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* ============================================================
+   DP CHIPS — filter pills
+   ============================================================ */
+.dp-chip {
+  appearance: none;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-out);
+}
+.dp-chip:hover {
+  border-color: var(--volt);
+  color: var(--volt);
+}
+/* Doubled selector keeps the active state winning over :hover
+   (otherwise hovering an active chip turns volt text on volt bg). */
+.dp-chip-active,
+.dp-chip.dp-chip-active {
+  background: var(--volt);
+  color: #000;
+  border-color: var(--volt);
+  box-shadow: 0 0 16px var(--volt-dim);
+}
+
+/* ============================================================
+   DP SELECT — custom dropdown for forms (plan picker)
+   ============================================================ */
+.dp-select-wrap { position: relative; }
+/* Mirrors .dp-field (bg/border/radius/padding/focus ring) but as a <button> */
+.dp-select-btn {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: start; /* RTL-aware */
+  cursor: pointer;
+  color: var(--volt);
+  font-weight: 600;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color var(--transition-fast) var(--ease-out), box-shadow var(--transition-fast) var(--ease-out), background-color var(--transition-fast) var(--ease-out);
+}
+.dp-select-btn:hover { border-color: var(--border-soft); }
+.dp-select-btn:focus,
+.dp-select-btn:focus-visible {
+  border-color: var(--volt);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  background: var(--surface);
+}
+.dp-select-btn .chev {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast) var(--ease-out);
+}
+.dp-select-wrap.open .chev { transform: rotate(180deg); }
+
+.dp-select-pop {
+  position: absolute;
+  inset-inline: 0; /* RTL-safe: spans the trigger on both directions */
+  top: calc(100% + 0.35rem);
+  z-index: 60;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  display: none;
+}
+.dp-select-wrap.open .dp-select-pop {
+  display: block;
+  animation: fadeUp 0.18s var(--ease-out) both; /* reuses existing fadeUp keyframes */
+}
+.dp-select-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: start; /* RTL-aware */
+  transition: background var(--transition-fast) var(--ease-out);
+}
+.dp-select-opt:last-child { border-bottom: none; }
+.dp-select-opt:hover,
+.dp-select-opt:focus-visible { background: var(--surface-hover); }
+.dp-select-opt-selected {
+  color: var(--volt);
+  background: var(--volt-dim);
+}
+.dp-price-chip {
+  background: var(--volt-dim);
+  color: var(--volt);
+  border: 1px solid var(--volt);
+  border-radius: var(--radius-full);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   DP REGISTER — دفتر الأعضاء (notebook-style members register)
+   Row list with notebook ruled lines (dashed borders are intended)
+   and a thick status accent on the reading side (RTL-aware).
+   ============================================================ */
+.dp-register {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+}
+.dp-register-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.dp-register-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px dashed var(--border-soft); /* notebook ruled-line feel */
+  cursor: pointer;
+  transition: background var(--transition-fast) var(--ease-out);
+  position: relative;
+}
+.dp-register-row:last-of-type { border-bottom: none; }
+.dp-register-row:hover { background: var(--surface-hover); }
+.dp-register-row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+/* Notebook status accents — thick colored line at the reading side (RTL-aware) */
+.dp-register-row::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.4rem;
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: 9999px;
+  background: transparent;
+}
+.dp-register-row.is-active::before {
+  background: var(--volt);
+  box-shadow: 0 0 10px var(--volt-dim);
+}
+.dp-register-row.is-expired::before {
+  background: var(--alert);
+  box-shadow: 0 0 10px var(--alert-dim);
+}
+.dp-register-row.is-frozen::before {
+  background: var(--frost);
+}
+.dp-register-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dp-register-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dp-register-date {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--volt);
+  white-space: nowrap;
+}
+.dp-register-row.is-expired .dp-register-date { color: var(--alert); }
+.dp-register-row.is-frozen .dp-register-date { color: var(--frost); }
+.dp-register-paid {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  min-width: 4.5ch;
+  text-align: end; /* RTL-aware: money aligns to the inline end */
+}
+.dp-register-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+/* Status legend dot inside the totals row */
+.dp-register-total .dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  margin-inline-end: 0.3rem;
+  vertical-align: middle;
+}
+.dp-register-total .dot.volt { background: var(--volt); }
+.dp-register-total .dot.alert { background: var(--alert); }
+/* Small phones (<=639px): nothing hidden — tighten padding so the 3-col grid
+   never overflows; the money column keeps its min-width. */
+@media (max-width: 639px) {
+  .dp-register-row {
+    padding: 0.75rem 0.85rem;
+  }
+  .dp-register-paid { min-width: 4.5ch; }
+}
+
+/* ---- DP REVEAL — collapsible block that animates open (custom-date field) ---- */
+.dp-reveal { display: none; }
+.dp-reveal.open {
+  display: block;
+  animation: fadeUp 0.18s var(--ease-out) both; /* reuses existing fadeUp keyframes */
+}

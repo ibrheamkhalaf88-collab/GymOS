@@ -3,6 +3,7 @@
 // Scheduled backup of user's gym data to their Google Drive
 // ============================================================
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import jwt from "npm:jsonwebtoken";
 
 const SUPABASE_URL = Deno.env.get("SB_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE") ?? "";
@@ -33,7 +34,6 @@ function json(data: unknown, status = 200, origin?: string | null) {
 function verifyJwt(token: string): Record<string, unknown> | null {
   try {
     const clean = token.replace(/^Bearer\s+/i, "");
-    const { default: jwt } = await import("npm:jsonwebtoken@9.0.2");
     return jwt.verify(clean, JWT_SECRET, { algorithms: ["HS256"] }) as Record<string, unknown>;
   } catch { return null; }
 }
@@ -41,6 +41,33 @@ function authUser(req: Request): { userId: string; code: string } | null {
   const p = verifyJwt(req.headers.get("authorization") || "");
   if (!p || !p.code) return null;
   return { userId: String(p.sub || ""), code: String(p.code) };
+}
+
+// Mirror gymos-api codeFlags(): a revoked, expired or data-disabled code must
+// not be able to copy gym data to Drive. Semantics match expiryMs(): a code
+// with days<=0 (lifetime) or no used_at never expires.
+async function codeState(code: string): Promise<{ revoked: boolean; expired: boolean; dataEnabled: boolean }> {
+  const { data: rec } = await sb
+    .from("codes")
+    .select("revoked, days, used_at, data_enabled")
+    .eq("code", code)
+    .maybeSingle();
+  if (!rec) return { revoked: true, expired: false, dataEnabled: false };
+  const days = Number(rec.days) || 0;
+  const end = days > 0 && rec.used_at ? Date.parse(rec.used_at) + days * 86400000 : null;
+  return {
+    revoked: !!rec.revoked,
+    expired: end !== null && end <= Date.now(),
+    dataEnabled: rec.data_enabled !== false,
+  };
+}
+
+async function authActive(req: Request): Promise<{ userId: string; code: string } | null> {
+  const auth = authUser(req);
+  if (!auth) return null;
+  const st = await codeState(auth.code);
+  if (st.revoked || st.expired || !st.dataEnabled) return null;
+  return auth;
 }
 
 // ---- Google OAuth token management ----
@@ -54,8 +81,10 @@ async function getValidAccessToken(code: string): Promise<string | null> {
 
   if (!tokens) return null;
 
-  // If access token still valid, return it
-  if (tokens.expires_at && Date.now() < tokens.expires_at) {
+  // If access token still valid, return it. expires_at lives in a timestamptz
+  // column (ISO string from Postgres); tolerate legacy numeric epochs too.
+  const expMs = typeof tokens.expires_at === "number" ? tokens.expires_at : Date.parse(String(tokens.expires_at));
+  if (expMs && Date.now() < expMs) {
     return tokens.access_token;
   }
 
@@ -82,7 +111,7 @@ async function getValidAccessToken(code: string): Promise<string | null> {
 
   const data = await res.json();
   const newAccessToken = data.access_token;
-  const newExpiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+  const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000).toISOString();
 
   await sb.from("drive_tokens").update({
     access_token: newAccessToken,
@@ -94,7 +123,7 @@ async function getValidAccessToken(code: string): Promise<string | null> {
 }
 
 async function storeTokens(code: string, tokens: any) {
-  const expiresAt = Date.now() + (tokens.expires_in || 3600) * 1000;
+  const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString();
   await sb.from("drive_tokens").upsert({
     code,
     access_token: tokens.access_token,
@@ -221,7 +250,7 @@ async function handler(req: Request): Promise<Response> {
 
     // POST /connect - Exchange auth code for tokens (called after user consent)
     if (req.method === "POST" && path === "/connect") {
-      const auth = authUser(req);
+      const auth = await authActive(req);
       if (!auth) return json({ error: "UNAUTHORIZED" }, 401, origin);
 
       const body = await req.json();
@@ -264,7 +293,7 @@ async function handler(req: Request): Promise<Response> {
 
     // POST /backup - Trigger manual backup
     if (req.method === "POST" && path === "/backup") {
-      const auth = authUser(req);
+      const auth = await authActive(req);
       if (!auth) return json({ error: "UNAUTHORIZED" }, 401, origin);
 
       const accessToken = await getValidAccessToken(auth.code);
@@ -279,7 +308,7 @@ async function handler(req: Request): Promise<Response> {
 
     // GET /backups - List recent backup files in Drive
     if (req.method === "GET" && path === "/backups") {
-      const auth = authUser(req);
+      const auth = await authActive(req);
       if (!auth) return json({ error: "UNAUTHORIZED" }, 401, origin);
 
       const accessToken = await getValidAccessToken(auth.code);
@@ -315,8 +344,14 @@ async function handler(req: Request): Promise<Response> {
 
       let processed = 0;
       let failed = 0;
+      let skipped = 0;
 
       for (const t of tokens) {
+        // Skip revoked / expired / data-disabled codes instead of copying
+        // their gym data (mirrors the per-request codeFlags gate in gymos-api).
+        const st = await codeState(t.code);
+        if (st.revoked || st.expired || !st.dataEnabled) { skipped++; continue; }
+
         const accessToken = await getValidAccessToken(t.code);
         if (!accessToken) { failed++; continue; }
 
@@ -331,7 +366,7 @@ async function handler(req: Request): Promise<Response> {
         }
       }
 
-      return json({ ok: true, processed, failed }, 200, origin);
+      return json({ ok: true, processed, failed, skipped }, 200, origin);
     }
 
     return json({ error: "NOT_FOUND" }, 404, origin);

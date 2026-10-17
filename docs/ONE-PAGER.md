@@ -67,8 +67,8 @@
 ### **جربها الآن — مجاناً**
 
 🌐 **الموقع**: https://ibrheamkhalaf88-collab.github.io/GymOS/
-📱 **كود التجربة**: `7Q2-K9D` (DEMO MODE)
-📲 **أندرويد**: GitHub Releases → v1.3.0
+📱 **كود التجربة**: `7Q2-K9D` (تجربة مجانية 30 يوم)
+📲 **أندرويد**: GitHub Releases → v1.4.4
 💬 **تواصل مباشر**: https://wa.me/972568802803
 
 ---
@@ -144,8 +144,8 @@
 ### **Try Free Now**
 
 🌐 **Website**: https://ibrheamkhalaf88-collab.github.io/GymOS/
-📱 **Demo Code**: `7Q2-K9D` (DEMO MODE)
-📲 **Android**: GitHub Releases → v1.3.0
+📱 **Trial Code**: `7Q2-K9D` (30-day free trial)
+📲 **Android**: GitHub Releases → v1.4.4
 💬 **WhatsApp**: https://wa.me/972568802803
 
 ---
@@ -161,7 +161,7 @@
 | Channel | Link |
 |---------|------|
 | Website | https://ibrheamkhalaf88-collab.github.io/GymOS/ |
-| Demo Code | `7Q2-K9D` |
+| Trial Code | `7Q2-K9D` |
 | Android APK | GitHub Releases |
 | WhatsApp | https://wa.me/972568802803 |
 | LinkedIn | [Add founder profile] |
@@ -169,4 +169,4 @@
 
 ---
 
-*Version 1.0 — October 2026 — GymOS v1.3.0*
+*Version 1.4 — October 2026 — GymOS v1.4.4*

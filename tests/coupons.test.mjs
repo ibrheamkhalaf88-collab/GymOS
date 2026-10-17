@@ -34,7 +34,7 @@ test('coupon kinds offered by the admin UI match those the API accepts', () => {
   const serverKinds = [...accepted[0].matchAll(/"([a-z0-9_]+)"/g)].map((x) => x[1]);
   assert.deepEqual(
     [...serverKinds].sort(),
-    ['days_14', 'days_30', 'days_365', 'percent'],
+    ['days_14', 'days_30', 'days_365', 'days_custom', 'percent'],
     'the API allow-list changed; keep admin.html and couponTier/couponDays in sync',
   );
   assert.deepEqual(
@@ -49,9 +49,10 @@ test('client and server map each day-based kind to the same tier and days', () =
   const tier = api.match(/function couponTier\([\s\S]*?\n\}/)[0];
   const days = api.match(/function couponDays\([\s\S]*?\n\}/)[0];
   // Client side — lives in js/admin-panel.js since the panel overhaul.
+  // couponDaysOf(k, v) takes the coupon's value for the days_custom kind.
   const clientTier = adminPanelSrc.match(/function couponTierOf\(k\) \{[^}]*\}/)[0];
-  const clientDays = adminPanelSrc.match(/function couponDaysOf\(k\) \{[^}]*\}/)[0];
-  for (const kind of ['days_14', 'days_30', 'days_365']) {
+  const clientDays = adminPanelSrc.match(/function couponDaysOf\(k(?:, v)?\) \{[^}]*\}/)[0];
+  for (const kind of ['days_14', 'days_30', 'days_365', 'days_custom']) {
     assert.ok(tier.includes(kind) && clientTier.includes(kind), `${kind} missing from a tier map`);
     assert.ok(days.includes(kind) && clientDays.includes(kind), `${kind} missing from a days map`);
   }

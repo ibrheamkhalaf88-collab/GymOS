@@ -8,7 +8,7 @@
 
 **Copy**:
 ```
-أُعلن اليوم عن **GymOS v1.0** — نظام إدارة نوادي صممته لحل مشكلتي كصاحب نادي.
+أُعلن اليوم عن **GymOS v1.4.4** — نظام إدارة نوادي صممته لحل مشكلتي كصاحب نادي.
 
 3 سنين بعاني مع الإكسل: أعضاء ينسون يجددون، رواتب مدربين تحسب يدوي، أجهزة تتعطل وما حد يدري، تقارير ما تصدق.
 
@@ -23,7 +23,7 @@
 ✅ تجربة مجانية 30 يوم — بلا كرت، بلا التزام
 
 🔗 **جربها الآن**: https://ibrheamkhalaf88-collab.github.io/GymOS/
-📱 **كود التجربة**: `7Q2-K9D` (DEMO MODE)
+📱 **كود التجربة**: `7Q2-K9D` (تجربة مجانية 30 يوم)
 📲 **أندرويد APK**: GitHub Releases
 💬 **تواصل مباشر**: https://wa.me/972568802803
 
@@ -187,8 +187,8 @@ So I built GymOS.
 **The result**: I run my gym from my phone. My staff uses activation codes. Members get Arabic WhatsApp reminders. My accountant gets clean CSV/Excel/PDF reports with Arabic text that doesn't break.
 
 **Try it free**: https://ibrheamkhalaf88-collab.github.io/GymOS/
-**Demo code**: `7Q2-K9D` (DEMO MODE)
-**Android APK**: GitHub Releases → v1.3.0
+**Trial code**: `7Q2-K9D` (30-day free trial)
+**Android APK**: GitHub Releases → v1.4.4
 **WhatsApp me**: https://wa.me/972568802803
 
 This isn't a pitch. It's a tool I wish existed 3 years ago. If you run a gym in the region, try it. Tell me what's missing. I build fast.
@@ -214,7 +214,7 @@ So I built our own. 🧵👇
 **Tweet 4/7**: Trainer payroll
 **Tweet 5/7**: Hardware maintenance → auto P&L
 **Tweet 6/7**: Tech stack (Supabase, PWA, Capacitor, vanilla JS)
-**Tweet 7/7**: Link + demo code + "Try it, roast me"
+**Tweet 7/7**: Link + trial code + "Try it, roast me"
 
 ---
 
@@ -403,7 +403,7 @@ So I built our own. 🧵👇
 ### Evening (20:00-20:15)
 - [ ] TikTok/Reels — reply to comments, like relevant
 - [ ] LinkedIn — engage with 5 thought-leader posts (meaningful comments)
-- [ ] Check metrics: Demo activations today, WhatsApp convos, profile visits
+- [ ] Check metrics: Trial activations today, WhatsApp convos, profile visits
 
 ---
 
@@ -412,7 +412,7 @@ So I built our own. 🧵👇
 | Metric | Target | Actual | Notes |
 |--------|--------|--------|-------|
 | Landing page unique visitors | 500 | | |
-| Demo code activations (`7Q2-K9D`) | 20 | | |
+| Trial code activations (`7Q2-K9D`) | 20 | | |
 | WhatsApp conversations started | 30 | | |
 | LinkedIn post engagement rate | >3% | | |
 | TikTok/Reels total views | 5,000 | | |

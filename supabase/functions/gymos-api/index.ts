@@ -261,6 +261,10 @@ const tooManyCode = (code: string) => actLimiter.blocked(code);
 const failCode = (code: string) => actLimiter.hit(code);
 const clearCode = (code: string) => actLimiter.clear(code);
 
+// JWT re-mint limiter (/api/auth/refresh). The real gate is the registered
+// deviceId check — this cap just blunts brute-force noise on the endpoint.
+const refreshLimiter = limiter(30, LOCK_MS);
+
 // free-trial issuance cap — deviceId is client-controlled and clearable, so the
 // per-IP cap is the real anti-abuse boundary. Keyed by clientIp (never per "TRIAL").
 const TRIAL_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -352,12 +356,13 @@ function toCoupon(r: any) {
     createdAt: r.created_at ? new Date(r.created_at).getTime() : null,
   };
 }
-/** Subscription tier a coupon grants, or null for a plain percent discount. */
+/** Subscription tier a coupon grants, or null for a plain percent discount.
+ *  days_custom grants a monthly-tier subscription that lasts exactly value days. */
 function couponTier(c: any): string | null {
-  return c.kind === "days_14" ? "trial" : c.kind === "days_30" ? "monthly" : c.kind === "days_365" ? "yearly" : null;
+  return c.kind === "days_14" ? "trial" : c.kind === "days_30" ? "monthly" : c.kind === "days_365" ? "yearly" : c.kind === "days_custom" ? "monthly" : null;
 }
 function couponDays(c: any): number {
-  return c.kind === "days_14" ? 14 : c.kind === "days_30" ? 30 : c.kind === "days_365" ? 365 : 0;
+  return c.kind === "days_14" ? 14 : c.kind === "days_30" ? 30 : c.kind === "days_365" ? 365 : c.kind === "days_custom" ? Math.max(1, Math.floor(Number(c.value) || 0)) : 0;
 }
 
 // ---------- Audit & Error Logging Helpers ----------
@@ -489,6 +494,31 @@ async function handler(req: Request): Promise<Response> {
         return json({ ok: true, record, expired: true, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
       }
       return json({ ok: true, record, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
+    }
+
+    /* JWT re-mint for expired/lost/rotated tokens — code-only recovery.
+       The client calls this when a sync 401s and no Supabase email session
+       exists (/api/auth/activate is disabled, /api/auth/mine needs a live
+       auth session). Trust gate: the deviceId must ALREADY be registered to
+       the code (the same devices array /api/auth/mine writes) — a stolen
+       code alone never mints a token for a new device. Deliberately does NOT
+       require the old JWT: recovering from a dead token is the whole point. */
+    if (req.method === "POST" && path === "/api/auth/refresh") {
+      const ip = clientIp(req);
+      if (refreshLimiter.blocked(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000 }, 429, origin);
+      refreshLimiter.hit(ip);
+      const code = normCode(body?.code);
+      const devId = String(body?.deviceId || "").slice(0, 80);
+      if (!code || !devId) return json({ error: "BAD_REQUEST" }, 400, origin);
+      const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
+      if (!rec || !rec.used) return json({ error: "NOT_FOUND" }, 404, origin);
+      if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
+      const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
+      if (!devices.some((d) => d.deviceId === devId)) {
+        return json({ error: "DEVICE_NOT_REGISTERED" }, 403, origin);
+      }
+      // Mint exactly like /api/auth/login — same 30d expiry, same claims.
+      return json({ ok: true, token: await signJwt({ code: rec.code, deviceId: devId }) }, 200, origin);
     }
 
     /* email-identity code discovery —
@@ -859,8 +889,11 @@ async function handler(req: Request): Promise<Response> {
       failAdminIp(ip);
       const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
       if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
-      const kind = ["days_14", "days_30", "days_365", "percent"].includes(body?.kind) ? body.kind : "days_30";
-      const value = Math.max(0, Math.min(100, Math.floor(Number(body?.value) || 0)));
+      const kind = ["days_14", "days_30", "days_365", "percent", "days_custom"].includes(body?.kind) ? body.kind : "days_30";
+      const rawValue = Math.max(0, Math.floor(Number(body?.value) || 0));
+      if (kind === "days_custom" && (rawValue < 1 || rawValue > 3650)) return json({ error: "INVALID_VALUE" }, 400, origin);
+      // percent caps at 100; days_custom carries its days in value (1-3650, checked above)
+      const value = kind === "days_custom" ? rawValue : Math.min(100, rawValue);
       if (kind === "percent" && value < 1) return json({ error: "INVALID_VALUE" }, 400, origin);
       const { data, error } = await sb.from("coupons")
         .insert({ code, kind, value, description: String(body?.description || "").slice(0, 200) })

@@ -81,7 +81,16 @@ async function adminFetch(path, opts = {}) {
   const url = `${appConfig.apiUrl}${path}`;
   const res = await fetch(url, { ...opts, headers });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    // 401/403 = dead (or non-admin) token — same behaviour as admin-panel.js:
+    // drop the stale token and send the user back to the admin login screen.
+    if (res.status === 401 || res.status === 403) {
+      sessionStorage.removeItem('dp_admin_token');
+      window.location.href = 'admin-login.html';
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
   return data;
 }
 

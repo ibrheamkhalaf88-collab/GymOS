@@ -1400,12 +1400,13 @@
             <option value="days_14">🧪 Free 2 weeks / أسبوعين مجاناً</option>
             <option value="days_30" selected>📅 Free 1 month / شهر مجاني</option>
             <option value="days_365">📆 Free 1 year / سنة مجانية</option>
+            <option value="days_custom">⚙️ Custom days / أيام مخصصة</option>
             <option value="percent">💯 Percentage discount / نسبة مئوية</option>
           </select>
         </div>
         <div>
-          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Value (percentage only) / القيمة (للنسبة فقط)</label>
-          <input id="couponValue" type="number" min="1" max="100" value="50" class="input w-28" style="background: var(--bg);" />
+          <label class="text-xs uppercase tracking-widest opacity-60 block mb-1.5 arabic-text" style="color: var(--text-muted);">Value (percentage % or custom days) / القيمة (نسبة % أو أيام مخصصة)</label>
+          <input id="couponValue" type="number" min="1" max="3650" value="50" class="input w-28" style="background: var(--bg);" />
         </div>
 
         <div class="flex justify-end gap-3 pt-2 border-t border-[var(--border)]">

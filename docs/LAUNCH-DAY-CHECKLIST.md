@@ -5,8 +5,8 @@
 ### Technical Verification
 - [ ] **Landing Page**: `https://ibrheamkhalaf88-collab.github.io/GymOS/` loads → Hero + Dispatcher visible
 - [ ] **Onboarding**: Click "Get Started" → `onboarding.html` loads → 4 steps work
-- [ ] **Demo Code**: `7Q2-K9D` activates DEMO MODE on landing page
-- [ ] **GitHub Release**: v1.3.0 published with `app-debug.apk` and `app-release.apk` attached
+- [ ] **Trial Code**: `7Q2-K9D` activates the 30-day free trial on landing page
+- [ ] **GitHub Release**: v1.4.4 published with `app-release.apk` and `DigitalPulse-Windows-Portable.exe` attached
 - [ ] **WhatsApp Link**: `https://wa.me/972568802803` opens WhatsApp with pre-filled message
 - [ ] **Supabase Edge Function**: `https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api/health` returns 200
 - [ ] **Analytics**: GitHub Pages traffic visible (or Plausible/GA if configured)
@@ -59,7 +59,7 @@ launch-assets/
   - Tab 4: LinkedIn post analytics
   - Tab 5: TikTok/Reels/Shorts analytics
   - Tab 6: GitHub Release downloads
-- [ ] Test demo code `7Q2-K9D` one more time
+- [ ] Test trial code `7Q2-K9D` one more time
 - [ ] Send WhatsApp broadcast manually (more personal than API)
 
 ### 08:30-09:00 — LinkedIn Personal Post
@@ -67,7 +67,7 @@ launch-assets/
 - [ ] Attach carousel PDF (5 slides)
 - [ ] Add hashtags
 - [ ] Tag 3-5 relevant people (gym owners, MENA tech, SaaS founders)
-- [ ] Post → immediately comment with demo code + link
+- [ ] Post → immediately comment with trial code + link
 - [ ] Share to 3 relevant LinkedIn Groups (Arab Entrepreneurs, Fitness Business MENA, SaaS Founders)
 
 ### 09:00-09:30 — LinkedIn Company Page
@@ -103,7 +103,7 @@ launch-assets/
 
 ### 12:00-13:00 — Lunch / Monitor
 - [ ] Check metrics every 15 min
-- [ ] Note: demo activations, WhatsApp convos, profile visits
+- [ ] Note: trial activations, WhatsApp convos, profile visits
 
 ### 13:00-14:00 — LinkedIn Article Publish
 - [ ] Publish Pulse article from `SOCIAL-CONTENT.md`
@@ -132,7 +132,7 @@ launch-assets/
 | Metric | Target | Actual | Action if Low |
 |--------|--------|--------|---------------|
 | Landing visitors (4hr) | 100 | | Boost post / share more |
-| Demo activations | 5 | | Check demo flow / add tooltip |
+| Trial activations | 5 | | Check trial flow / add tooltip |
 | WhatsApp convos | 10 | | Follow up broadcast manually |
 | LinkedIn engagement | >3% | | Reply more / tag more |
 | TikTok views (1hr) | 500 | | Share to more groups / duet |
@@ -156,10 +156,10 @@ launch-assets/
 - [ ] Post "First Activation" social proof content
 - [ ] Reply to all Day 1 comments/DMs
 - [ ] WhatsApp follow-up to non-responders (Template 2)
-- [ ] Check trial activation funnel: Landing → Onboarding → Demo activated
+- [ ] Check trial activation funnel: Landing → Onboarding → Trial activated
 
 ### Metrics to Track Daily (Notion/Sheets)
-| Date | Landing Visitors | Demo Activations | WhatsApp Convos | LinkedIn Engagement | TikTok Views | Reels Views | Shorts Views | Profile Visits | Booked Demos |
+| Date | Landing Visitors | Trial Activations | WhatsApp Convos | LinkedIn Engagement | TikTok Views | Reels Views | Shorts Views | Profile Visits | Booked Demos |
 |------|------------------|------------------|-----------------|---------------------|--------------|-------------|--------------|----------------|--------------|
 | Oct 6 | | | | | | | | | |
 | Oct 7 | | | | | | | | | |
@@ -172,8 +172,8 @@ launch-assets/
 | Issue | Response |
 |-------|----------|
 | Landing page down | `gh workflow run deploy-pages.yml` (auto-deploys from main) |
-| Demo code not working | Check Supabase `codes` table → `7Q2-K9D` exists, `used=false`, `kind='demo'` |
-| APK not downloading | Check GitHub Release v1.3.0 has assets attached |
+| Trial code not working | Check Supabase `codes` table → `7Q2-K9D` exists, `used=false`, `revoked=false` |
+| APK not downloading | Check GitHub Release v1.4.4 has assets attached |
 | WhatsApp blocked | Use personal WhatsApp + link in bio |
 | Negative feedback surge | Acknowledge → "Thanks for feedback, fixing [specific] today" → fix fast |
 
@@ -184,7 +184,7 @@ launch-assets/
 | Metric | Minimum | Good | Great |
 |--------|---------|------|-------|
 | Landing visitors | 100 | 300 | 500+ |
-| Demo activations | 5 | 15 | 30+ |
+| Trial activations | 5 | 15 | 30+ |
 | WhatsApp conversations | 10 | 25 | 50+ |
 | LinkedIn post impressions | 1,000 | 5,000 | 15,000+ |
 | TikTok/Reels views (combined) | 1,000 | 5,000 | 20,000+ |
@@ -208,3 +208,13 @@ launch-assets/
 **Remember**: Day 1 is about *starting conversations*, not closing deals. Every comment, DM, and trial activation is a relationship started. Be human, be helpful, be fast.
 
 **Go get 'em! 💪**
+
+---
+
+## Device test — in-app update (v1.4.3 → v1.4.4)
+
+- [ ] Install v1.4.3 once manually from GitHub Releases (upgrade over v1.4.2 must keep all local data)
+- [ ] Open app → Profile → «تحقّق» next to App Version shows "أنت على آخر إصدار"
+- [ ] v1.4.4 (current): the app downloads + installs it by itself (progress overlay, then Android install prompt)
+- [ ] After in-app update: license, gym data, and login survive
+- [ ] Airplane mode on → app opens offline with cached data; off → sync resumes

@@ -71,3 +71,21 @@ jobs:
         run: supabase functions deploy gymos-api --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      # --no-verify-jwt on purpose: the gateway-level JWT check would break this
+      # function's no-JWT entry points (GET /health, POST /scheduled called by
+      # cron with only an x-cron-secret header, POST /connect from
+      # auth/drive-callback.html which sends no Authorization header). The
+      # function does its own JWT auth via authUser() (jsonwebtoken +
+      # JWT_SECRET). Matches supabase/config.toml (verify_jwt = false) and
+      # deploy-supabase.ps1 (verify_jwt=$false).
+      # Secrets this function reads (all already exist in Supabase as of
+      # 2026-10-16): SB_URL, SB_SERVICE_ROLE, JWT_SECRET (all set), and
+      # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CRON_SECRET (set, but the two
+      # GOOGLE_* values are still placeholders pending real Google OAuth
+      # credentials from the user -> that is the 503 BOOT_ERROR, a user-side
+      # task, not a deploy task).
+      - name: Deploy Edge Function gymos-drive-backup
+        run: supabase functions deploy gymos-drive-backup --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

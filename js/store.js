@@ -137,7 +137,7 @@ let _cloudTimer = null;
 // reached the cloud yet. The Settings cloud-sync row renders this state
 // live; the UI listens to the "dp:syncstatus" event.
 const PENDING_KEY = "dp_pending_sync";
-let _syncState = "ok"; // ok | syncing | error
+let _syncState = "ok"; // ok | syncing | error | auth
 let _lastSyncOk = 0;
 
 function setSyncState(s) {
@@ -146,11 +146,35 @@ function setSyncState(s) {
   try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
 }
 
+// ---- Auth-failure suspension (G4) ----
+// بعد ٣ فشل متتالي بسبب انتهاء الجلسة نُعلّق المؤقّت (20s) كي لا يضرب 401
+// بلا نهاية. تُستأنف المزامنة تلقائياً عند أول نجاح (markSaved → resumeAutoSync)
+// أو يدوياً من زر «مزامنة الآن» الذي ينادي syncNow مباشرة.
+const AUTH_SUSPEND_AFTER = 3;
+let _authFails = 0;
+
+function noteAuthFailure() {
+  _authFails += 1;
+  if (_authFails >= AUTH_SUSPEND_AFTER && _syncTimer) {
+    clearInterval(_syncTimer);
+    _syncTimer = null;
+  }
+}
+
+function resumeAutoSync() {
+  if (_syncTimer) return;
+  if (localStorage.getItem("dp_cloud") !== "1") return;
+  const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+  if (!lic || !lic.code || !cloudAllowed(lic)) return;
+  _syncTimer = setInterval(syncNow, 20000);
+}
+
 function syncStatus() {
   const enabled = localStorage.getItem("dp_cloud") === "1";
   const pending = enabled && localStorage.getItem(PENDING_KEY) === "1";
   const state = !enabled ? "off"
     : _syncing ? "syncing"
+    : _syncState === "auth" ? "auth"
     : _syncState === "error" ? "error"
     : pending ? "pending" : "ok";
   return { state, pending, lastOk: _lastSyncOk, enabled };
@@ -184,6 +208,8 @@ function syncStatusDetailed() {
 function markSaved() {
   localStorage.removeItem(PENDING_KEY);
   _lastSyncOk = Date.now();
+  _authFails = 0; // نجاح واحد يلغي سلسلة فشل المصادقة
+  resumeAutoSync(); // إن كان المؤقّت معلّقاً بسبب 401 → أعد تشغيله
   setSyncState("ok");
 }
 
@@ -215,11 +241,15 @@ function queueCloudSave() {
       const { codesDb } = await import("./db.js");
       if (!codesDb.saveGym) { localStorage.removeItem(PENDING_KEY); return; }
       const dump = cloudDump();
-      // saveGym resolves `false` instead of throwing on failure — only a
+      // saveGym resolves { ok:false } instead of throwing on failure — only a
       // confirmed push may clear the pending flag (a silent false here used
       // to show "synced" while the data never left this device).
-      const ok = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
-      if (!ok) { setSyncState("error"); return; }
+      const res = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: dump });
+      if (!res.ok) {
+        if (res.auth) { setSyncState("auth"); noteAuthFailure(); }
+        else setSyncState("error");
+        return;
+      }
       markSaved();
     } catch (err) {
       setSyncState("error"); // pending flag stays set → retried by sync loop / online event
@@ -293,6 +323,13 @@ async function syncNow() {
     if (!codesDb.saveGym) return;
     const local = cloudDump();
     const cloudRes = await codesDb.loadGym(lic.code);
+    if (cloudRes && cloudRes.auth) {
+      // G7: انتهت الجلسة — لا تقرأ السحابة كأنها فارغة ولا تدفع شيئاً.
+      // دفع الكاش المحلي كاملاً فوق سحابة غير مقروءة كان سيطغى على أجهزة أخرى.
+      setSyncState("auth");
+      noteAuthFailure();
+      return;
+    }
     const cloud = cloudRes && cloudRes.data ? cloudRes.data : null;
     let merged, mergedTomb;
     if (cloud) {
@@ -314,10 +351,15 @@ async function syncNow() {
     const push = {};
     COLLECTIONS.forEach((c) => { if (c in merged) push[c] = merged[c]; });
     push._tombstones = mergedTomb;
-    // Same honesty rule as queueCloudSave: saveGym returns false on failure,
-    // and clearing dp_pending_sync without a confirmed push is silent data loss.
-    const ok = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
-    if (!ok) { setSyncState("error"); return; }
+    // Same honesty rule as queueCloudSave: saveGym returns { ok:false } on
+    // failure, and clearing dp_pending_sync without a confirmed push is
+    // silent data loss. An auth failure suspends the loop (G4) + shows the banner.
+    const res = await codesDb.saveGym(lic.code, { savedAt: Date.now(), data: push });
+    if (!res.ok) {
+      if (res.auth) { setSyncState("auth"); noteAuthFailure(); }
+      else setSyncState("error");
+      return;
+    }
     markSaved();
   } catch (e) {
     setSyncState("error");

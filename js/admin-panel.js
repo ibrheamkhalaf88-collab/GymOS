@@ -114,6 +114,7 @@ const KIND_LABEL = {
   days_14: '14 days / 14 يوم',
   days_30: '30 days / 30 يوم',
   days_365: '365 days / 365 يوم',
+  days_custom: 'Custom days / أيام مخصصة',
   percent: 'Percent / نسبة',
 };
 
@@ -397,11 +398,11 @@ function saveLocalCoupons(c) {
 }
 
 function couponTierOf(k) {
-  return k === 'days_14' ? 'trial' : k === 'days_30' ? 'monthly' : k === 'days_365' ? 'yearly' : null;
+  return k === 'days_14' ? 'trial' : k === 'days_30' ? 'monthly' : k === 'days_365' ? 'yearly' : k === 'days_custom' ? 'monthly' : null;
 }
 
-function couponDaysOf(k) {
-  return k === 'days_14' ? 14 : k === 'days_30' ? 30 : k === 'days_365' ? 365 : 0;
+function couponDaysOf(k, v) {
+  return k === 'days_14' ? 14 : k === 'days_30' ? 30 : k === 'days_365' ? 365 : k === 'days_custom' ? Math.max(1, parseInt(v, 10) || 0) : 0;
 }
 
 // ---------- Load Users ----------
@@ -1621,7 +1622,7 @@ async function apiPeekCoupon(code) {
     const c = localCoupons().find(x => x.code.toUpperCase() === code.toUpperCase());
     if (!c) throw new Error('Invalid coupon / كوبون غير صحيح');
     if (c.used) throw new Error('Coupon already used / الكوبون مستخدم بالفعل');
-    return { coupon: c, tier: couponTierOf(c.kind), days: couponDaysOf(c.kind) };
+    return { coupon: c, tier: couponTierOf(c.kind), days: couponDaysOf(c.kind, c.value) };
   }
   return api('/api/coupons/' + encodeURIComponent(code));
 }
@@ -1683,7 +1684,7 @@ async function loadCoupons() {
   elements.couponListBody.innerHTML = rows.map((c) => `
     <tr style="border-top:1px solid #2a2a2a;">
       <td class="py-2 px-2" style="font-family:monospace;">${esc(c.code)}</td>
-      <td class="py-2 px-2">${esc(KIND_LABEL[c.kind] || c.kind)}</td>
+      <td class="py-2 px-2">${c.kind === 'days_custom' ? esc((c.value || 0) + ' days / ' + (c.value || 0) + ' يوم') : esc(KIND_LABEL[c.kind] || c.kind)}</td>
       <td class="py-2 px-2">
         <span class="badge ${c.used ? 'badge-danger' : 'badge-success'}">
           ${c.used ? '📦 Used / مستخدم' : '✅ Unused / متاح'}
@@ -1748,6 +1749,11 @@ elements.couponForm.addEventListener('submit', async (e) => {
   }
   if (kind === 'percent' && value < 1) {
     elements.couponModalMsg.textContent = 'Percentage must be 1-100 / النسبة يجب أن تكون 1-100';
+    elements.couponModalMsg.style.color = 'var(--danger)';
+    return;
+  }
+  if (kind === 'days_custom' && (value < 1 || value > 3650)) {
+    elements.couponModalMsg.textContent = 'Custom days must be 1-3650 / الأيام المخصصة يجب أن تكون 1-3650';
     elements.couponModalMsg.style.color = 'var(--danger)';
     return;
   }
@@ -2421,7 +2427,15 @@ async function drRenderLicense(u) {
       <button class="btn btn-secondary btn-sm" data-dr-act="send-reset">🔑 Send password reset</button>
       <button class="btn btn-secondary btn-sm" data-dr-assign="1">🔗 Assign code by email</button>
     </div>
-    <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">Custom exact expiry dates are not supported by the existing API (it computes from +days). Extend via Edit subscription instead.</p>
+    <div class="chart-title" style="margin:1rem 0 0.5rem;">Quick extend / تمديد سريع</div>
+    ${u.subscription === 'lifetime'
+      ? '<p class="text-xs" style="color:var(--text-muted);">Lifetime account — nothing to extend / حساب دائم — لا حاجة للتمديد</p>'
+      : `<div class="flex gap-2 flex-wrap" style="align-items:center;">
+      <input id="drExtendDays" type="number" min="1" max="3650" value="30" class="input w-24" style="background:var(--bg);" aria-label="Days to add" />
+      <span class="text-xs" style="color:var(--text-muted);">days / يوم</span>
+      <button class="btn btn-primary btn-sm" data-dr-extend="1">＋ Extend / تمديد</button>
+    </div>
+    <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">Days add on top of remaining time (10 left + 360 → 370) / الأيام تنضاف فوق المتبقي</p>`}
   `;
   panel.querySelectorAll('[data-dr-act]').forEach(b => b.addEventListener('click', () => {
     dispatchRowAction(b.dataset.drAct, u.id, u.email);
@@ -2434,6 +2448,30 @@ async function drRenderLicense(u) {
     try { await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: true }) }); showToast('Code revoked', 'success'); drRenderLicense(u); }
     catch (e) { showToast('Revoke failed: ' + e.message, 'error'); }
   }));
+  const extendBtn = panel.querySelector('[data-dr-extend]');
+  if (extendBtn) extendBtn.addEventListener('click', async () => {
+    const inp = panel.querySelector('#drExtendDays');
+    const add = parseInt(inp && inp.value, 10) || 0;
+    if (add < 1 || add > 3650) { showToast('Enter 1-3650 days / أدخل من 1 إلى 3650 يوم', 'error'); return; }
+    const now = Date.now();
+    const endMs = u.subEnd ? Date.parse(u.subEnd) : 0;
+    const remaining = endMs > now ? Math.ceil((endMs - now) / 86400000) : 0;
+    const total = remaining + add;
+    const tier = ['trial', 'monthly', 'yearly'].includes(u.subscription) ? u.subscription : 'monthly';
+    const ok = await showConfirm({ title: 'Extend subscription', message: `+${add} days on top of ${remaining} remaining → total ${total} days / تمديد ${add} يوم فوق ${remaining} يوم متبقية — الإجمالي ${total} يوم`, icon: '⏳', okText: 'Extend / تمديد' });
+    if (!ok) return;
+    extendBtn.disabled = true;
+    try {
+      await api('/api/users/' + u.id, { method: 'PATCH', body: JSON.stringify({ subscription: { tier, days: total } }) });
+      showToast('Subscription extended / تم تمديد الاشتراك', 'success');
+      await loadUsers();
+      const fresh = allUsers.find(x => x.id === u.id);
+      if (fresh) drRenderLicense(fresh); else drRenderLicense(u);
+    } catch (e) {
+      showToast('Extend failed: ' + (e.message || 'error'), 'error');
+      extendBtn.disabled = false;
+    }
+  });
   const assignBtn = panel.querySelector('[data-dr-assign]');
   if (assignBtn) assignBtn.addEventListener('click', async () => {
     if (!mine.length) { showToast('Create a code first (New code button)', 'error'); return; }

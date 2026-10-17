@@ -4,7 +4,7 @@
 // ============================================================
 
 import { store, PLANS, planPrices, savePlanPrices } from "./store.js";
-import { clearJwt } from "./db.js";
+import { clearJwt, getJwt } from "./db.js";
 import { license } from "./license.js";
 import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
@@ -596,8 +596,13 @@ function show(tab, keepScroll = false) {
   const prevTab = currentTab;
   currentTab = tab;
   // Finance always opens on the CURRENT month (today) unless you are
-  // already browsing inside it
-  if (tab === "ledger" && prevTab !== "ledger") ledgerOffset = 0;
+  // already browsing inside it; chip filter / search / paging reset too
+  if (tab === "ledger" && prevTab !== "ledger") {
+    ledgerOffset = 0;
+    ledgerFilter = "all";
+    ledgerQuery = "";
+    ledgerShown = 15;
+  }
   destroyCharts();
   const titles = {
     dashboard: ["DASHBOARD", "الرئيسية"],
@@ -1041,12 +1046,12 @@ function viewRoster() {
         <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
       </div>
       <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
-        ${["active", "expired", "trainers", "trial", "frozen"].map((f) => `
+        ${["all", "active", "expired", "trainers", "trial", "frozen"].map((f) => `
           <button data-filter="${f}" class="roster-filter whitespace-nowrap px-5 py-3 rounded-full border font-label tracking-wider active:scale-95 transition-transform flex flex-col items-center gap-0.5 min-w-[92px]
-            ${f === rosterFilter
+            ${((rosterFilter === "" && f === "all") || f === rosterFilter)
               ? "border-primary bg-primary/10 text-primary shadow-neon"
               : "border-outline-variant bg-surface-container text-muted hover:text-white"}">
-            <span class="font-arabic font-bold text-[15px]">${FILTER_EMOJI[f] || ""} ${i18n.t.statuses[f] || (f === "trainers" ? "مدربون" : f)}</span>
+            <span class="font-arabic font-bold text-[15px]">${FILTER_EMOJI[f] || ""} ${i18n.t.statuses[f] || (f === "all" ? "الكل" : f === "trainers" ? "مدربون" : f)}</span>
             <span class="text-[11px] uppercase opacity-70">${f.toUpperCase()}</span>
           </button>`).join("")}
       </div>
@@ -1096,6 +1101,17 @@ function viewRoster() {
           });
           if (ok) { store.remove("trainers", t.id); showToast("Trainer deleted — finance kept / انحذف المدرب وحُفظت رواتبها بالسجل"); }
         }));
+      return;
+    }
+
+    // ?? ALL — notebook register book (one row per member, every status) ??
+    if (rosterFilter === "all") {
+      const qAll = rosterQuery.trim().toLowerCase();
+      const rows = store.sortMembers(store.all("members"))
+        .filter((mm) => !qAll || mm.name.toLowerCase().includes(qAll) || String(mm.phone).includes(qAll));
+      grid.innerHTML = registerBook(rows);
+      grid.querySelectorAll("[data-member]").forEach((card) =>
+        card.addEventListener("click", () => openMemberDetail(card.dataset.member)));
       return;
     }
 
@@ -1201,7 +1217,14 @@ const tierLabel = (tier) => {
   const m = LICENSE_TIER[tier];
   return m ? `${m[0]} ${m[1]} / ${m[2]}` : `${tier}`;
 };
-const FILTER_EMOJI = { active: "?", expired: "?", trial: "??", frozen: "??", trainers: "??" };
+const FILTER_EMOJI = {
+  all: "\u{1F4DA}", // 📚
+  active: "\u{1F7E2}", // 🟢
+  expired: "\u26A0\uFE0F", // ⚠️
+  trial: "\u{1F9EA}", // 🧪
+  frozen: "\u2744\uFE0F", // ❄️
+  trainers: "\u{1F3CB}\uFE0F", // 🏋️
+};
 
 function memberAvatar(m, st) {
   const borderClass = st === "expired" ? "avatar-alert" : st === "trial" ? "avatar-frost" : "avatar-volt";
@@ -1217,10 +1240,10 @@ function memberCard(m, index = 0) {
   const daysLeft = Math.ceil((m.expiresAt - Date.now()) / DAY);
 
   let statusBadge;
-  if (st === "expired") statusBadge = `<span class="badge badge-alert">? منتهي — ${Math.abs(daysLeft)} يوم</span>`;
-  else if (st === "trial") statusBadge = `<span class="badge badge-frost">?? تجريبي — يوم ${daysLeft}</span>`;
-  else if (st === "frozen") statusBadge = `<span class="badge badge-muted">?? مجمد</span>`;
-  else statusBadge = `<span class="badge badge-volt">? ${TIER_LABEL[m.plan] || "عضو"}</span>`;
+  if (st === "expired") statusBadge = `<span class="badge badge-alert">منتهي — ${Math.abs(daysLeft)} يوم</span>`;
+  else if (st === "trial") statusBadge = `<span class="badge badge-frost">تجريبي — يوم ${daysLeft}</span>`;
+  else if (st === "frozen") statusBadge = `<span class="badge badge-muted">مجمد</span>`;
+  else statusBadge = `<span class="badge badge-volt">${TIER_LABEL[m.plan] || "عضو"}</span>`;
 
   const cardClass = `member-card stagger-in ${st === "expired" ? "expired" : st === "trial" ? "trial" : st === "frozen" ? "frozen" : ""}`;
   const style = `style="animation-delay: ${index * 50}ms"`;
@@ -1248,48 +1271,127 @@ function memberCard(m, index = 0) {
   </div>`;
 }
 
+// ---- ALL tab: notebook register book (docs/design/register_book) ----
+function registerRow(m) {
+  const st = effStatus(m);
+  const cls = st === "expired" ? "is-expired" : st === "frozen" ? "is-frozen" : "is-active";
+  return `
+    <div class="dp-register-row ${cls}" data-member="${m.id}">
+      <div class="min-w-0">
+        <div class="dp-register-name">${escapeHtml(m.name)}</div>
+        <div class="dp-register-sub">${escapeHtml(i18n.t.plans[m.plan] || m.plan)}${m.phone ? ` · <span dir="ltr">${escapeHtml(m.phone)}</span>` : ""}</div>
+      </div>
+      <div class="dp-register-date">${fmt.date(m.expiresAt, currentLang())}</div>
+      <div class="dp-register-paid">+$${Number(m.paidAmount) || 0}</div>
+    </div>`;
+}
+
+function registerBook(rows) {
+  if (!rows.length) {
+    return `<div class="empty-state col-span-full"><div class="icon material-symbols-outlined">menu_book</div><h3>الدفتر فاضي</h3><p>ضيف أول عضو / Register is empty — add your first member</p></div>`;
+  }
+  const totalPaid = rows.reduce((s, mm) => s + (Number(mm.paidAmount) || 0), 0);
+  const nActive = rows.filter((mm) => { const st = effStatus(mm); return st === "active" || st === "trial"; }).length;
+  const nExpired = rows.filter((mm) => effStatus(mm) === "expired").length;
+  return `
+    <div class="dp-register col-span-full">
+      <div class="dp-register-head">
+        <span>\u{1F4DA} دفتر الأعضاء / MEMBERS REGISTER</span>
+        <span>${rows.length} عضو / MEMBERS</span>
+      </div>
+      ${rows.map(registerRow).join("")}
+      <div class="dp-register-total">
+        <span>إجمالي المدفوع: <b dir="ltr">$${totalPaid}</b> / Total paid: $${totalPaid}</span>
+        <span class="flex items-center gap-3">
+          <span><span class="dot volt"></span>نشط ${nActive}</span>
+          <span><span class="dot alert"></span>منتهي ${nExpired}</span>
+        </span>
+      </div>
+    </div>`;
+}
+
+// ---- Custom dp-select dropdowns: ONE document-level closer for outside clicks
+// + Escape. The module flag guarantees multiple modals never stack duplicates. ----
+let dpSelectCloserWired = false;
+function wireDpSelectOutsideClose() {
+  if (dpSelectCloserWired) return;
+  dpSelectCloserWired = true;
+  const closeOpen = (wrap) => {
+    wrap.classList.remove("open");
+    const b = $(".dp-select-btn", wrap);
+    if (b) b.setAttribute("aria-expanded", "false");
+  };
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll(".dp-select-wrap.open").forEach((w) => {
+      if (!w.contains(e.target)) closeOpen(w);
+    });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    document.querySelectorAll(".dp-select-wrap.open").forEach(closeOpen);
+  });
+}
+
 function openMemberModal(id = null) {
   const t = i18n.t;
   const m = id ? store.get("members", id) : null;
   const prices = planPrices();
   const planOptions = PLANS.map((p) =>
     `<option value="${p.key}" ${m?.plan === p.key ? "selected" : ""}>${p.en} / ${p.ar} — $${prices[p.key]}</option>`).join("");
-  const legacyOpt = m && !PLANS.some((p) => p.key === m.plan)
-    ? `<option value="${escapeHtml(m.plan)}" selected>${escapeHtml(m.plan)}</option>` : "";
+  // Legacy plan (no longer in PLANS) — keep it selectable in the native select
+  const legacyKey = m && !PLANS.some((p) => p.key === m.plan) ? m.plan : null;
+  const legacyOpt = legacyKey
+    ? `<option value="${escapeHtml(legacyKey)}" selected data-legacy="1">${escapeHtml(legacyKey)}</option>` : "";
 
   const mod = openModal(`
-    <div class="modal-header mb-6">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${m ? "?? " + t.editMember : "? " + t.addMember}</h3>
-      <p class="font-arabic text-muted text-sm" dir="rtl">${m ? "تعديل بيانات العضو" : "إضافة عضو جديد"}</p>
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-2xl bg-volt/10 border border-volt/30 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-volt text-[22px]" style="font-variation-settings:'FILL' 1;">${m ? "manage_accounts" : "person_add"}</span>
+      </div>
+      <div class="min-w-0">
+        <h3 class="font-headline font-bold uppercase tracking-tight text-lg leading-tight">${m ? t.editMember : t.addMember}</h3>
+        <p class="font-arabic text-muted text-xs mt-0.5" dir="rtl">${m ? "تعديل بيانات العضو" : "سجّل عضو جديد — باقة ومدة ودفعة"}</p>
+      </div>
     </div>
-    <form id="memberForm" class="flex flex-col gap-4">
+    <form id="memberForm" class="flex flex-col gap-5">
       <div class="field-wrapper">
         <input name="name" required class="dp-field" value="${m ? escapeHtml(m.name) : ""}" placeholder=" " />
         <label>${t.memberName}</label>
       </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div class="field-wrapper">
-          <input name="phone" dir="ltr" class="dp-field" value="${m ? escapeHtml(m.phone || "") : ""}" placeholder=" " />
-          <label>${t.phone}</label>
-        </div>
-        <div class="field-wrapper">
-          <input name="tag" class="dp-field" value="${m ? escapeHtml(m.tag || "") : ""}" placeholder=" " />
-          <label>Tag / وسم</label>
-        </div>
+      <div class="field-wrapper">
+        <input name="phone" dir="ltr" class="dp-field" value="${m ? escapeHtml(m.phone || "") : ""}" placeholder=" " />
+        <label>${t.phone}</label>
       </div>
-      <div class="grid ${m ? "grid-cols-1" : "grid-cols-[1fr_6.5rem]"} gap-4 items-end">
-        <div class="field-wrapper">
-          <select name="plan" class="dp-field">${planOptions}${legacyOpt}</select>
-          <label>${t.plan}</label>
-          <button type="button" id="editPricesBtn" title="Edit plan prices / تعديل أسعار الباقات" class="field-action btn-ghost">
-            <span class="material-symbols-outlined text-[16px]">settings_suggest</span>
+      <div class="field-wrapper">
+        <div class="dp-select-wrap w-full">
+          <select name="plan" class="dp-field hidden">${planOptions}${legacyOpt}</select>
+          <button type="button" id="planDDBtn" class="dp-field dp-select-btn" style="padding-inline-end: 2.75rem;" aria-haspopup="listbox" aria-expanded="false">
+            <span class="dp-select-btn-label" data-plan-label></span>
+            <span class="dp-price-chip" data-plan-price></span>
+            <span class="material-symbols-outlined chev">expand_more</span>
           </button>
+          <div id="planDDPop" class="dp-select-pop" role="listbox"></div>
         </div>
-        ${m ? "" : `<div class="field-wrapper">
-          <input name="days" type="number" min="1" max="1095" value="30" class="dp-field" placeholder=" " />
-          <label>Days / الأيام</label>
-        </div>`}
+        <label>${t.plan}</label>
+        <button type="button" id="editPricesBtn" title="Edit plan prices / تعديل أسعار الباقات" class="field-action btn-ghost">
+          <span class="material-symbols-outlined text-[16px]">settings_suggest</span>
+        </button>
       </div>
+      ${m ? "" : `
+      <div class="flex flex-col gap-2">
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">المدة / DURATION</p>
+        <div class="flex flex-wrap gap-2" id="durChips">
+          <button type="button" data-dur="30" class="dp-chip dp-chip-active">1 شهر / 1 Month</button>
+          <button type="button" data-dur="60" class="dp-chip">شهرين / 2 Months</button>
+          <button type="button" data-dur="custom" class="dp-chip">تاريخ محدد / Custom date</button>
+        </div>
+      </div>
+      <div id="customEndWrap" class="dp-reveal">
+        <div class="field-wrapper">
+          <input name="customEnd" type="date" class="dp-field" placeholder=" " />
+          <label>تاريخ الانتهاء / End date</label>
+        </div>
+      </div>`}
       ${m && effStatus(m) !== "expired" ? `
       <div class="card p-4 gradient-border">
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -1334,6 +1436,95 @@ function openMemberModal(id = null) {
       if (p != null) $('[name="paidAmount"]', mod.el).value = p;
     });
   }
+
+  // ---- Duration control (add mode): 1 month / 2 months / custom end-date.
+  // `days` is computed in the submit handler from durSel — no hidden input. ----
+  let durSel = "30";
+  const startInput = $('input[name="startDate"]', mod.el);
+  const endWrap = $("#customEndWrap", mod.el);
+  const endInput = $('input[name="customEnd"]', mod.el);
+  const syncEndMin = () => { if (endInput) endInput.min = startInput?.value || ""; };
+  if (!m) {
+    $("#durChips", mod.el).addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-dur]");
+      if (!chip) return;
+      durSel = chip.dataset.dur;
+      mod.el.querySelectorAll("[data-dur]").forEach((c) => c.classList.toggle("dp-chip-active", c === chip));
+      if (endWrap) endWrap.classList.toggle("open", durSel === "custom");
+      syncEndMin();
+    });
+    startInput?.addEventListener("change", syncEndMin);
+  }
+
+  // ---- Custom plan dropdown (visual only) — the native <select> stays in the
+  // DOM (hidden) so FormData + the paidAmount auto-fill listener keep working ----
+  const planWrap = $(".dp-select-wrap", mod.el);
+  const planBtn = $("#planDDBtn", mod.el);
+  const planPop = $("#planDDPop", mod.el);
+  const planSel = $('select[name="plan"]', mod.el);
+
+  // "Regular / عادي" — legacy plans have no translation, show the raw key
+  const planDisplayName = (key) => {
+    const p = PLANS.find((x) => x.key === key);
+    return p ? `${p.en} / ${p.ar}` : key;
+  };
+
+  // Rebuild the popup rows from PLANS + live prices (+ any legacy plan)
+  const buildPlanPop = () => {
+    const fresh = planPrices();
+    const key = planSel.value;
+    const row = (k, nameHtml) => {
+      const on = k === key;
+      const price = fresh[k];
+      return `<button type="button" class="dp-select-opt${on ? " dp-select-opt-selected" : ""}" role="option" aria-selected="${on}" data-plan-key="${escapeHtml(k)}">
+          <span class="dp-select-opt-name">${nameHtml}</span>
+          <span class="flex items-center gap-1.5 shrink-0">
+            ${on ? `<span class="material-symbols-outlined text-[16px]">check_circle</span>` : ""}
+            <span class="dp-price-chip">$${price != null ? price : "—"}</span>
+          </span>
+        </button>`;
+    };
+    let rows = PLANS.map((p) => row(p.key, `${p.en} / <span class="font-arabic">${p.ar}</span>`)).join("");
+    if (legacyKey) rows += row(legacyKey, escapeHtml(legacyKey));
+    planPop.innerHTML = rows;
+  };
+
+  // Keep the trigger button in sync with the hidden select's value
+  const syncPlanUI = () => {
+    const key = planSel.value;
+    const price = planPrices()[key];
+    const labelEl = $("[data-plan-label]", mod.el);
+    if (labelEl) labelEl.textContent = planDisplayName(key);
+    const priceEl = $("[data-plan-price]", mod.el);
+    if (priceEl) priceEl.textContent = price != null ? `$${price}` : "$—";
+    planBtn.setAttribute("aria-expanded", planWrap.classList.contains("open") ? "true" : "false");
+  };
+
+  planBtn.addEventListener("click", () => {
+    if (planWrap.classList.contains("open")) {
+      planWrap.classList.remove("open");
+    } else {
+      buildPlanPop(); // fresh prices on every open
+      planWrap.classList.add("open");
+    }
+    syncPlanUI();
+  });
+
+  planPop.addEventListener("click", (e) => {
+    const opt = e.target.closest(".dp-select-opt");
+    if (!opt) return;
+    const key = opt.dataset.planKey;
+    if (planSel.value !== key) {
+      planSel.value = key;
+      // Re-fire the native change so the paidAmount auto-fill above keeps working
+      planSel.dispatchEvent(new Event("change"));
+    }
+    syncPlanUI();
+    planWrap.classList.remove("open");
+  });
+
+  syncPlanUI();
+  wireDpSelectOutsideClose();
   // Inline price editor (gear icon + ??? button both use this)
   const refreshPlanOptions = () => {
     const sel = $('select[name="plan"]', mod.el);
@@ -1342,6 +1533,11 @@ function openMemberModal(id = null) {
     const fresh = planPrices();
     sel.innerHTML = PLANS.map((p) =>
       `<option value="${p.key}" ${p.key === current ? "selected" : ""}>${p.en} / ${p.ar} — $${fresh[p.key]}</option>`).join("");
+    // keep the legacy plan selectable after the rewrite (edit mode only)
+    if (legacyKey) sel.insertAdjacentHTML("beforeend",
+      `<option value="${escapeHtml(legacyKey)}" data-legacy="1" ${current === legacyKey ? "selected" : ""}>${escapeHtml(legacyKey)}</option>`);
+    // re-sync the custom plan dropdown (trigger label + price chip)
+    syncPlanUI();
     // also refresh the ??? price chip next to Freeze
     const chip = mod.el.querySelector("[data-edit-prices]");
     if (chip && m) {
@@ -1376,14 +1572,13 @@ function openMemberModal(id = null) {
   $("#memberForm", mod.el).addEventListener("submit", (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const days = Number(fd.get("days")) || 30;
     const cleanName = sanitizeName(fd.get("name"));
     if (!cleanName) { showToast("Invalid name / اسم غير صالح", "err"); return; }
     const strip = (v) => String(v || "").replace(/[\u0000-\u001F\u007F<>]/g, "").trim().slice(0, 20);
     const data = {
       name: cleanName,
       phone: strip(fd.get("phone")),
-      tag: strip(fd.get("tag")),
+      tag: m ? (m.tag || "") : "", // tag field removed from the form — never wipe an existing tag on edit
       plan: fd.get("plan"),
       paidAmount: Number(fd.get("paidAmount")) || 0,
     };
@@ -1395,6 +1590,16 @@ function openMemberModal(id = null) {
     } else {
       const startVal = fd.get("startDate");
       const joinTs = startVal ? new Date(`${startVal}T00:00:00`).getTime() : Date.now();
+      let days = Number(durSel) || 30;
+      if (durSel === "custom") {
+        const endVal = String(fd.get("customEnd") || "").trim();
+        const endTs = endVal ? new Date(`${endVal}T00:00:00`).getTime() : NaN;
+        if (!Number.isFinite(endTs) || endTs < joinTs) {
+          showToast("Pick a valid end date / اختر تاريخ انتهاء صالح", "err");
+          return;
+        }
+        days = Math.max(1, Math.round((endTs - joinTs) / DAY));
+      }
       const res = store.insert("members", {
         ...data,
         photo: "",
@@ -1415,7 +1620,7 @@ function openMemberDetail(id) {
   const t = i18n.t;
   const st = effStatus(m);
   const avatarClass = st === "expired" ? "avatar-alert" : st === "trial" ? "avatar-frost" : "avatar-volt";
-  const statusBadge = st === "expired" ? `<span class="badge badge-alert">? منتهي</span>` : st === "trial" ? `<span class="badge badge-frost">?? تجريبي</span>` : st === "frozen" ? `<span class="badge badge-muted">?? مجمد</span>` : `<span class="badge badge-volt">? نشط</span>`;
+  const statusBadge = st === "expired" ? `<span class="badge badge-alert">منتهي</span>` : st === "trial" ? `<span class="badge badge-frost">تجريبي</span>` : st === "frozen" ? `<span class="badge badge-muted">مجمد</span>` : `<span class="badge badge-volt">نشط</span>`;
   
   const mod = openModal(`
     <div class="flex items-center gap-4 mb-6">
@@ -1761,6 +1966,10 @@ function markRepaired(d) {
    LEDGER  (docs/design/ledger_v2) — month-filtered finance
    ============================================================ */
 let ledgerOffset = 0;
+// Ledger v2 table state — chip filter, description search, visible rows
+let ledgerFilter = "all"; // "all" | "revenue" | "expense"
+let ledgerQuery = "";     // case-insensitive match on l.description
+let ledgerShown = 15;     // rows visible; "Show more" adds 15
 
 function viewLedger() {
   const AR_MONTHS = ["كانون الثاني","شباط","آذار","نيسان","أيار","حزيران","تموز","آب","أيلول","تشرين الأول","تشرين الثاني","كانون الأول"];
@@ -1779,6 +1988,16 @@ function viewLedger() {
   const expenses = ledgerAll.filter((l) => l.type === "expense" && inMonth(l)).reduce((s, l) => s + Number(l.amount || 0), 0);
   const profit = revenue - expenses;
   const ledger = ledgerAll.filter(inMonth);
+
+  // Ledger v2: apply the chip filter + description search to the month's rows
+  const q = ledgerQuery.trim().toLowerCase();
+  const filtered = ledger.filter((l) =>
+    (ledgerFilter === "all" || l.type === ledgerFilter) &&
+    (!q || String(l.description || "").toLowerCase().includes(q)));
+  // Filtered totals for the table footer
+  const fIn = filtered.filter((l) => l.type === "revenue").reduce((s, l) => s + Number(l.amount || 0), 0);
+  const fOut = filtered.filter((l) => l.type === "expense").reduce((s, l) => s + Number(l.amount || 0), 0);
+  const fNet = fIn - fOut;
 
   const mNum = String(base.getMonth() + 1).padStart(2, "0");
   const monthLabel = `${mNum} · ${EN_MONTHS[base.getMonth()]} ${base.getFullYear()}`;
@@ -1828,21 +2047,21 @@ function viewLedger() {
 
   <!-- The three big boxes -->
   <div class="grid grid-cols-3 gap-3">
-    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors border-t-2 border-t-primary/70">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>?? Revenue</span><span dir="rtl" class="font-arabic">الإيرادات</span>
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings:'FILL' 1;">trending_up</span>Revenue</span><span dir="rtl" class="font-arabic">الإيرادات</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-primary mt-2" dir="ltr">${fmt.money(revenue)}</p>
     </div>
-    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors border-t-2 border-t-alert/70">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>?? Expenses</span><span dir="rtl" class="font-arabic">المصروفات</span>
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings:'FILL' 1;">trending_down</span>Expenses</span><span dir="rtl" class="font-arabic">المصروفات</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums text-alert mt-2" dir="ltr">${fmt.money(expenses)}</p>
     </div>
-    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors">
+    <div class="bg-surface cyber-border rounded-lg p-4 md:p-5 relative overflow-hidden group hover:bg-surface-hover transition-colors border-t-2 border-t-white/70">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>?? Profit</span><span dir="rtl" class="font-arabic">صافي الربح</span>
+        <span class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings:'FILL' 1;">savings</span>Profit</span><span dir="rtl" class="font-arabic">صافي الربح</span>
       </p>
       <p class="font-display font-bold text-3xl md:text-4xl tabular-nums ${profit >= 0 ? "text-white" : "text-alert"} mt-2" dir="ltr">${fmt.money(profit)}</p>
     </div>
@@ -1851,7 +2070,7 @@ function viewLedger() {
   <!-- Quick actions -->
   <div class="flex flex-wrap gap-3">
     <button id="addTxBtn" class="flex-1 min-w-[140px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
-      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> ? NEW / <span class="font-arabic normal-case">حركة</span>
+      <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> NEW / <span class="font-arabic normal-case">حركة جديدة</span>
     </button>
     <button id="pricesBtn" title="Plan prices / أسعار الباقات" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
       <span class="material-symbols-outlined">sell</span>
@@ -1863,15 +2082,48 @@ function viewLedger() {
 
   <!-- Live Transaction Feed -->
   <section class="flex flex-col gap-2">
-    <h3 class="font-headline font-bold uppercase tracking-tight text-sm px-1">?? Live Ledger <br/><span class="arabic-sub text-muted inline-block">حركات الشهر المحدد — كل داخلة وخارجة</span></h3>
-    <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50">
-      ${ledger.length ? ledger.slice(0, 15).map(txRow).join("") : `<p class="text-center text-muted py-8 text-sm">?? ما في حركات بهالشهر / No transactions this month</p>`}
+    <h3 class="font-headline font-bold uppercase tracking-tight text-sm px-1">Live Ledger <br/><span class="arabic-sub text-muted inline-block">حركات الشهر المحدد — كل داخلة وخارجة</span></h3>
+
+    <!-- Filter chips + search (Ledger v2) -->
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" class="dp-chip ${ledgerFilter === "all" ? "dp-chip-active" : ""}" data-ledger-filter="all">All / الكل</button>
+      <button type="button" class="dp-chip ${ledgerFilter === "revenue" ? "dp-chip-active" : ""}" data-ledger-filter="revenue">Income / إيرادات</button>
+      <button type="button" class="dp-chip ${ledgerFilter === "expense" ? "dp-chip-active" : ""}" data-ledger-filter="expense">Expenses / مصاريف</button>
+      <input id="ledSearch" class="dp-field flex-1 min-w-[170px]" placeholder="🔍 بحث بالبيان / Search…" value="${escapeHtml(ledgerQuery)}" />
+    </div>
+
+    <!-- Transactions table (filtered) -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+      ${filtered.length ? `
+      <div class="overflow-x-auto">
+        <table class="dp-table">
+          <thead>
+            <tr>
+              <th>البيان / Description</th>
+              <th class="dp-hide-sm">التصنيف / Category</th>
+              <th class="dp-hide-sm">التاريخ / Date</th>
+              <th>النوع / Type</th>
+              <th class="num">المبلغ / Amount</th>
+            </tr>
+          </thead>
+          <tbody>${filtered.slice(0, ledgerShown).map(txRowTable).join("")}</tbody>
+        </table>
+      </div>
+      <div class="dp-total-row" dir="rtl">
+        <span><span class="text-primary font-bold" dir="ltr">+${fmt.money(fIn)}</span> <span class="font-arabic">داخلة</span> / In</span>
+        <span><span class="text-alert font-bold" dir="ltr">-${fmt.money(fOut)}</span> <span class="font-arabic">خارجة</span> / Out</span>
+        <span><span class="${fNet >= 0 ? "text-white" : "text-alert"} font-bold" dir="ltr">${fNet >= 0 ? "+" : "-"}${fmt.money(Math.abs(fNet))}</span> <span class="font-arabic">الصافي</span> / Net</span>
+      </div>
+      <div class="border-t border-outline-variant/50 px-4 py-2.5 flex flex-col items-center gap-2">
+        <p class="text-[11px] text-muted font-label tracking-wide">${filtered.length} من ${ledger.length} حركة / ${filtered.length} of ${ledger.length} entries</p>
+        ${filtered.length > ledgerShown ? `<button id="ledMore" class="w-full py-2.5 rounded-xl border border-outline-variant bg-surface-container-high text-muted hover:text-primary hover:border-primary text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95">عرض المزيد (+15) / Show more</button>` : ""}
+      </div>` : `<p class="text-center text-muted py-8 text-sm">${ledger.length ? "ما في حركات مطابقة بهالشهر / No matching transactions this month" : "?? ما في حركات بهالشهر / No transactions this month"}</p>`}
     </div>
   </section>`;
 
-  $("#ledPrev").onclick = () => { ledgerOffset = (ledgerOffset || 0) - 1; viewLedger(); };
-  $("#ledNext").onclick = () => { ledgerOffset = Math.min(0, (ledgerOffset || 0) + 1); viewLedger(); };
-  $("#ledJump").onchange = (e) => { ledgerOffset = Number(e.target.value); viewLedger(); };
+  $("#ledPrev").onclick = () => { ledgerOffset = (ledgerOffset || 0) - 1; ledgerShown = 15; viewLedger(); };
+  $("#ledNext").onclick = () => { ledgerOffset = Math.min(0, (ledgerOffset || 0) + 1); ledgerShown = 15; viewLedger(); };
+  $("#ledJump").onchange = (e) => { ledgerOffset = Number(e.target.value); ledgerShown = 15; viewLedger(); };
   $("#addTxBtn").onclick = openTxModal;
   $("#pricesBtn").onclick = () => openPlanPrices();
   $("#reportsBtn").onclick = () => show("reports");
@@ -1879,6 +2131,27 @@ function viewLedger() {
     due.forEach((t) => payTrainer(t, { silent: true }));
     showToast(`? Paid ${due.length} salaries — ${fmt.money(dueTotal)} / تم دفع الرواتب`);
   });
+
+  // Filter chips / search / show-more (Ledger v2 table)
+  screen.querySelectorAll("[data-ledger-filter]").forEach((b) => {
+    b.onclick = () => { ledgerFilter = b.dataset.ledgerFilter; ledgerShown = 15; viewLedger(); };
+  });
+  const ledSearch = $("#ledSearch");
+  if (ledSearch) {
+    ledSearch.oninput = (e) => {
+      ledgerQuery = e.target.value;
+      viewLedger();
+      // The re-render replaced the input — restore focus + caret so typing flows
+      const again = $("#ledSearch");
+      if (again) {
+        again.focus();
+        const end = again.value.length;
+        try { again.setSelectionRange(end, end); } catch { /* ignore */ }
+      }
+    };
+  }
+  const ledMore = $("#ledMore");
+  if (ledMore) ledMore.onclick = () => { ledgerShown += 15; viewLedger(); };
 }
 // ---- Trainers: pay / CRUD / monthly reminders ----
 function payTrainer(t, { silent = false } = {}) {
@@ -2132,6 +2405,49 @@ function txRow(l) {
     </div>
     <p class="font-headline text-lg tabular-nums shrink-0 ${amountCls}" dir="ltr">${isIn ? "+" : "-"}$${nf.format(Math.abs(l.amount))}</p>
   </div>`;
+}
+
+// ---- Ledger v2 table row (used only by viewLedger) — txRow above is kept untouched ----
+// Category → [EN, AR] label map for the badge pill
+const TXN_CATS = {
+  subscriptions: ["Sub", "اشتراكات"],
+  salary: ["Salary", "راتب"],
+  advance: ["Advance", "سلفة"],
+  maintenance: ["Maintenance", "صيانة"],
+  pos: ["POS", "بيع"],
+  "other-income": ["Other-in", "دخل آخر"],
+  "other-expense": ["Other-exp", "مصروف آخر"],
+  failed: ["Failed", "فشل دفع"],
+};
+
+function txRowTable(l) {
+  const isIn = l.type === "revenue";
+  const isPOS = isIn && (l.category === "pos" || l.category === "other-income");
+  // POS sales + failed payments read as neutral (muted), not income/expense
+  const muted = l.category === "pos" || l.category === "failed";
+  const cat = TXN_CATS[l.category];
+  const badgeCls = muted ? "badge-muted" : isIn ? "badge-volt" : "badge-alert";
+
+  // Type pill: volt pip = in, alert pip = out, frost pip = POS sale
+  const pipCls = isPOS ? "bg-frost" : isIn ? "bg-primary" : "bg-alert";
+  const txtCls = isPOS ? "text-frost" : isIn ? "text-primary" : "text-alert";
+  const typeLabel = isPOS ? "بيع / POS" : isIn ? "داخلة / In" : "خارجة / Out";
+
+  return `
+  <tr>
+    <td>
+      <p class="font-headline text-sm text-on-surface uppercase tracking-wide truncate max-w-[220px]" title="${escapeHtml(l.description)}">${escapeHtml(l.description)}</p>
+    </td>
+    <td class="dp-hide-sm"><span class="badge ${badgeCls}">${cat ? `${cat[0]} / ${cat[1]}` : escapeHtml(l.category || "—")}</span></td>
+    <td class="dp-hide-sm whitespace-nowrap">
+      <p class="text-xs text-on-surface/80">${fmt.date(l.date, currentLang())}</p>
+      <p class="text-[10px] text-muted mt-0.5">${fmt.timeAgo(l.date, currentLang())}</p>
+    </td>
+    <td class="whitespace-nowrap">
+      <span class="inline-flex items-center gap-1.5 text-[11px] font-headline uppercase tracking-wider ${txtCls}"><span class="w-1.5 h-1.5 rounded-full shrink-0 ${pipCls}"></span>${typeLabel}</span>
+    </td>
+    <td class="num ${isIn ? "text-primary" : "text-alert"}" dir="ltr">${isIn ? "+" : "-"}$${nf.format(Math.abs(Number(l.amount || 0)))}</td>
+  </tr>`;
 }
 
 function openTxModal() {
@@ -3038,7 +3354,7 @@ async function configureDriveBackup() {
   let status = null;
   try {
     const res = await fetch(`${driveApiUrl}/status`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("dp_jwt") || ""}` }
+      headers: { Authorization: `Bearer ${getJwt()}` }
     });
     if (res.ok) status = await res.json();
   } catch { /* offline */ }
@@ -3112,7 +3428,7 @@ async function configureDriveBackup() {
       try {
         const res = await fetch(`${driveApiUrl}/backup`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${localStorage.getItem("dp_jwt") || ""}` }
+          headers: { Authorization: `Bearer ${getJwt()}` }
         });
         const data = await res.json();
         if (res.ok) {
@@ -3140,7 +3456,7 @@ async function configureDriveBackup() {
       try {
         const res = await fetch(`${driveApiUrl}/disconnect`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${localStorage.getItem("dp_jwt") || ""}` }
+          headers: { Authorization: `Bearer ${getJwt()}` }
         });
         if (res.ok) {
           showToast("Drive disconnected / تم قطع الاتصال");
@@ -3155,7 +3471,7 @@ async function configureDriveBackup() {
       mod.close();
       try {
         const res = await fetch(`${driveApiUrl}/backups`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("dp_jwt") || ""}` }
+          headers: { Authorization: `Bearer ${getJwt()}` }
         });
         const data = await res.json();
         const files = data.files || [];

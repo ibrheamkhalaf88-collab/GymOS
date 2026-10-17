@@ -20,11 +20,11 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 
 | Day | LinkedIn | TikTok/Reels/Shorts | WhatsApp | Other |
 |-----|----------|---------------------|----------|-------|
-| Mon Sep 30 | "Building in public: GymOS v1.3.0 ready" + screenshot carousel | Behind-the-scenes: "كيف بنيت GymOS لوحدي" (60sec) | Broadcast to existing contacts: "قريباً..." | Update GitHub README with launch badge |
+| Mon Sep 30 | "Building in public: GymOS v1.4.4 ready" + screenshot carousel | Behind-the-scenes: "كيف بنيت GymOS لوحدي" (60sec) | Broadcast to existing contacts: "قريباً..." | Update GitHub README with launch badge |
 | Tue Oct 1 | Problem post: "لماذا الجداول تفشل في إدارة النوادي" | Demo: "إضافة عضو في 10 ثواني" (15sec) | Send demo video to 10 hot leads | Prepare press kit (one-pager, screenshots) |
 | Wed Oct 2 | Technical post: "PWA + Android من كود واحد" | Feature: "تذكير واتساب بضغطة وحدة" (15sec) | Follow up hot leads | Record launch day video (60sec script from LAUNCH.md) |
 | Thu Oct 3 | Social proof: "تجربة مجانية 30 يوم — بلا كرت" | Comparison: "Before/After الإكسل vs GymOS" (15sec) | Create broadcast list "GymOS Launch" | Schedule launch day posts (Buffer/Later) |
-| Fri Oct 4 | Countdown: "3 أيام للإطلاق — كود التجربة: 7Q2-K9D" | Teaser: "الثلاثاء نطلق" (10sec) | Remind broadcast list | Final QA on landing page, demo code |
+| Fri Oct 4 | Countdown: "3 أيام للإطلاق — كود التجربة: 7Q2-K9D" | Teaser: "الثلاثاء نطلق" (10sec) | Remind broadcast list | Final QA on landing page, trial code |
 | Sat Oct 5 | Rest / Engage with others' content | Rest / Engage | Personal messages to top 20 leads | Prep launch day monitoring dashboard |
 
 ---
@@ -36,13 +36,13 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 #### 08:00 — Technical Go-Live
 - [ ] Verify `https://ibrheamkhalaf88-collab.github.io/GymOS/` loads (Hero + Dispatcher)
 - [ ] Verify `onboarding.html` works (Get Started → Onboarding)
-- [ ] Verify demo code `7Q2-K9D` activates DEMO MODE
-- [ ] Verify GitHub Release v1.3.0 has APK attached
+- [ ] Verify trial code `7Q2-K9D` activates the 30-day free trial
+- [ ] Verify GitHub Release v1.4.4 has APK attached
 - [ ] Verify WhatsApp link `https://wa.me/972568802803` opens correctly
 
 #### 09:00 — LinkedIn Launch Post (Founder Personal + Company Page)
 **Post 1 (Founder - Personal Profile)**:
-> أُعلن اليوم عن **GymOS v1.0** — نظام إدارة نوادي صممته لحل مشكلتي كصاحب نادي.
+> أُعلن اليوم عن **GymOS v1.4.4** — نظام إدارة نوادي صممته لحل مشكلتي كصاحب نادي.
 >
 > 3 سنين بعاني مع الإكسل: أعضاء ينسون يجددون، رواتب مدربين تحسب يدوي، أجهزة تتعطل وما حد يدري، تقارير ما تصدق.
 >
@@ -57,7 +57,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 > ✅ تجربة مجانية 30 يوم — بلا كرت، بلا التزام
 >
 > 🔗 **جربها الآن**: https://ibrheamkhalaf88-collab.github.io/GymOS/
-> 📱 **كود التجربة**: `7Q2-K9D` (DEMO MODE)
+> 📱 **كود التجربة**: `7Q2-K9D` (تجربة مجانية 30 يوم)
 > 📲 **أندرويد APK**: GitHub Releases
 > 💬 **تواصل مباشر**: https://wa.me/972568802803
 >
@@ -96,7 +96,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 
 #### 12:00 — YouTube Short (Extended Demo)
 **Title**: "كيف أدرَّ ناديّ بضغطة زر؟ | GymOS Demo"
-**Description**: Full 60-sec walkthrough + links + demo code
+**Description**: Full 60-sec walkthrough + links + trial code
 
 #### 14:00 — LinkedIn Article (Pulse)
 **Title**: "Why I Built GymOS: An Arab Gym Owner's Frustration with Western SaaS"
@@ -105,11 +105,11 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 #### 16:00 — Community Engagement
 - Reply to every comment on LinkedIn (within 2 hours)
 - Comment on 10 relevant posts (gym owners, fitness tech, MENA SaaS)
-- Send personal WhatsApp to top 20 leads with custom demo offer
+- Send personal WhatsApp to top 20 leads with custom trial offer
 
 #### 18:00 — Metrics Check
 - Landing page visitors (GitHub Pages analytics / Plausible if added)
-- Demo activations (check Supabase `codes` table for `7Q2-K9D` usage)
+- Trial activations (check Supabase `codes` table for `7Q2-K9D` usage)
 - WhatsApp conversations started
 - LinkedIn post engagement (likes, comments, shares, profile visits)
 
@@ -176,7 +176,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 | Metric | Source | Target Week 1 | Target Week 4 | Target Week 12 |
 |--------|--------|---------------|---------------|----------------|
 | Landing page visitors | GitHub Analytics / Plausible | 500 | 2,000 | 10,000 |
-| Demo activations (`7Q2-K9D`) | Supabase `codes` table | 20 | 100 | 500 |
+| Trial activations (`7Q2-K9D`) | Supabase `codes` table | 20 | 100 | 500 |
 | WhatsApp conversations | WhatsApp Business API | 30 | 150 | 500 |
 | LinkedIn followers | LinkedIn Analytics | 100 | 500 | 2,000 |
 | TikTok/Reels views | Platform analytics | 5,000 | 50,000 | 200,000 |
@@ -189,7 +189,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Low demo activation rate | Medium | High | A/B test onboarding flow; add video tooltip on landing page |
+| Low trial activation rate | Medium | High | A/B test onboarding flow; add video tooltip on landing page |
 | WhatsApp spam complaints | Low | High | Strict opt-in, easy unsubscribe, personal replies only |
 | Technical issues on launch day | Low | High | Full E2E test Sun Oct 5; rollback plan (previous deploy) |
 | Negative feedback (Arabic UX) | Low | Medium | Beta test with 5 Arabic gym owners pre-launch; iterate fast |
@@ -216,7 +216,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 2. [ ] **Create Canva templates** — LinkedIn carousel (1080x1080), Story (1080x1920), Post (1200x628)
 3. [ ] **Build WhatsApp broadcast list** — Export contacts, segment, import to WhatsApp Business
 4. [ ] **Schedule launch day posts** — Buffer/Later free tier, set for Oct 6 09:00/10:00/11:00
-5. [ ] **Verify all links** — Landing page, demo code, APK download, WhatsApp link
+5. [ ] **Verify all links** — Landing page, trial code, APK download, WhatsApp link
 6. [ ] **Notify inner circle** — 10 close contacts for early feedback + shares on launch day
 
 ---
@@ -231,7 +231,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 - TikTok/Reels/Shorts analytics
 - GitHub Release downloads (APK)
 
-**Slack/Discord webhook** (optional) for real-time alerts on demo activations.
+**Slack/Discord webhook** (optional) for real-time alerts on trial activations.
 
 ---
 
@@ -291,7 +291,7 @@ Execute the marketing plan from `LAUNCH.md` using the positioning, ICP, and mess
 | Create Canva templates | Founder | Oct 3 | ⬜ Not started |
 | Build WhatsApp broadcast list | Founder | Oct 3 | ⬜ Not started |
 | Schedule launch day posts | Founder | Oct 4 | ⬜ Not started |
-| Verify all links + demo code | Founder | Oct 5 | ⬜ Not started |
+| Verify all links + trial code | Founder | Oct 5 | ⬜ Not started |
 | Notify inner circle | Founder | Oct 5 | ⬜ Not started |
 | **LAUNCH DAY** | Founder | **Oct 6** | ⬜ Not started |
 | Day 7 review | Founder | Oct 13 | ⬜ Not started |
