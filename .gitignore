@@ -37,6 +37,7 @@ ui-debug.log
 # IDE
 .vscode/
 .idea/
+.opencode/
 *.swp
 *.swo
 *~

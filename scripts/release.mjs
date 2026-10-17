@@ -70,7 +70,7 @@ const edits = [
   { f: 'index.html', s: [`'v${verOld}'`, `"v${verOld}"`], r: [`'v${verNew}'`, `"v${verNew}"`] },
 ];
 for (const e of edits) {
-  let c = read(e.f), ok = true;
+  let c = read(e.f);
   for (let i = 0; i < e.s.length; i++) {
     if (!c.includes(e.s[i])) { log(`  ! pattern not found in ${e.f}: ${e.s[i]}`); continue; }
     c = c.split(e.s[i]).join(e.r[i]);
