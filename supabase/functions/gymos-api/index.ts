@@ -1232,6 +1232,13 @@ async function handler(req: Request): Promise<Response> {
       if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
       failAdminIp(ip);
       let code = normCode(body?.custom);
+      // v1.4.7: normCode() truncates to the canonical 6 chars — a LONGER custom
+      // code used to be silently shortened (creating a code the admin does not
+      // recognise, and whose DELETE-{code} confirm token differs from what they
+      // typed). Reject instead of guessing.
+      if (code && String(body?.custom || "").replace(/[^A-Za-z0-9]/g, "").length > 6) {
+        return json({ error: "INVALID_FORMAT", message: "Custom codes are exactly 6 characters (A-Z0-9)." }, 400, origin);
+      }
       if (!code) {
         do { code = normCode(randomCode()); } while ((await sb.from("codes").select("code").eq("code", code).maybeSingle()).data);
       }

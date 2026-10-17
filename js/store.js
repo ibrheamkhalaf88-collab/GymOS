@@ -56,8 +56,7 @@ export function cloudAllowed(lic) {
     // a Supabase session) — they must match the session's user id, not email.
     // Without this, every email-linked account was silently never syncing.
     return email === o
-      || (!!u.id && o === `user:${String(u.id).toLowerCase()}`)
-      || email === "ibrheamshady@gmail.com";
+      || (!!u.id && o === `user:${String(u.id).toLowerCase()}`);
   } catch { return true; }
 }
 
