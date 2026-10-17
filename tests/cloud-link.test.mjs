@@ -18,10 +18,14 @@ test("server: /api/trial is disabled and returns 403", () => {
   assert.match(fn, /Public trial codes are disabled/);
 });
 
-test("server: /api/auth/activate is disabled and returns 403", () => {
+test("server: /api/auth/activate is re-enabled behind a trusted session (v1.4.5)", () => {
   assert.match(fn, /path === "\/api\/auth\/activate"/);
-  assert.match(fn, /error: "ACTIVATION_DISABLED"/);
-  assert.match(fn, /Public code activation is disabled/);
+  // no longer a 403 stub: it must resolve identity from a session/JWT
+  assert.match(fn, /const su = await supaUser\(req\)/);
+  assert.match(fn, /const pJwt = authJwt\(req\)/);
+  // and expose the new error vocabulary
+  assert.match(fn, /error: "CODE_BOUND_TO_OTHER"/);
+  assert.match(fn, /error: "SUSPENDED"/);
 });
 
 test("server: /api/auth/mine exists, requires a Supabase session, and never resets the countdown", () => {

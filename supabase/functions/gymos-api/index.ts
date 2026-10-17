@@ -41,6 +41,10 @@ const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
 // through a different route silently changed its strength.
 const BCRYPT_COST = 12;
 
+// Error code registry (contract §4): CODE_NOT_FOUND, CODE_REVOKED, CODE_BOUND_TO_OTHER,
+// CODE_EXPIRED, SUSPENDED, SUB_EXPIRED, DEVICE_LIMIT, CODE_ALREADY_USED, CODE_USED,
+// INVALID_FORMAT, BAD_REQUEST, UNAUTHORIZED, RATE_LIMITED, FORBIDDEN, INTERNAL_ERROR,
+// NOT_FOUND, REVOKED, NO_PASSWORD, WRONG_PASSWORD, DATA_DISABLED, EXPIRED.
 // ---------- helpers ----------
 const ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -67,21 +71,200 @@ function remainingDays(rec: any): number {
     return Math.max(0, Math.floor((end - Date.now()) / DAY_MS));
 }
 
+// ---------- unified account status composer (CONTRACT §2) ----------
+/* Single source of truth for "what state is this account in". User list,
+   user detail, admin actions and activation before/after all compose through
+   this so the server can never disagree with itself about trial / free_trial
+   / lifetime / expiry again (§10.4, §10.5 drift).
+   rec  = codes row (license truth) or null for pure email accounts
+   meta = auth user_metadata (may be null for code-only holders)
+   opts.appSuspended = auth app_metadata.suspended (email kill switch)
+   opts.couponUsed   = a redeemed coupon is attributed to this identity
+                       (best-effort lookup done by the caller; the list
+                       endpoint skips it to stay at one extra query). */
+
+const iso = (ms: number) => new Date(ms).toISOString();
+
+/* subStart/subEnd are MIXED across live rows: ISO strings on some, epoch-ms
+   on others (§6). Accept both, plus epoch stored as text. */
+function parseWhen(v: any): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) && v > 0 ? v : null;
+  const s = String(v).trim();
+  if (/^\d{10,15}$/.test(s)) { const n = Number(s); return n < 1e12 ? n * 1000 : n; }
+  const t = Date.parse(s);
+  return Number.isFinite(t) && t > 0 ? t : null;
+}
+
+// Only the legacy fake "now + 36500d" subEnd ever exceeds 4000 days (the
+// widest real grant is days_custom at 3650) ⇒ read it as lifetime (§10.5).
+const LIFETIME_MIN_MS = 4000 * DAY_MS;
+
+/* Normalized metadata tier: free_trial IS a trial (§10.4 — the corrupted
+   merge u.subTier||u.subscription lived client-side; server reads cleanly). */
+function metaTier(meta: any): string {
+  const raw = String(meta?.subTier || meta?.subscription || "").toLowerCase();
+  return raw === "free_trial" ? "trial" : raw;
+}
+
+/* activationSource (§1): codes.source is authoritative when present
+   (admin|self|trial|import — self-service activation IS a code activation,
+   imports were admin tooling). Legacy rows with a null source are NEVER
+   guessed: fall through to concrete evidence (trial metadata → redeemed
+   coupon → used code), else literally "unknown" («غير معروف»). */
+function activationSourceOf(rec: any, meta: any, couponUsed?: boolean): string {
+  const tier = metaTier(meta);
+  if (rec) {
+    if (rec.source === "trial") return "trial";
+    if (rec.source === "self") return "code";
+    if (rec.source === "admin" || rec.source === "import") return "admin";
+    if (tier === "trial") return "trial";
+    if (couponUsed) return "coupon";
+    if (rec.used) return "code";
+    return "unknown";
+  }
+  if (tier === "trial") return "trial";
+  if (tier && tier !== "none") return "admin";   // admin-written sub block, no code
+  return "unknown";
+}
+
+function accountStatusOf(rec: any, meta: any, opts: { appSuspended?: boolean; couponUsed?: boolean } = {}) {
+  const now = Date.now();
+  const tier = metaTier(meta);
+  const suspended = opts.appSuspended === true || rec?.account_suspended === true;
+
+  let plan = "none", subStatus = "none", subStart: string | null = null, subEnd: string | null = null;
+  let remainingDays: number | null = null, unlimited = false;
+
+  if (rec && rec.used) {
+    // License truth lives in the code row (§10.7) — metadata is only a mirror.
+    const d = Math.floor(Number(rec.days) || 0);
+    plan = d <= 0 || rec.tier === "lifetime" ? "lifetime"
+      : rec.tier === "yearly" ? "yearly" : rec.tier === "trial" ? "trial" : "monthly";
+    subStart = rec.used_at ? iso(Date.parse(rec.used_at)) : null;
+    const end = expiryMs(rec);
+    if (end != null) {
+      subEnd = iso(end);
+      remainingDays = Math.max(0, Math.floor((end - now) / DAY_MS));
+      subStatus = end <= now ? "expired" : plan === "trial" ? "trial" : "active";
+      if (end <= now) remainingDays = 0;
+    } else if (!rec.used_at && d > 0) {
+      // legacy row lost its used_at — expiryMs() contract grants the full day
+      // count, mirror that instead of falsely advertising "unlimited"
+      subStatus = "active"; remainingDays = d;
+    } else {
+      subStatus = "active"; unlimited = true;      // lifetime (days<=0) ⇒ subEnd null in OUTPUT
+    }
+  } else if (tier && tier !== "none") {
+    const start = parseWhen(meta?.subStart);
+    let end = parseWhen(meta?.subEnd);
+    // lifetime ⇒ subEnd null in OUTPUT even when stored as the fake +36500d
+    if (end != null && (tier === "lifetime" || end - (start ?? now) > LIFETIME_MIN_MS)) {
+      end = null; plan = "lifetime"; unlimited = true;
+    } else {
+      plan = ["trial", "monthly", "yearly"].includes(tier) ? tier : "monthly";
+    }
+    subStart = start ? iso(start) : null;
+    if (end == null) {
+      subStatus = "active";
+    } else {
+      subEnd = iso(end);
+      remainingDays = Math.max(0, Math.floor((end - now) / DAY_MS));
+      subStatus = end <= now ? "expired" : tier === "trial" ? "trial" : "active";
+      if (end <= now) remainingDays = 0;
+    }
+  } else if (rec) {
+    // assigned-but-unactivated code with no metadata sub: name the plan the
+    // licence will grant once activated; nothing is running yet.
+    const d = Math.floor(Number(rec.days) || 0);
+    plan = d <= 0 || rec.tier === "lifetime" ? "lifetime"
+      : rec.tier === "yearly" ? "yearly" : rec.tier === "trial" ? "trial" : "monthly";
+    unlimited = d <= 0;
+  }
+
+  return {
+    accountStatus: suspended ? "suspended" : "allowed",
+    subStatus, plan,
+    activationSource: activationSourceOf(rec, meta, opts.couponUsed),
+    codeUsed: rec?.code || null,
+    activatedAt: subStart,
+    subStart, subEnd, remainingDays, unlimited,
+    deviceCount: rec && Array.isArray(rec.devices) ? rec.devices.length : 0,
+    deviceLimit: rec ? (Number(rec.device_limit) || 3) : 0,
+    codeState: rec ? (rec.revoked ? "revoked" : !rec.used ? "unused"
+      : (expiryMs(rec) !== null && (expiryMs(rec) as number) <= now) ? "code-expired" : "used") : null,
+  };
+}
+
+/* The one code row that represents an identity in listings/actions: the
+   active licence (used, not revoked, most recent activation) else the newest. */
+function pickPrimaryCode(rows: any[]): any | null {
+  const used = (rows || []).filter((r) => r.used && !r.revoked)
+    .sort((a, b) => (Date.parse(b.used_at) || 0) - (Date.parse(a.used_at) || 0));
+  if (used[0]) return used[0];
+  return (rows || []).slice()
+    .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0))[0] || null;
+}
+
+/* Re-time a code row so its window ends exactly at `endMs` (server clock).
+   Prefers keeping used_at and rewriting days (§3.2 "used_at stays"); falls
+   back to shifting used_at when the implied day count would read as
+   unlimited — days<=0 is the lifetime sentinel in expiryMs(), so an admin
+   "shorten to 0" must never mint an accidental lifetime licence. */
+function codeWindowPatch(rec: any, endMs: number | null): Record<string, any> {
+  if (endMs == null) return { used: true, days: 0 };            // lifetime / unlimited
+  const usedMs = rec?.used_at ? Date.parse(rec.used_at) : null;
+  if (usedMs != null) {
+    const d = Math.floor((endMs - usedMs) / DAY_MS);
+    if (d >= 1) return { used: true, days: d };                 // used_at stays
+  }
+  const len = Math.max(1, Math.floor(Number(rec?.days) || 0));
+  return { used: true, used_at: iso(endMs - len * DAY_MS), days: len };
+}
+
+/* Metadata sub-block mirroring a code row — written after every code-side
+   mutation so email sessions (whose composer falls back to metadata while
+   the code is unused) and the admin drawer agree with the license truth.
+   Lifetime writes subEnd:null — never the fake +36500d again (§10.5). */
+function subBlockFromCode(rec: any) {
+  const end = expiryMs(rec);
+  return {
+    subscription: rec.tier === "lifetime" ? "active" : rec.tier,
+    subTier: rec.tier,
+    subStart: rec.used_at ? iso(Date.parse(rec.used_at)) : null,
+    subEnd: end != null ? iso(end) : null,
+    days: Math.max(0, Math.floor(Number(rec.days) || 0)),
+  };
+}
+
+/* All code rows bound to an auth user (owner join by "user:<uuid>" OR the
+   lowercased email — the only two formats this server writes). */
+async function ownedCodesFor(user: any): Promise<any[]> {
+  const owners = [`user:${user.id}`];
+  if (user.email) owners.push(String(user.email).toLowerCase());
+  const { data } = await sb.from("codes").select("*").in("owner", owners);
+  return data || [];
+}
+
 // For gym data, sync-on codes share one row (device_id ''); sync-off codes
 // keep an isolated per-device row keyed by the real device id.
 // A missing code row now yields revoked=true (JWT must not outlive deletion).
 // Expired licenses are ENFORCED here ("expired" flag) — before this, expiry was
 // a client-side-only check, so a 30-day JWT kept full cloud R/W forever.
+// `suspended` (migration 0011 codes.account_suspended) is the code-account
+// kill switch enforced on every sync read/write (contract §6).
+// select("*") so newly added columns ride along without editing this list.
 // Placed AFTER expiryMs() — function temps would hoist anyway, but reading
 // order matters for humans.
-async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoked: boolean; expired: boolean }> {
-  if (!p || !p.code) return { sync: true, data: true, revoked: true, expired: false };
-  const { data: rec } = await sb.from("codes").select("sync_enabled, data_enabled, revoked, days, used_at").eq("code", p.code).maybeSingle();
+async function codeFlags(p: any): Promise<{ sync: boolean; data: boolean; revoked: boolean; expired: boolean; suspended: boolean }> {
+  if (!p || !p.code) return { sync: true, data: true, revoked: true, expired: false, suspended: false };
+  const { data: rec } = await sb.from("codes").select("*").eq("code", p.code).maybeSingle();
   return {
     sync: rec ? (rec.sync_enabled !== false) : true,
     data: rec ? (rec.data_enabled !== false) : true,
     revoked: !rec ? true : !!rec.revoked,
     expired: !!rec && expiryMs(rec) !== null && (expiryMs(rec) as number) <= Date.now(),
+    suspended: !!rec && rec.account_suspended === true,
   };
 }
 const normCode = (raw: string) =>
@@ -109,7 +292,11 @@ function subMeta(tierRaw: any, daysRaw: any) {
   const days = tier === "none" || tier === "lifetime"
     ? 0
     : Math.max(1, Math.floor(Number(daysRaw) || (tier === "monthly" ? 30 : tier === "yearly" ? 365 : tier === "trial" ? 14 : 30)));
-  const subEnd = tier === "lifetime" ? now + 36500 * 86400000 : tier === "none" ? null : now + days * 86400000;
+  // lifetime ⇒ subEnd NULL (contract §10.5): the old fake now+36500d value
+  // rendered as year 2126 / "36500 days" everywhere and made the unlimited
+  // branch unreachable. Existing fake values are read as lifetime by the
+  // composer; new writes stop producing them.
+  const subEnd = tier === "lifetime" || tier === "none" ? null : now + days * 86400000;
   return {
     subscription: tier === "lifetime" ? "active" : tier,   // 'trial' stays 'trial'
     subTier: tier,
@@ -151,6 +338,9 @@ function toRecord(r: any) {
     sync_enabled: r.sync_enabled !== false,
     device_limit: Number(r.device_limit) || 3,
     devices: Array.isArray(r.devices) ? r.devices : [],
+    // Composer status (contract §2/§3.3) — additive so existing panel fields
+    // keep working while the UI migrates to consuming `status` directly.
+    status: accountStatusOf(r, null),
   };
 }
 
@@ -317,10 +507,10 @@ function corsHeaders(origin?: string | null) {
   };
 }
 
-function json(data: unknown, status = 200, origin?: string | null) {
+function json(data: unknown, status = 200, origin?: string | null, extraHeaders?: Record<string, string>) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
+    headers: { "Content-Type": "application/json", ...corsHeaders(origin), ...(extraHeaders || {}) },
   });
 }
 
@@ -400,13 +590,16 @@ async function logAdminAction(adminEmail: string, action: string, targetType: st
   }
 }
 
-async function logError(endpoint: string, method: string, errorCode: string, errorMessage: string, stackTrace: string | null, req: Request, extra: { userCode?: string; userId?: string; gymCode?: string; requestBody?: any } = {}) {
+async function logError(endpoint: string, method: string, errorCode: string, errorMessage: string, stackTrace: string | null, req: Request, extra: { userCode?: string; userId?: string; gymCode?: string; requestBody?: any; traceId?: string } = {}) {
   try {
     await sb.from("error_log").insert({
       endpoint,
       method,
       error_code: errorCode,
-      error_message: errorMessage,
+      // traceId rides in the message: error_log has no trace column (and the
+      // migration set is owned elsewhere) — this keeps the request's trace
+      // correlatable with the >=400 body that carried the same id.
+      error_message: errorMessage + (extra.traceId ? ` [trace ${extra.traceId}]` : ""),
       stack_trace: stackTrace,
       user_code: extra.userCode || null,
       user_id: extra.userId || null,
@@ -431,6 +624,112 @@ function extractAuthContext(req: Request, p: Record<string, unknown> | null): { 
 }
 
 // ---------- main ----------
+async function runUserOp(userId, body, req, origin) {
+  if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+  const { data: ed } = await sb.auth.admin.getUserById(userId);
+  const existing = ed?.user;
+  if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
+  const op = String(body?.op || "");
+        // sole-admin guard: never suspend/terminate/delete the admin account
+        if (String(existing.email || "").toLowerCase() === ADMIN_EMAIL && ["suspend","terminate","delete","set_plan","set_unlimited","adjust_days","set_remaining","set_end"].includes(op)) {
+          // allow read-only-ish ops? suspend/terminate/delete are blocked; others allowed but logged
+          if (["suspend","terminate","delete"].includes(op)) return json({ error: "FORBIDDEN", message: "Cannot modify the sole admin account" }, 403, origin);
+        }
+        const { data: codeRows } = await sb.from("codes").select("*").or(`owner.eq.user:${userId},owner.eq.${String(existing.email || "").toLowerCase()}`);
+        const primary = pickPrimaryCode(codeRows || []);
+        const before = accountStatusOf(primary, existing.user_metadata || {}, { appSuspended: !!existing.app_metadata?.suspended });
+        let after: any = before;
+        let action = op;
+
+        if (op === "suspend") {
+          const meta = { ...existing.app_metadata, suspended: true };
+          await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
+          if (primary) await sb.from("codes").update({ account_suspended: true, suspended_at: new Date().toISOString(), suspended_by: ADMIN_EMAIL }).eq("code", primary.code);
+          action = "suspend_user";
+        } else if (op === "reactivate") {
+          const meta = { ...existing.app_metadata, suspended: false };
+          await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
+          if (primary) await sb.from("codes").update({ account_suspended: false, suspended_at: null, suspended_by: null }).eq("code", primary.code);
+          action = "reactivate_user";
+        } else if (op === "terminate") {
+          // expire now: code row + metadata
+          if (primary) {
+            const p = codeWindowPatch(primary, Date.now());
+            await sb.from("codes").update(p).eq("code", primary.code);
+          }
+          const meta = { ...(existing.user_metadata || {}) };
+          meta.subscription = "none"; meta.subTier = "none"; meta.subEnd = new Date().toISOString(); meta.days = 0;
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "terminate_subscription";
+        } else if (op === "set_unlimited") {
+          if (primary) await sb.from("codes").update({ tier: "lifetime", days: 0 }).eq("code", primary.code);
+          const meta = { ...(existing.user_metadata || {}) };
+          meta.subscription = "active"; meta.subTier = "lifetime"; meta.subEnd = null; meta.days = 0;
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "set_unlimited";
+        } else if (op === "set_plan") {
+          const tier = ["trial","monthly","yearly","lifetime"].includes(body?.tier) ? body.tier : "monthly";
+          const days = tier === "lifetime" ? 0 : tier === "yearly" ? 365 : tier === "trial" ? 30 : 30;
+          if (primary) await sb.from("codes").update({ tier, days }).eq("code", primary.code);
+          const meta = { ...(existing.user_metadata || {}) };
+          meta.subscription = tier === "lifetime" ? "active" : tier;
+          meta.subTier = tier; meta.days = days;
+          if (tier !== "lifetime") meta.subEnd = new Date(Date.now() + days * DAY_MS).toISOString();
+          else meta.subEnd = null;
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "set_plan";
+        } else if (op === "adjust_days") {
+          // server-clock math on the active CODE row (used_at/days)
+          const n = Math.floor(Number(body?.days) || 0);
+          if (primary) {
+            const end = expiryMs(primary);
+            const base = (end != null && end > Date.now()) ? end : Date.now();
+            const newEnd = base + n * DAY_MS;
+            const p = codeWindowPatch(primary, newEnd);
+            await sb.from("codes").update(p).eq("code", primary.code);
+          }
+          const meta = { ...(existing.user_metadata || {}) };
+          const curEnd = parseWhen(meta.subEnd);
+          const fake = curEnd != null && (meta.subTier === "lifetime" || (curEnd - (parseWhen(meta.subStart) ?? Date.now())) > LIFETIME_MIN_MS);
+          const base = (!fake && curEnd != null && curEnd > Date.now()) ? curEnd : Date.now();
+          meta.subEnd = new Date(base + n * DAY_MS).toISOString();
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "adjust_days";
+        } else if (op === "set_remaining") {
+          const n = Math.max(0, Math.floor(Number(body?.days) || 0));
+          const newEnd = Date.now() + n * DAY_MS;
+          if (primary) {
+            const p = codeWindowPatch(primary, newEnd);
+            await sb.from("codes").update(p).eq("code", primary.code);
+          }
+          const meta = { ...(existing.user_metadata || {}) };
+          meta.subEnd = new Date(newEnd).toISOString();
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "set_remaining";
+        } else if (op === "set_end") {
+          const endMs = parseWhen(body?.end) ?? Date.now();
+          if (primary) {
+            const p = codeWindowPatch(primary, endMs);
+            await sb.from("codes").update(p).eq("code", primary.code);
+          }
+          const meta = { ...(existing.user_metadata || {}) };
+          meta.subEnd = new Date(endMs).toISOString();
+          await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+          action = "set_end";
+        } else {
+          return json({ error: "INVALID_OP" }, 400, origin);
+        }
+
+        // refresh primary after mutation for `after`
+        const { data: codeRows2 } = await sb.from("codes").select("*").or(`owner.eq.user:${userId},owner.eq.${String(existing.email || "").toLowerCase()}`);
+        const primary2 = pickPrimaryCode(codeRows2 || []);
+        const { data: ed2 } = await sb.auth.admin.getUserById(userId);
+        after = accountStatusOf(primary2, ed2?.user?.user_metadata || {}, { appSuspended: !!ed2?.user?.app_metadata?.suspended });
+        await logAdminAction(ADMIN_EMAIL, action, "user", userId, { op, before, after, reason: body?.reason || null }, req);
+        return json({ ok: true, id: userId, before, after, op }, 200, origin);
+}
+
+
 async function handler(req: Request): Promise<Response> {
   const origin = req.headers.get("origin");
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
@@ -466,11 +765,154 @@ async function handler(req: Request): Promise<Response> {
       }, 403, origin);
     }
 
+    /* POST /api/auth/activate — RE-ENABLED (v1.4.5).
+       Identity comes ONLY from a trusted session (Supabase bearer) or an
+       existing code-JWT. No anonymous activation. Implements the contract
+       in docs/CONTRACT-activation-v1445.md §3.1. */
     if (req.method === "POST" && path === "/api/auth/activate") {
-      return json({ 
-        error: "ACTIVATION_DISABLED", 
-        message: "Public code activation is disabled. Contact your administrator for account setup." 
-      }, 403, origin);
+      const ip = clientIp(req);
+      const traceId = crypto.randomUUID();
+      if (tooMany(ip)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000, traceId }, 429, origin);
+      // identity resolution
+      const su = await supaUser(req);
+      const pJwt = authJwt(req);
+      let identity: { kind: "email"; id: string; email: string; appSuspended: boolean; meta: any } | { kind: "code"; code: string; deviceId: string; meta: any } | null = null;
+      if (su?.id) {
+        const { data: u } = await sb.auth.admin.getUserById(su.id);
+        identity = { kind: "email", id: su.id, email: String(su.email || "").toLowerCase(),
+          appSuspended: !!(u?.user?.app_metadata as any)?.suspended, meta: u?.user?.user_metadata };
+      } else if (pJwt?.code) {
+        const { data: rec } = await sb.from("codes").select("*").eq("code", pJwt.code).maybeSingle();
+        if (rec) identity = { kind: "code", code: rec.code, deviceId: String(pJwt.deviceId || ""), meta: null };
+      }
+      if (!identity) { failIp(ip); return json({ error: "UNAUTHORIZED", traceId }, 401, origin); }
+      const newCodeRaw = normCode(body?.code);
+      if (!newCodeRaw || newCodeRaw.length < 4) return json({ error: "INVALID_FORMAT", traceId }, 400, origin);
+      const devId = String(body?.deviceId || (identity.kind === "code" ? identity.deviceId : "")).slice(0, 80);
+      const devName = String(body?.deviceName || "Web App").slice(0, 40);
+      if (!devId) return json({ error: "BAD_REQUEST", traceId }, 400, origin);
+
+      const { data: rec } = await sb.from("codes").select("*").eq("code", newCodeRaw).maybeSingle();
+      if (!rec) return json({ error: "CODE_NOT_FOUND", traceId }, 404, origin);
+      if (rec.revoked) return json({ error: "CODE_REVOKED", traceId }, 403, origin);
+      const codeExpired = expiryMs(rec) !== null && (expiryMs(rec) as number) <= Date.now();
+      if (codeExpired) return json({ error: "CODE_EXPIRED", traceId }, 403, origin);
+
+      // suspension gate (both sources)
+      let suspended = false;
+      if (identity.kind === "email") suspended = identity.appSuspended;
+      else {
+        const { data: cur } = await sb.from("codes").select("account_suspended").eq("code", identity.code).maybeSingle();
+        suspended = !!cur?.account_suspended;
+      }
+      if (suspended || rec.account_suspended === true) return json({ error: "SUSPENDED", traceId }, 403, origin);
+
+      // binding gate — no owner leak
+      const codeOwner = String(rec.owner || "").toLowerCase();
+      const acceptable = new Set<string>();
+      if (identity.kind === "email") { acceptable.add(identity.email); acceptable.add(`user:${identity.id}`); }
+      else acceptable.add(String((await sb.from("codes").select("owner").eq("code", identity.code).maybeSingle()).data?.owner || "").toLowerCase());
+      if (codeOwner && !acceptable.has(codeOwner)) return json({ error: "CODE_BOUND_TO_OTHER", traceId }, 403, origin);
+
+      // idempotent retry: same identity already consumed this code
+      if (rec.used) {
+        const okClaimed = !codeOwner || acceptable.has(codeOwner);
+        if (okClaimed) {
+          const token = await signJwt({ code: rec.code, deviceId: devId });
+          clearIp(ip);
+          return json({ ok: true, idempotent: true, record: toClientRecord(rec), token,
+            before: accountStatusOf(rec, identity.kind === "email" ? identity.meta : null, { appSuspended: identity.kind === "email" ? identity.appSuspended : false }),
+            after: accountStatusOf(rec, identity.kind === "email" ? identity.meta : null, { appSuspended: identity.kind === "email" ? identity.appSuspended : false }),
+            traceId }, 200, origin);
+        }
+        return json({ error: "CODE_ALREADY_USED", traceId }, 409, origin);
+      }
+
+      // device limit
+      const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
+      const existingDev = devices.find((d: any) => d.deviceId === devId);
+      const limit = Number(rec.device_limit) || 3;
+      if (!existingDev && devices.length >= limit) return json({ error: "DEVICE_LIMIT", limit, traceId }, 429, origin);
+
+      // renewal: preserve remaining days of the previous licence
+      const now = Date.now();
+      let usedAtMs = now;
+      if (identity.kind === "code") {
+        const { data: oldRec } = await sb.from("codes").select("*").eq("code", identity.code).maybeSingle();
+        const oldEnd = oldRec ? expiryMs(oldRec) : null;
+        if (oldEnd != null && oldEnd > now) usedAtMs = oldEnd; // backdate so window extends from old end
+      } else if (identity.kind === "email") {
+        const oldEnd = parseWhen(identity.meta?.subEnd);
+        const start = parseWhen(identity.meta?.subStart);
+        const fakeLifetime = oldEnd != null && (identity.meta?.subTier === "lifetime" || (oldEnd - (start ?? now)) > LIFETIME_MIN_MS);
+        if (oldEnd != null && !fakeLifetime && oldEnd > now) usedAtMs = oldEnd;
+      }
+
+      // atomic claim
+      const claimUpdate: any = {
+        used: true, used_at: iso(usedAtMs), used_device: devId, used_device_name: devName,
+        devices: existingDev ? devices : [...devices, { deviceId: devId, name: devName, at: now }],
+      };
+      if (!rec.owner) claimUpdate.owner = identity.kind === "email" ? identity.email : `user:${identity.code}`;
+      if (!rec.source) claimUpdate.source = "self";
+      const { data: claimed, error: claimErr } = await sb.from("codes")
+        .update(claimUpdate).eq("code", newCodeRaw).eq("used", false).select("*");
+      if (claimErr) { logError("/api/auth/activate","POST","INTERNAL_ERROR",claimErr.message,null,req,{traceId}); return json({ error: "INTERNAL_ERROR", traceId }, 500, origin); }
+      if (!claimed || claimed.length === 0) return json({ error: "CODE_ALREADY_USED", traceId }, 409, origin);
+      const newRec = claimed[0];
+
+      // gyms continuity: copy old code's shared gym rows + drive_tokens to new key
+      let dataMoved = false;
+      try {
+        const oldCode = identity.kind === "code" ? identity.code : null;
+        // email holders: find their most recent used code (if any) as the source
+        let srcCode = oldCode;
+        if (!srcCode && identity.kind === "email") {
+          const rows = await ownedCodesFor({ id: identity.id, email: identity.email });
+          const used = rows.filter((r: any) => r.used && !r.revoked && r.code !== newRec.code)
+            .sort((a: any, b: any) => (Date.parse(b.used_at) || 0) - (Date.parse(a.used_at) || 0));
+          srcCode = used[0]?.code || null;
+        }
+        if (srcCode && srcCode !== newRec.code) {
+          const { data: gymRows } = await sb.from("gyms").select("*").eq("code", srcCode);
+          if (gymRows && gymRows.length) {
+            for (const g of gymRows) {
+              await sb.from("gyms").upsert({ code: newRec.code, device_id: g.device_id, data: g.data, saved_at: g.saved_at }, { onConflict: "code,device_id" });
+            }
+            dataMoved = true;
+          }
+          const { data: dt } = await sb.from("drive_tokens").select("*").eq("code", srcCode).maybeSingle();
+          if (dt) {
+            const copy = { ...dt, code: newRec.code };
+            delete copy.created_at; delete copy.updated_at;
+            await sb.from("drive_tokens").upsert(copy, { onConflict: "code" });
+          }
+        }
+      } catch (e) { logError("/api/auth/activate","POST","GYMS_COPY_FAILED", String(e), null, req, { traceId, userCode: newRec.code }); }
+
+      // subscription update for email holders (metadata mirror)
+      if (identity.kind === "email") {
+        const meta = identity.meta || {};
+        const sub = subBlockFromCode(newRec);
+        // preserve remaining days if the previous subscription was still active
+        const oldEnd = parseWhen(meta.subEnd);
+        const fakeLifetime = oldEnd != null && (meta.subTier === "lifetime" || (oldEnd - (parseWhen(meta.subStart) ?? now)) > LIFETIME_MIN_MS);
+        if (oldEnd != null && !fakeLifetime && oldEnd > now && sub.subEnd) {
+          const newEnd = new Date(oldEnd + (Number(newRec.days) || 0) * DAY_MS).toISOString();
+          sub.subEnd = newEnd;
+          sub.subStart = meta.subStart || sub.subStart;
+        }
+        await sb.auth.admin.updateUserById(identity.id, { user_metadata: { ...meta, ...sub } });
+      }
+
+      const token = await signJwt({ code: newRec.code, deviceId: devId });
+      clearIp(ip);
+      const beforeMeta = identity.kind === "email" ? identity.meta : null;
+      const beforeApp = identity.kind === "email" ? identity.appSuspended : (await sb.from("codes").select("account_suspended").eq("code", identity.kind === "code" ? identity.code : newRec.code).maybeSingle()).data?.account_suspended === true;
+      return json({ ok: true, record: toClientRecord(newRec), token,
+        before: accountStatusOf(rec, beforeMeta, { appSuspended: beforeApp }),
+        after: accountStatusOf(newRec, identity.kind === "email" ? { ...(identity.meta || {}), ...subBlockFromCode(newRec) } : null, { appSuspended: identity.kind === "email" ? identity.appSuspended : rec.account_suspended === true }),
+        dataMoved, traceId }, 200, origin, dataMoved ? { "X-Data-Moved": "true" } : undefined);
     }
 
     /* client login */
@@ -481,6 +923,7 @@ async function handler(req: Request): Promise<Response> {
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) { failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
       if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
+      if (rec.account_suspended === true) { failIp(ip); return json({ error: "SUSPENDED" }, 403, origin); }
       if (!rec.pass_hash) return json({ error: "NO_PASSWORD" }, 400, origin);
       // Credentials gate; expiry gate below — never let an expired licence in.
       const ok = await bcrypt.compare(String(body?.password || ""), rec.pass_hash);
@@ -513,6 +956,7 @@ async function handler(req: Request): Promise<Response> {
       const { data: rec } = await sb.from("codes").select("*").eq("code", code).maybeSingle();
       if (!rec || !rec.used) return json({ error: "NOT_FOUND" }, 404, origin);
       if (rec.revoked) return json({ error: "REVOKED" }, 403, origin);
+      if (rec.account_suspended === true) return json({ error: "SUSPENDED" }, 403, origin);
       const devices: any[] = Array.isArray(rec.devices) ? rec.devices : [];
       if (!devices.some((d) => d.deviceId === devId)) {
         return json({ error: "DEVICE_NOT_REGISTERED" }, 403, origin);
@@ -544,6 +988,11 @@ async function handler(req: Request): Promise<Response> {
       const rec = recent[0];
       if (!rec) return json({ error: "NO_CODE" }, 404, origin);
       if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
+      // email kill switch + code-account suspension
+      const { data: uFull } = await sb.auth.admin.getUserById(u.id);
+      if ((uFull?.user?.app_metadata as any)?.suspended === true || rec.account_suspended === true) {
+        failIp(ip); return json({ error: "SUSPENDED" }, 403, origin);
+      }
       clearIp(ip);
       // Register this device under the code, same rules as activation.
       const devId = String(body?.deviceId || "").slice(0, 80);
@@ -601,6 +1050,7 @@ async function handler(req: Request): Promise<Response> {
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
       const flags = await codeFlags(p);
       if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
+      if (flags.suspended) return json({ error: "SUSPENDED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
       if (flags.expired) return json({ error: "EXPIRED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
@@ -616,6 +1066,7 @@ async function handler(req: Request): Promise<Response> {
       if (!p) return json({ error: "UNAUTHORIZED" }, 401, origin);
       const flags = await codeFlags(p);
       if (flags.revoked) return json({ error: "REVOKED" }, 403, origin);
+      if (flags.suspended) return json({ error: "SUSPENDED" }, 403, origin);
       if (!flags.data) return json({ error: "DATA_DISABLED" }, 403, origin);
       if (flags.expired) return json({ error: "EXPIRED" }, 403, origin);
       const deviceId = flags.sync ? "" : (String(p.deviceId || "").slice(0, 80));
@@ -783,15 +1234,15 @@ async function handler(req: Request): Promise<Response> {
       }
       const tier = ["monthly", "yearly", "lifetime"].includes(body?.tier) ? body.tier : "monthly";
       // days is the ONLY value the countdown engine reads (tier is a label).
-      // So derive it from the tier when the caller didn't send a positive value:
-      // otherwise {tier:"monthly", days:0} looked like a monthly code but was
-      // silently issued as lifetime, and {tier:"lifetime", days:30} contradicted
-      // its own name.
+      // v1.4.5: lifetime ALWAYS means 0 days, regardless of what the caller
+      // sent (the admin panel's code modal used to ship a 60-day default that
+      // silently turned "lifetime" codes into 60-day ones — §10.6).
       const daysRaw = Math.max(0, Number(body?.days) || 0);
-      const days = daysRaw > 0 ? Math.floor(daysRaw) : tier === "lifetime" ? 0 : tier === "yearly" ? 365 : 30;
+      const days = tier === "lifetime" ? 0 : (daysRaw > 0 ? Math.floor(daysRaw) : tier === "yearly" ? 365 : 30);
       const insert = {
         code, tier,
         days,
+        source: "admin",   // admin-created code (§1 activationSource)
         // 64: the auth-binding format "user:<uuid>" is EXACTLY 41 chars, so the
         // old .slice(0,40) chopped one char off and made linked codes
         // undiscoverable by /api/auth/mine (exact owner match).
@@ -927,7 +1378,19 @@ async function handler(req: Request): Promise<Response> {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const code = String(body?.code || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 32);
       if (!code) return json({ error: "INVALID_CODE" }, 400, origin);
-      // eq("used", false) is the guard: if someone else took it first this
+      // suspension gate for the TARGET account (best-effort lookup; a suspended
+      // account can never redeem a coupon, even via an admin click).
+      const targetUserId = String(body?.userId || "").slice(0, 64);
+      if (targetUserId) {
+        let targetSuspended = false;
+        const { data: cRow } = await sb.from("codes").select("account_suspended").eq("code", targetUserId).maybeSingle();
+        if (cRow?.account_suspended === true) targetSuspended = true;
+        else {
+          try { const { data: u } = await sb.auth.admin.getUserById(targetUserId); if ((u?.user?.app_metadata as any)?.suspended === true) targetSuspended = true; } catch { /* not an auth user id */ }
+        }
+        if (targetSuspended) return json({ error: "SUSPENDED" }, 403, origin);
+      }
+      // eq("used", false) is the guard...
       // matches zero rows and we report ALREADY_USED instead of double-spending.
       const { data, error } = await sb.from("coupons")
         .update({ used: true, used_at: new Date().toISOString(), used_by: String(body?.userId || "").slice(0, 64) || null })
@@ -1124,12 +1587,30 @@ async function handler(req: Request): Promise<Response> {
       const pageUsers = hasMore ? batch.slice(0, perPage) : batch;
       nextCursor = hasMore ? pageUsers[pageUsers.length - 1].created_at : null;
 
+      // Pull every code once so the composer (§2) can resolve each user's
+      // license without an N+1 query. Group by both owner formats.
+      const { data: allCodes } = await sb.from("codes").select("*");
+      const codeByOwner = new Map<string, any[]>();
+      for (const c of allCodes || []) {
+        const k = String(c.owner || "").toLowerCase();
+        if (!codeByOwner.has(k)) codeByOwner.set(k, []);
+        codeByOwner.get(k)!.push(c);
+      }
+      const primaryCodeFor = (u: any) => {
+        const owners = [`user:${u.id}`, String(u.email || "").toLowerCase()];
+        const rows: any[] = [];
+        for (const o of owners) for (const c of (codeByOwner.get(o) || [])) rows.push(c);
+        return pickPrimaryCode(rows);
+      };
+
       const mapped = pageUsers.map((u) => {
         const meta = u.user_metadata || {};
         const ts = (v: any): number | null => {
           if (v == null) return null;
           return Number(v) ? Number(v) : Date.parse(String(v)) || null;
         };
+        const primary = primaryCodeFor(u);
+        const status = accountStatusOf(primary, meta, { appSuspended: !!u.app_metadata?.suspended });
         return {
           id: u.id,
           email: u.email,
@@ -1144,9 +1625,34 @@ async function handler(req: Request): Promise<Response> {
           subStart: ts(meta.subStart),
           subEnd: ts(meta.subEnd),
           days: Number(meta.days) || null,
+          // Composer status (contract §2) — additive, server is source of truth.
+          accountStatus: status,
         };
       });
       return json({ data: mapped, nextCursor, hasMore, totalCount: mapped.length }, 200, origin);
+    }
+
+    /* admin: single-user detail — user + owned codes + composer status (contract §3.3) */
+    if (req.method === "GET" && /^\/api\/users\/[^\/]+$/.test(path)) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const userId = path.split("/")[3];
+      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      const { data: ed } = await sb.auth.admin.getUserById(userId);
+      const u = ed?.user;
+      if (!u) return json({ error: "NOT_FOUND" }, 404, origin);
+      const meta = u.user_metadata || {};
+      const ts = (v: any): number | null => (v == null ? null : (Number(v) ? Number(v) : Date.parse(String(v)) || null));
+      const { data: codes } = await sb.from("codes").select("*").or(`owner.eq.user:${userId},owner.eq.${String(u.email || "").toLowerCase()}`);
+      const primary = pickPrimaryCode(codes || []);
+      const status = accountStatusOf(primary, meta, { appSuspended: !!u.app_metadata?.suspended });
+      return json({
+        id: u.id, email: u.email, full_name: meta.full_name || u.email || "",
+        gym_name: meta.gym_name || "", created: u.created_at, lastSignIn: u.last_sign_in_at,
+        status: u.app_metadata?.suspended ? "suspended" : "active", role: u.role,
+        subscription: meta.subscription || "none", subTier: meta.subTier || null,
+        subStart: ts(meta.subStart), subEnd: ts(meta.subEnd), days: Number(meta.days) || null,
+        accountStatus: status, codes: (codes || []).map(toRecord),
+      }, 200, origin);
     }
 
     /* admin: force-confirm a user's email. Unsticks accounts created while
@@ -1194,6 +1700,20 @@ async function handler(req: Request): Promise<Response> {
     }
 
     /* admin: suspend/resume OR set subscription (tier + days) for a user */
+    if (req.method === "POST" && path.startsWith("/api/admin/users/") && path.endsWith("/actions")) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const userId = path.split("/")[3];
+      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      return await runUserOp(userId, body, req, origin);
+    }
+
+    if (req.method === "POST" && path.startsWith("/api/admin/users/") && path.endsWith("/actions")) {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const userId = path.split("/")[3];
+      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      return await runUserOp(userId, body, req, origin);
+    }
+
     if (req.method === "PATCH" && path.startsWith("/api/users/")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const userId = path.split("/")[3];
@@ -1203,6 +1723,11 @@ async function handler(req: Request): Promise<Response> {
       if (!existing) return json({ error: "NOT_FOUND" }, 404, origin);
 
       const sub = body?.subscription;
+      // v1.4.5 admin ops (contract §3.2) — dispatched via body.op so the
+      // existing subscription/suspend callers keep working unchanged.
+      const op = String(body?.op || "");
+      if (op) return await runUserOp(userId, body, req, origin);
+
       if (sub && typeof sub === "object") {
         // Set package + how long the account stays open (from NOW).
         const sm = subMeta(sub.tier, sub.days);

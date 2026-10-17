@@ -788,14 +788,14 @@
             <span class="sub" data-i18n="ov.sub">Live snapshot from the existing APIs — nothing fabricated</span>
           </div>
           <div class="bento" style="margin-bottom: 1rem;">
-            <div class="bento-card tone-cyan"><div class="k" data-i18n="ov.total">Total accounts</div><div class="v" id="statTotal">0</div><div class="n" id="ovRegNote"></div></div>
-            <div class="bento-card tone-green"><div class="k" data-i18n="ov.active">Active</div><div class="v" id="statActive">0</div></div>
-            <div class="bento-card tone-violet"><div class="k" data-i18n="ov.trial">Trial</div><div class="v" id="statTrial">0</div></div>
-            <div class="bento-card tone-red"><div class="k" data-i18n="ov.expired">Expired subscriptions</div><div class="v" id="statExpired">0</div></div>
-            <div class="bento-card tone-amber"><div class="k" data-i18n="ov.suspended">Suspended</div><div class="v" id="ovSuspended">0</div></div>
-            <div class="bento-card tone-red"><div class="k" data-i18n="ov.syncFail">Sync/API errors (24h log)</div><div class="v" id="ovSyncFail">0</div><div class="n" id="ovSyncFailNote"></div></div>
-            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.online">Confirmed online now</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.onlineNote">Requires last_seen heartbeat on codes table (extension point identified)</div></div>
-            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.backups">Successful backups</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.backupsNote">Drive backup is down (503) — see Backups center</div></div>
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="ov.total">Total accounts</div><div class="v" id="statTotal">—</div><div class="n" id="ovRegNote"></div></div>
+            <div class="bento-card tone-green"><div class="k" data-i18n="ov.active">Active</div><div class="v" id="statActive">—</div></div>
+            <div class="bento-card tone-violet"><div class="k" data-i18n="ov.trial">Trial</div><div class="v" id="statTrial">—</div></div>
+            <div class="bento-card tone-red"><div class="k" data-i18n="ov.expired">Expired subscriptions</div><div class="v" id="statExpired">—</div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="ov.suspended">Suspended</div><div class="v" id="ovSuspended">—</div></div>
+            <div class="bento-card tone-red"><div class="k" data-i18n="ov.syncFail">Sync/API errors (24h log)</div><div class="v" id="ovSyncFail">—</div><div class="n" id="ovSyncFailNote"></div></div>
+            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.online">Confirmed online now</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill" data-i18n="cm.notAvailable">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.onlineNote">Requires last_seen heartbeat on codes table (extension point identified)</div></div>
+            <div class="bento-card tone-muted"><div class="k" data-i18n="ov.backups">Successful backups</div><div class="v" id="ovBackups" style="font-size:1.05rem;">—</div><div class="n" id="ovBackupsNote">…</div></div>
           </div>
 
           <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; align-items:start;">
@@ -1019,10 +1019,8 @@
             </div>
           </div></div>
           <div class="v2-panel" style="margin-top:1rem;"><div class="v2-panel-inner">
-            <div class="section-header"><h2 class="section-title"><span class="icon">🛠️</span><span data-i18n="sy.jwtNote">JWT sync-fix status</span></h2></div>
-            <div class="chart-wrap text-sm" style="color: var(--text-muted);" id="syJwtNote">
-              The historical "sync silently fails after JWT expiry" defect is being fixed server-side (remint + <span class="mono">/api/auth/refresh</span>) in the current release train. Until that ships, an expired code-JWT shows the auth banner and sync pauses instead of pushing blind.
-            </div>
+            <div class="section-header"><h2 class="section-title"><span class="icon">🛠️</span>JWT / Sync status / حالة المزامنة</h2></div>
+            <div class="chart-wrap text-sm" style="color: var(--text-muted);" id="syJwtNote">— <span class="subline" id="syJwtChecked"></span></div>
           </div></div>
         </div>
 
@@ -1033,8 +1031,8 @@
             <span class="sub" data-i18n="bk.sub">Honest status only — an upload is not proof of recoverability</span>
           </div>
           <div class="bento" style="margin-bottom: 1rem;">
-            <div class="bento-card tone-cyan"><div class="k" data-i18n="bk.verified">Restore-verified backups</div><div class="v" style="font-size:1.05rem;"><span class="na-pill" data-i18n="bk.untested">UNVERIFIED</span></div><div class="n" data-i18n="bk.untestedNote">No isolated restore test has been run yet in this environment</div></div>
-            <div class="bento-card tone-amber"><div class="k" data-i18n="bk.drive">Google Drive engine</div><div class="v" id="bkDrive" style="font-size:1.05rem;">DOWN (503)</div><div class="n" data-i18n="bk.driveNote">Boot SyntaxError fixed locally — deploy pending approval</div></div>
+            <div class="bento-card tone-cyan"><div class="k" data-i18n="bk.verified">Restore-verified backups</div><div class="v" id="bkVerified" style="font-size:1.05rem;">—</div><div class="n" id="bkVerifiedNote">—</div></div>
+            <div class="bento-card tone-amber"><div class="k" data-i18n="bk.drive">Google Drive engine</div><div class="v" id="bkDrive" style="font-size:1.05rem;">…</div><div class="n" id="bkDriveNote">—</div></div>
             <div class="bento-card tone-green"><div class="k" data-i18n="bk.adminJson">Admin JSON snapshots</div><div class="v" style="font-size:1.05rem;" data-i18n="bk.available">AVAILABLE</div><div class="n" data-i18n="bk.adminJsonNote">Per-account download + snapshot-first restore below</div></div>
           </div>
           <div class="v2-panel"><div class="v2-panel-inner">

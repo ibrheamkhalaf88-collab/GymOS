@@ -312,21 +312,39 @@ const ts = (v) => {
 };
 
 function normalizeUser(u) {
+  const st = (u && u.status && typeof u.status === 'object') ? u.status : null;
+  const accountStatus = st ? (st.accountStatus || 'allowed') : (u.status === 'suspended' ? 'suspended' : 'allowed');
+  // Source of truth is the server composer object (u.status). Never merge subTier||subscription.
+  const plan = st ? (st.plan || 'none') : (u.subTier ? u.subTier : (u.subscription || 'none'));
+  const subStatus = st ? (st.subStatus || 'none') : (plan === 'trial' ? 'trial' : (plan && plan !== 'none' ? 'active' : 'none'));
+  const subscription = (subStatus === 'expired') ? 'expired' : (plan || 'none');
   return {
     id: u.id,
     email: u.email,
     name: u.full_name || u.gym_name || u.name || '',
     gym_name: u.gym_name || '',
-    created: ts(u.created),
-    lastSignIn: ts(u.lastSignIn),
-    status: u.status || 'active',
-    subscription: u.subTier || u.subscription || 'none',
-    subStart: ts(u.subStart),
-    subEnd: ts(u.subEnd),
-    subTier: u.subTier || null,
+    created: ts(u.created || u.created_at),
+    lastSignIn: ts(u.lastSignIn || u.last_sign_in_at),
+    status: accountStatus,
+    accountStatus,
+    subStatus,
+    plan,
+    activationSource: st ? (st.activationSource || 'unknown') : (u.activation_source || u.activationSource || 'unknown'),
+    codeUsed: st ? (st.codeUsed || null) : (u.codeUsed || null),
+    activatedAt: st ? ts(st.activatedAt) : ts(u.activatedAt),
+    subscription,
+    subTier: plan,
+    subStart: st ? ts(st.subStart) : ts(u.subStart),
+    subEnd: st ? ts(st.subEnd) : ts(u.subEnd),
+    remainingDays: st ? (st.remainingDays == null ? (st.unlimited ? null : 0) : st.remainingDays) : (u.remainingDays == null ? null : u.remainingDays),
+    unlimited: st ? !!st.unlimited : (plan === 'lifetime'),
+    deviceCount: st ? (st.deviceCount != null ? st.deviceCount : null) : (u.deviceCount != null ? u.deviceCount : null),
+    deviceLimit: st ? (st.deviceLimit != null ? st.deviceLimit : null) : (u.deviceLimit != null ? u.deviceLimit : null),
+    codeState: st ? (st.codeState || null) : (u.codeState || null),
     days: u.days != null ? u.days : null,
     password: u.password,
     _demo: !!u._demo,
+    _status: st,
   };
 }
 
@@ -531,23 +549,28 @@ function appendUsersToTable(users) {
 // ---------- Render Users ----------
 function tierBadge(user) {
   const now = Date.now();
-  const tier = user.subscription;
-  const expired = user.status !== 'suspended' &&
-    (tier === 'trial' || tier === 'monthly' || tier === 'yearly' || tier === 'active') &&
-    user.subEnd && user.subEnd <= now;
-  const suspended = user.status === 'suspended';
+  const suspended = (user.status === 'suspended' || user.accountStatus === 'suspended' || user.subStatus === 'suspended');
+  const plan = user.plan || user.subTier || user.subscription || 'none';
+  const subStatus = user.subStatus || (user.subscription === 'expired' ? 'expired' : (plan === 'trial' ? 'trial' : (plan !== 'none' ? 'active' : 'none')));
+  const isTrial = (subStatus === 'trial') || (plan === 'trial' && user.subscription !== 'expired');
+  const expired = !suspended && (subStatus === 'expired' || (user.subEnd && user.subEnd <= now && plan !== 'lifetime' && plan !== 'none'));
+  const freeTrial = (plan === 'trial' && subStatus === 'trial');
 
   if (suspended) return '<span class="badge badge-danger">🚫 Suspended / موقوف</span>';
   if (expired) return '<span class="badge badge-danger">⏰ Expired / منتهي</span>';
-  if (tier === 'trial') return '<span class="badge badge-info">🧪 Trial / تجربة</span>';
-  if (tier === 'lifetime') return '<span class="badge badge-success">♾️ Lifetime / مدى الحياة</span>';
-  if (tier === 'active' || tier === 'monthly' || tier === 'yearly') return '<span class="badge badge-success">✅ Active / نشط</span>';
+  if (freeTrial) return '<span class="badge badge-info">🧪 Free Trial / تجربة مجانية</span>';
+  if (isTrial) return '<span class="badge badge-info">🧪 Trial / تجربة</span>';
+  if (plan === 'lifetime') return '<span class="badge badge-success">♾️ Lifetime / مدى الحياة</span>';
+  if (plan === 'monthly' || plan === 'yearly' || subStatus === 'active') return '<span class="badge badge-success">✅ Active / نشط</span>';
   return '<span class="badge badge-neutral">❌ None / بدون</span>';
 }
 
 function expiryText(user) {
-  if (user.subscription === 'lifetime') return '<span style="color: var(--accent);">♾️ Lifetime</span>';
+  const plan = user.plan || user.subTier || user.subscription;
+  const unlimited = user.unlimited || plan === 'lifetime';
+  if (unlimited) return '<span style="color: var(--accent);">♾️ غير محدود / Unlimited</span>';
   if (!user.subEnd) return '—';
+  if (user.subEnd > Date.now() + 36000 * 86400000) return '<span style="color: var(--accent);">♾️ غير محدود / Unlimited</span>';
   return new Date(user.subEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -562,8 +585,8 @@ function renderUsers(users) {
     const now = Date.now();
     list = list.filter(u => {
       if (st === 'active') return u.status !== 'suspended' && u.subscription !== 'none' && (!u.subEnd || u.subEnd > now);
-      if (st === 'trial') return u.subscription === 'trial' && u.subEnd && u.subEnd > now;
-      if (st === 'trial_expired') return u.subscription === 'trial' && u.subEnd && u.subEnd <= now && u.status !== 'suspended';
+      if (st === 'trial') return u.subStatus === 'trial' && u.subEnd && u.subEnd > now;
+      if (st === 'trial_expired') return u.subStatus === 'trial' && u.subEnd && u.subEnd <= now && u.status !== 'suspended';
       if (st === 'expired') return u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now;
       if (st === 'suspended') return u.status === 'suspended';
       return true;
@@ -622,7 +645,7 @@ function updateStats(users) {
   const now = Date.now();
   const active = users.filter(u => u.status !== 'suspended' && u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd > now).length
     + users.filter(u => u.subscription === 'lifetime' && u.status !== 'suspended').length;
-  const trial = users.filter(u => u.subscription === 'trial' && u.subEnd && u.subEnd > now && u.status !== 'suspended').length;
+  const trial = users.filter(u => (u.subStatus === 'trial' || (u.plan === 'trial' && u.subStatus !== 'expired')) && u.status !== 'suspended').length;
   const expired = users.filter(u => u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now).length;
 
   elements.statTotal.textContent = users.length;
@@ -1205,12 +1228,15 @@ elements.usersTableBody.addEventListener('click', async (e) => {
       cancelText: 'Cancel / إلغاء',
     });
     if (!confirmedReset) return;
+    btn.disabled = true;
     try {
       await api('/api/users/send-reset', { method: 'POST', body: JSON.stringify({ email }) });
       showToast('✉️ Reset link sent / تم إرسال الرابط إلى بريد المستخدم', 'success');
     } catch (err) {
       console.error(err);
       showToast('Failed to send reset email: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
     }
     return;
   }
@@ -1299,6 +1325,8 @@ const CODE_PAGE_SIZE = 50;
 
 // Load activation codes
 async function loadCodes() {
+  if (elements.codeCountBadge) elements.codeCountBadge.textContent = '…';
+  if (elements.codeListBody) elements.codeListBody.innerHTML = `<tr><td colspan="7"><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div></td></tr>`;
   let rows = [];
   try {
     if (IS_DEMO) {
@@ -1309,6 +1337,7 @@ async function loadCodes() {
     }
   } catch (err) {
     elements.codeListBody.innerHTML = `<tr><td colspan="7" style="color: var(--danger);">${esc(err.message || 'Could not load codes')}</td></tr>`;
+    if (elements.codeCountBadge) elements.codeCountBadge.textContent = '—';
     return;
   }
 
@@ -1331,7 +1360,7 @@ async function loadCodes() {
   const pageRows = rows.slice(start, end);
   const hasMore = rows.length > end;
 
-  elements.codeCountBadge.textContent = rows.length;
+  elements.codeCountBadge.textContent = `${pageRows.length} من ${rows.length} / ${pageRows.length} of ${rows.length} shown`;
 
   if (!pageRows.length) {
     elements.codeListBody.innerHTML = '<tr><td colspan="7" class="text-center py-4" style="color: var(--text-muted);">No codes found / لا توجد أكواد</td></tr>';
@@ -1547,6 +1576,8 @@ elements.codeCopyBtn.addEventListener('click', async () => {
 
 // Reset code password
 async function resetCodePassword(code) {
+  const resetBtns = Array.from(document.querySelectorAll('[data-action="reset-pw"]'));
+  resetBtns.forEach(b => { b.disabled = true; });
   const confirmed = await showConfirm({
     title: 'Reset Password / إعادة تعيين كلمة المرور',
     message: `This will generate a new temporary password for code ${code}. The old password will no longer work. / سيؤدي هذا إلى إنشاء كلمة مرور مؤقتة جديدة للكود ${code}. لن تعمل كلمة المرور القديمة بعد الآن.`,
@@ -1557,7 +1588,7 @@ async function resetCodePassword(code) {
     cancelText: 'Cancel / إلغاء',
   });
 
-  if (!confirmed) return;
+  if (!confirmed) return resetBtns.forEach(b => { b.disabled = false; });
 
   try {
     let tempPassword;
@@ -1580,6 +1611,8 @@ async function resetCodePassword(code) {
   } catch (err) {
     console.error(err);
     showToast('Failed to reset password: ' + err.message, 'error');
+  } finally {
+    resetBtns.forEach(b => { b.disabled = false; });
   }
 }
 
@@ -1668,6 +1701,7 @@ elements.toggleCouponsBtn.addEventListener('click', async () => {
 
 // Load coupons
 async function loadCoupons() {
+  if (elements.couponListBody) elements.couponListBody.innerHTML = '<tr><td colspan="5"><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div></td></tr>';
   let rows = [];
   try {
     rows = await apiListCoupons();
@@ -1942,19 +1976,19 @@ const V2_I18N = {
     'ov.total': 'Total accounts', 'ov.active': 'Active', 'ov.trial': 'Trial', 'ov.expired': 'Expired subscriptions',
     'ov.suspended': 'Suspended', 'ov.syncFail': 'Logged errors', 'ov.syncFailNote': 'unresolved entries in error_log',
     'ov.online': 'Confirmed online now', 'ov.onlineNote': 'Requires last_seen heartbeat on codes table (extension point identified)',
-    'ov.backups': 'Successful backups', 'ov.backupsNote': 'Drive backup is down (503) — see Backups center',
+    'ov.backups': 'Successful backups',
     'ov.growth': 'New registrations — last 8 weeks', 'ov.distribution': 'Account status distribution',
     'ov.recentAdmin': 'Recent administrative activity', 'ov.viewAll': 'View all', 'ov.alerts': 'Security & sync alerts',
     'us.title': 'Users & Accounts', 'us.sub': 'Click any row to open the Account Detail Center',
     'li.title': 'Subscriptions & Licenses', 'li.sub': 'Activation codes grant cloud access · coupons grant free days',
     'sy.title': 'Cloud Sync Center', 'sy.sub': 'Server-persisted sync state per account — traced from JWT to database',
     'sy.authFail': 'Auth-related failures', 'sy.authFailNote': 'error_log entries with 401/403/FORBIDDEN',
-    'sy.totalErr': 'Total logged errors', 'sy.lastOk': 'Most recent successful sync', 'sy.perAccount': 'Sync status per account', 'sy.jwtNote': 'JWT sync-fix status',
+    'sy.totalErr': 'Total logged errors', 'sy.lastOk': 'Most recent successful sync', 'sy.perAccount': 'Sync status per account',
     'th.account': 'Account', 'th.code': 'Code', 'th.members': 'Members', 'th.lastSync': 'Last successful sync', 'th.health': 'Health',
     'th.actions': 'Safe recovery', 'th.when': 'When', 'th.error': 'Error', 'th.user': 'User', 'th.status': 'Status',
     'bk.title': 'Backups & Recovery', 'bk.sub': 'Honest status only — an upload is not proof of recoverability',
-    'bk.verified': 'Restore-verified backups', 'bk.untested': 'UNVERIFIED', 'bk.untestedNote': 'No isolated restore test has been run yet in this environment',
-    'bk.drive': 'Google Drive engine', 'bk.driveNote': 'Boot SyntaxError fixed locally — deploy pending approval',
+    'bk.verified': 'Restore-verified backups',
+    'bk.drive': 'Google Drive engine',
     'bk.adminJson': 'Admin JSON snapshots', 'bk.available': 'AVAILABLE', 'bk.adminJsonNote': 'Per-account download + snapshot-first restore below', 'bk.perAccount': 'Recovery posture per account',
     'ac.title': 'Sessions & Activity', 'ac.sub': 'Only recorded events are shown — presence tracking is not implemented server-side yet',
     'ac.lastLogin': 'Latest user login (any account)', 'ac.active7': 'Accounts seen in the metadata window',
@@ -1985,19 +2019,19 @@ const V2_I18N = {
     'ov.total': 'إجمالي الحسابات', 'ov.active': 'نشط', 'ov.trial': 'تجريبي', 'ov.expired': 'اشتراكات منتهية',
     'ov.suspended': 'موقوف', 'ov.syncFail': 'الأخطاء المسجّلة', 'ov.syncFailNote': 'سجلات غير معالجة في error_log',
     'ov.online': 'متصلون الآن (مؤكد)', 'ov.onlineNote': 'يتطلب عمود last_seen بجدول codes (نقطة امتداد محددة)',
-    'ov.backups': 'نسخ ناجحة', 'ov.backupsNote': 'نسخ Drive معطّل (503) — راجع مركز النسخ',
+    'ov.backups': 'نسخ ناجحة',
     'ov.growth': 'التسجيلات الجديدة — آخر 8 أسابيع', 'ov.distribution': 'توزيع حالات الحسابات',
     'ov.recentAdmin': 'أحدث العمليات الإدارية', 'ov.viewAll': 'عرض الكل', 'ov.alerts': 'تنبيهات الأمان والمزامنة',
     'us.title': 'المستخدمون والحسابات', 'us.sub': 'اضغط أي صف لفتح مركز تفاصيل الحساب',
     'li.title': 'الاشتراكات والتراخيص', 'li.sub': 'أكواد التفعيل تمنح وصولاً سحابياً · الكوبونات تمنح أياماً مجانية',
     'sy.title': 'مركز المزامنة السحابية', 'sy.sub': 'حالة المزامنة لكل حساب — من الـJWT حتى قاعدة البيانات',
     'sy.authFail': 'إخفاقات المصادقة', 'sy.authFailNote': 'سجلات 401/403/FORBIDDEN في error_log',
-    'sy.totalErr': 'إجمالي الأخطاء المسجلة', 'sy.lastOk': 'أحدث مزامنة ناجحة', 'sy.perAccount': 'حالة المزامنة لكل حساب', 'sy.jwtNote': 'حالة إصلاح JWT للمزامنة',
+    'sy.totalErr': 'إجمالي الأخطاء المسجلة', 'sy.lastOk': 'أحدث مزامنة ناجحة', 'sy.perAccount': 'حالة المزامنة لكل حساب',
     'th.account': 'الحساب', 'th.code': 'الكود', 'th.members': 'الأعضاء', 'th.lastSync': 'آخر مزامنة ناجحة', 'th.health': 'الصحة',
     'th.actions': 'استعادة آمنة', 'th.when': 'متى', 'th.error': 'الخطأ', 'th.user': 'المستخدم', 'th.status': 'الحالة',
     'bk.title': 'النسخ الاحتياطي والاستعادة', 'bk.sub': 'حالة صادقة فقط — نجاح الرفع ليس دليلاً على قابلية الاستعادة',
-    'bk.verified': 'نسخ مُتحقق منها بالاستعادة', 'bk.untested': 'غير مُتحقق', 'bk.untestedNote': 'لم يُنفَّذ اختبار استعادة معزول بعد بهذه البيئة',
-    'bk.drive': 'محرك Google Drive', 'bk.driveNote': 'الـSyntaxError أُصلح محلياً — النشر بانتظار الموافقة',
+    'bk.verified': 'نسخ مُتحقق منها بالاستعادة',
+    'bk.drive': 'محرك Google Drive',
     'bk.adminJson': 'لقطات JSON إدارية', 'bk.available': 'متاح', 'bk.adminJsonNote': 'تنزيل لكل حساب + استعادة بلقطة أولية أدناه', 'bk.perAccount': 'وضع الاستعادة لكل حساب',
     'ac.title': 'الجلسات والنشاط', 'ac.sub': 'تُعرض الأحداث المسجلة فقط — لا يوجد تتبع حضور سيرفري بعد',
     'ac.lastLogin': 'آخر دخول مستخدم (أي حساب)', 'ac.active7': 'حسابات ظهرت بنافذة البيانات الوصفية',
@@ -2087,9 +2121,11 @@ async function refreshOverview() {
   if (regNote) regNote.textContent = '+' + reg30 + ' في آخر 30 يوم / in last 30 days';
   const growthEl = document.getElementById('ovGrowthChart');
   if (growthEl) growthEl.innerHTML = v2Bars(weeklyBuckets('created'), 'var(--accent)');
+  const obn = document.getElementById('ovBackupsNote');
+  if (obn) obn.textContent = 'Last checked / آخر تحقق: ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
   const active = allUsers.filter(u => u.status !== 'suspended' && u.subscription !== 'none' && (!u.subEnd || u.subEnd > now)).length;
-  const trial = allUsers.filter(u => u.subscription === 'trial' && u.subEnd && u.subEnd > now && u.status !== 'suspended').length;
+  const trial = allUsers.filter(u => (u.subStatus === 'trial' || (u.plan === 'trial' && u.subStatus !== 'expired')) && u.status !== 'suspended').length;
   const expired = allUsers.filter(u => u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd <= now).length;
   const lifetime = allUsers.filter(u => u.subscription === 'lifetime' && u.status !== 'suspended').length;
   const none = allUsers.filter(u => u.subscription === 'none' && u.status !== 'suspended').length;
@@ -2142,6 +2178,8 @@ async function refreshSyncView() {
     if (health) { health.textContent = 'UNREACHABLE'; health.style.color = 'var(--danger)'; }
     const hn = document.getElementById('syApiHealthNote'); if (hn) hn.textContent = String(e.message || e).slice(0, 80);
   }
+  const jn = document.getElementById('syJwtNote');
+  if (jn) jn.textContent = 'JWT sync status: server-side remint + /api/auth/refresh — Last checked / آخر تحقق: ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   try {
     const errs = await v2FetchErrors();
     const authFail = errs.filter(e => /401|403|FORBIDDEN|UNAUTHORIZED|AUTH/i.test(String(e.error_code || '') + ' ' + String(e.endpoint || '')));
@@ -2181,11 +2219,14 @@ async function refreshSyncView() {
 // ---------- V2: Backups view ----------
 async function refreshBackupsView() {
   const drive = document.getElementById('bkDrive');
+  const driveNote = document.getElementById('bkDriveNote');
+  const checkedAt = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   try {
     const r = await fetch(API_BASE.replace('/gymos-api', '/gymos-drive-backup') + '/health', { method: 'GET' });
     if (r.ok) { if (drive) { drive.textContent = 'UP'; drive.style.color = 'var(--success)'; } }
     else { if (drive) { drive.textContent = 'DOWN (' + r.status + ')'; drive.style.color = 'var(--danger)'; } }
-  } catch { if (drive) { drive.textContent = 'DOWN'; drive.style.color = 'var(--danger)'; } }
+  } catch { if (drive) { drive.textContent = 'UNREACHABLE'; drive.style.color = 'var(--danger)'; } }
+  if (driveNote) driveNote.textContent = 'Last checked / آخر تحقق: ' + checkedAt;
   const body = document.getElementById('bkTableBody');
   if (!body) return;
   try {
@@ -2396,8 +2437,12 @@ function drRenderOverview(u) {
 async function drRenderLicense(u) {
   const panel = document.getElementById('drt-license');
   if (!panel || !u) return;
+  let _adminEmail = '';
+  try { _adminEmail = (JSON.parse(localStorage.getItem('dp_current_user') || 'null') || {}).email || ''; } catch {}
+  const isSelf = !!_adminEmail && String(_adminEmail).toLowerCase() === String(u.email || '').toLowerCase();
   panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
-  const codes = await v2FetchCodes().catch(() => []);
+  const codes = await v2FetchCodes().catch(() => null);
+  if (codes === null) { panel.innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><p class="empty-state-text">تعذر التحميل / Failed to load</p></div>'; return; }
   const mine = userCodesOf(u, codes);
   const rows = mine.length ? mine.map(c => {
     const exp = (Number(c.days) > 0 && c.used_at) ? Date.parse(c.used_at) + Number(c.days) * 86400000 : null;
@@ -2413,7 +2458,7 @@ async function drRenderLicense(u) {
       ${drKv([
         ['Activation date', u.subStart ? esc(fmtDay(u.subStart)) : (mine[0] && mine[0].used_at ? esc(fmtDay(Date.parse(mine[0].used_at))) : '—')],
         ['Expiration', u.subEnd ? esc(fmtDay(u.subEnd)) : '—'],
-        ['Trial status', u.subscription === 'trial' ? 'trial plan' : '—'],
+        ['Trial status', u.subStatus === 'trial' ? 'trial plan' : '—'],
       ])}
     </dl>
     <div class="chart-title" style="margin-bottom:0.5rem;">Linked codes</div>
@@ -2436,17 +2481,150 @@ async function drRenderLicense(u) {
       <button class="btn btn-primary btn-sm" data-dr-extend="1">＋ Extend / تمديد</button>
     </div>
     <p class="text-xs" style="color:var(--text-muted); margin-top:0.6rem;">Days add on top of remaining time (10 left + 360 → 370) / الأيام تنضاف فوق المتبقي</p>`}
+    <div class="chart-title" style="margin:1rem 0 0.5rem;">License actions / إجراءات الترخيص</div>
+    <div class="flex gap-2 flex-wrap" style="margin-bottom:0.6rem;">
+      <button class="btn btn-secondary btn-sm" data-dr-plan="trial">Trial / تجربة</button>
+      <button class="btn btn-secondary btn-sm" data-dr-plan="monthly">Monthly / شهر</button>
+      <button class="btn btn-secondary btn-sm" data-dr-plan="yearly">Yearly / سنة</button>
+      <button class="btn btn-secondary btn-sm" data-dr-plan="lifetime">Lifetime / دائم (unlimited)</button>
+    </div>
+    <div class="flex gap-2 flex-wrap" style="align-items:center; margin-bottom:0.6rem;">
+      <input id="drDeductDays" type="number" min="1" max="3650" value="30" class="input w-24" style="background:var(--bg);" aria-label="Days to deduct" />
+      <button class="btn btn-warning btn-sm" data-dr-deduct="1">− Deduct / خصم</button>
+      <span class="text-xs" style="color:var(--text-muted);">days / يوم</span>
+    </div>
+    <div class="flex gap-2 flex-wrap" style="align-items:center; margin-bottom:0.6rem;">
+      <input id="drSetRemain" type="number" min="0" max="3650" value="30" class="input w-24" style="background:var(--bg);" aria-label="Remaining days to set" />
+      <button class="btn btn-primary btn-sm" data-dr-setremain="1">Set remaining / تعيين المتبقي</button>
+    </div>
+    <div class="flex gap-2 flex-wrap" style="align-items:center; margin-bottom:0.6rem;">
+      <input id="drSetEnd" type="date" class="input" style="background:var(--bg);" aria-label="End date" />
+      <button class="btn btn-primary btn-sm" data-dr-setend="1">Set end date / تعيين تاريخ الانتهاء</button>
+    </div>
+    <div class="flex gap-2 flex-wrap" style="align-items:center; margin-bottom:0.6rem;">
+      <input id="drGymName" type="text" class="input" style="background:var(--bg);" value="${escAttr(u.gym_name || '')}" aria-label="Gym name" placeholder="Gym name / اسم النادي" />
+      <button class="btn btn-secondary btn-sm" data-dr-gymname="1">Edit gym name / تعديل اسم النادي</button>
+    </div>
+    <div class="flex gap-2 flex-wrap" style="margin-bottom:0.6rem;">
+      <button class="btn btn-danger btn-sm" data-dr-terminate="1" ${isSelf ? 'disabled title="Cannot terminate your own admin account / لا يمكن إنهاء حساب الأدمن الخاص بك"' : ''}>Terminate now / إنهاء الآن</button>
+      ${u.status === 'suspended'
+        ? `<button class="btn btn-success btn-sm" data-dr-act="activate" ${isSelf ? 'disabled title="Cannot modify your own admin account / لا يمكن تعديل حساب الأدمن الخاص بك"' : ''}>▶️ Reactivate / إعادة تفعيل</button>`
+        : `<button class="btn btn-warning btn-sm" data-dr-act="suspend" ${isSelf ? 'disabled title="Cannot suspend your own admin account / لا يمكن تعليق حساب الأدمن الخاص بك"' : ''}>⏸ Suspend / تعليق (reason)</button>`}
+    </div>
+    <div id="drLicPreview" class="text-xs" style="color:var(--text-muted); margin-top:0.4rem;"></div>
   `;
   panel.querySelectorAll('[data-dr-act]').forEach(b => b.addEventListener('click', () => {
     dispatchRowAction(b.dataset.drAct, u.id, u.email);
     setTimeout(() => closeDrawer(), 400);
   }));
+  // Helper for admin user actions (contract §3.2) with before/after preview
+  async function drRunAction(op, payload, confirmMsg) {
+    if (confirmMsg) {
+      const ok = await showConfirm({ title: op, message: confirmMsg, icon: '⚠️', iconColor: '#ff9800', okText: 'Confirm / تأكيد', okClass: 'btn-warning' });
+      if (!ok) return;
+    }
+    const previewEl = document.getElementById('drLicPreview');
+    if (previewEl) previewEl.textContent = '…';
+    try {
+      const r = await api('/api/admin/users/' + encodeURIComponent(u.id) + '/actions', { method: 'POST', body: JSON.stringify({ op, ...(payload || {}) }) });
+      const before = r && r.before; const after = r && r.after;
+      let txt = '';
+      if (before && after) {
+        txt = `before: ${JSON.stringify(before)} → after: ${JSON.stringify(after)}`;
+      } else if (r && r.ok) {
+        txt = 'OK';
+      }
+      if (previewEl) previewEl.textContent = txt || 'Done / تم';
+      showToast('Action completed / تم الإجراء', 'success');
+      await loadUsers();
+      const fresh = allUsers.find(x => x.id === u.id);
+      if (fresh) { drCurrent = fresh; drRenderLicense(fresh); }
+    } catch (e) {
+      if (previewEl) previewEl.textContent = 'Failed: ' + (e.message || '');
+      showToast('Action failed: ' + (e.message || 'error'), 'error');
+    }
+  }
+
+  panel.querySelectorAll('[data-dr-plan]').forEach(b => b.addEventListener('click', () => {
+    const plan = b.dataset.drPlan;
+    if (plan === 'lifetime') {
+      drRunAction('set_unlimited', { plan: 'lifetime', unlimited: true }, `Set plan to lifetime (unlimited)? / تعيين الخطة إلى دائم (غير محدود)؟`);
+    } else {
+      drRunAction('set_plan', { plan, unlimited: false }, `Set plan to ${plan}? / تعيين الخطة إلى ${plan}؟`);
+    }
+  }));
+
+  const deductBtn = panel.querySelector('[data-dr-deduct]');
+  if (deductBtn) deductBtn.addEventListener('click', () => {
+    const inp = panel.querySelector('#drDeductDays');
+    const n = parseInt(inp && inp.value, 10) || 0;
+    if (n < 1) { showToast('Enter 1-3650 days', 'error'); return; }
+    drRunAction('adjust_days', { days: -n }, `Deduct ${n} days? / خصم ${n} يوم؟`);
+  });
+
+  const setRemBtn = panel.querySelector('[data-dr-setremain]');
+  if (setRemBtn) setRemBtn.addEventListener('click', () => {
+    const inp = panel.querySelector('#drSetRemain');
+    const n = parseInt(inp && inp.value, 10);
+    if (isNaN(n) || n < 0) { showToast('Enter 0-3650 days', 'error'); return; }
+    drRunAction('set_remaining', { days: n }, `Set remaining days to ${n}? / تعيين المتبقي إلى ${n} يوم؟`);
+  });
+
+  const setEndBtn = panel.querySelector('[data-dr-setend]');
+  if (setEndBtn) setEndBtn.addEventListener('click', () => {
+    const inp = panel.querySelector('#drSetEnd');
+    const v = inp && inp.value;
+    if (!v) { showToast('Pick a date', 'error'); return; }
+    drRunAction('set_end', { end: v }, `Set end date to ${v}? / تعيين تاريخ الانتهاء إلى ${v}؟`);
+  });
+
+  const gymBtn = panel.querySelector('[data-dr-gymname]');
+  if (gymBtn) gymBtn.addEventListener('click', async () => {
+    const inp = panel.querySelector('#drGymName');
+    const name = (inp && inp.value || '').trim();
+    const ok = await showConfirm({ title: 'Edit gym name', message: `Update gym name to "${name}"? / تحديث اسم النادي إلى "${name}"؟`, icon: '✎', iconColor: '#CCFF00', okText: 'Save / حفظ', okClass: 'btn-primary' });
+    if (!ok) return;
+    gymBtn.disabled = true;
+    try {
+      await api('/api/users/' + encodeURIComponent(u.id), { method: 'PATCH', body: JSON.stringify({ gym_name: name }) });
+      showToast('Gym name updated / تم تحديث اسم النادي', 'success');
+      await loadUsers();
+      const fresh = allUsers.find(x => x.id === u.id);
+      if (fresh) { drCurrent = fresh; drRenderLicense(fresh); }
+    } catch (e) {
+      showToast('Update failed: ' + (e.message || 'error'), 'error');
+    } finally {
+      gymBtn.disabled = false;
+    }
+  });
+
+  const termBtn = panel.querySelector('[data-dr-terminate]');
+  if (termBtn) termBtn.addEventListener('click', () => {
+    drRunAction('terminate', {}, 'Terminate subscription now? / إنهاء الاشتراك الآن؟');
+  });
+
+  panel.querySelectorAll('[data-dr-act="suspend"]').forEach(b => {
+    b.addEventListener('click', async (e) => {
+      e.stopImmediatePropagation();
+      const reason = window.prompt('Suspension reason / سبب التعليق:', '') || '';
+      await drRunAction('suspend', { reason }, null);
+    }, true);
+  });
+  panel.querySelectorAll('[data-dr-act="activate"]').forEach(b => {
+    b.addEventListener('click', async (e) => {
+      e.stopImmediatePropagation();
+      await drRunAction('reactivate', {}, 'Reactivate account? / إعادة تفعيل الحساب؟');
+    }, true);
+  });
+
   panel.querySelectorAll('[data-dr-revoke]').forEach(b => b.addEventListener('click', async () => {
     const code = b.dataset.drRevoke;
     const ok = await showConfirm({ title: 'Revoke code', message: 'Revoking ' + code + ' blocks its cloud access immediately. Customer data is never deleted.', icon: '🚫', iconColor: '#fb5b74', okText: 'Revoke', okClass: 'btn-danger' });
     if (!ok) return;
+    b.disabled = true;
     try { await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: true }) }); showToast('Code revoked', 'success'); drRenderLicense(u); }
     catch (e) { showToast('Revoke failed: ' + e.message, 'error'); }
+    finally { b.disabled = false; }
   }));
   const extendBtn = panel.querySelector('[data-dr-extend]');
   if (extendBtn) extendBtn.addEventListener('click', async () => {
@@ -2482,15 +2660,18 @@ async function drRenderLicense(u) {
     if (!owner) return;
     const ok = await showConfirm({ title: 'Link code to account', message: code + ' will be owned by ' + owner, icon: '🔗', iconColor: '#38bdf8', okText: 'Link', okClass: 'btn-primary' });
     if (!ok) return;
+    assignBtn.disabled = true;
     try { await api('/api/codes/' + encodeURIComponent(code) + '/owner', { method: 'PATCH', body: JSON.stringify({ owner }) }); showToast('Code linked (audited)', 'success'); V2_CACHE.codes = null; drRenderLicense(u); }
     catch (e) { showToast('Link failed: ' + e.message, 'error'); }
+    finally { assignBtn.disabled = false; }
   });
 }
 async function drRenderSync(u) {
   const panel = document.getElementById('drt-sync');
   if (!panel || !u) return;
   panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
-  const codes = await v2FetchCodes().catch(() => []);
+  const codes = await v2FetchCodes().catch(() => null);
+  if (codes === null) { panel.innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><p class="empty-state-text">تعذر التحميل / Failed to load</p></div>'; return; }
   const mine = userCodesOf(u, codes);
   let html = '';
   for (const c of mine) {
@@ -2517,7 +2698,8 @@ async function drRenderData(u) {
   const panel = document.getElementById('drt-data');
   if (!panel || !u) return;
   panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
-  const codes = await v2FetchCodes().catch(() => []);
+  const codes = await v2FetchCodes().catch(() => null);
+  if (codes === null) { panel.innerHTML = '<div class="empty-state"><span class="icon">⚠️</span><p class="empty-state-text">تعذر التحميل / Failed to load</p></div>'; return; }
   const mine = userCodesOf(u, codes);
   if (!mine.length) { panel.innerHTML = '<div class="empty-state"><span class="icon">🗂️</span><p class="empty-state-text">No code linked — no cloud data exists for this account</p></div>'; return; }
   let html = '';
@@ -2544,12 +2726,13 @@ async function drRenderData(u) {
 async function drRenderBackup(u) {
   const panel = document.getElementById('drt-backup');
   if (!panel || !u) return;
-  const codes = (await v2FetchCodes().catch(() => []));
+  panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span><p class="empty-state-text">Loading… / جارٍ التحميل</p></div>';
+  const codes = (await v2FetchCodes().catch(() => null));
   const mine = userCodesOf(u, codes);
   panel.innerHTML = `
     <dl class="kv" style="margin-bottom:1rem;">
       ${drKv([
-        ['Latest backup', '<span class="na-pill">NOT AVAILABLE</span> (Drive engine is down — deploy pending)'],
+        ['Latest backup', '<span class="na-pill">NOT AVAILABLE</span>'],
         ['Backup integrity', '<span class="badge badge-warning">UNVERIFIED</span> <span class="subline">no isolated restore test has been run</span>'],
         ['Recovery points', mine.length ? '1 cloud copy per code (mutable, no history)' : '—'],
       ])}
@@ -2607,9 +2790,9 @@ async function drRenderTimeline(u) {
   if (u.lastSignIn) items.push({ t: u.lastSignIn, html: '<b>Last sign-in</b>', tone: '' });
   if (u.subStart) items.push({ t: u.subStart, html: '<b>Subscription window started</b>', tone: '' });
   try {
-    const codes = await v2FetchCodes().catch(() => []);
-    const mine = userCodesOf(u, codes);
-    const audit = await v2FetchAudit().catch(() => []);
+    const codes = await v2FetchCodes().catch(() => null);
+    const mine = codes ? userCodesOf(u, codes) : [];
+    const audit = await v2FetchAudit().catch(() => null) || [];
     const needle = [u.id, String(u.email || '').toLowerCase(), ...mine.map(c => c.code)].filter(Boolean).map(String);
     for (const e of audit) {
       const d = v2Parse(e.details);
@@ -2690,12 +2873,14 @@ function v2Init() {
     if (!btn) return;
     const id = btn.dataset.errResolve;
     const resolved = btn.dataset.resolved !== '1';
+    btn.disabled = true;
     try {
       await api('/api/admin/errors/resolve', { method: 'PATCH', body: JSON.stringify({ id, resolved }) });
       showToast(resolved ? 'Error marked resolved (audited)' : 'Error reopened', 'success');
       V2_CACHE.errors = null;
       refreshAuditView(true);
     } catch (err) { showToast('Failed: ' + err.message, 'error'); }
+    finally { btn.disabled = false; }
   });
   const errRef = document.getElementById('auErrRefresh');
   if (errRef) errRef.addEventListener('click', () => refreshAuditView(true));

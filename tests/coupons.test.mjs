@@ -164,3 +164,12 @@ test('the coupon row template cannot break out of its own backticks', () => {
   const ticks = (adminHtml.match(/`/g) || []).length;
   assert.equal(ticks % 2, 0, 'unbalanced backticks in admin.html');
 });
+
+test('suspension blocks redemption at the server, not just the UI', () => {
+  // CONTRACT-activation-v1445 §3.2: a suspended account cannot redeem
+  // coupons. The gate must live in the redeem handler itself so a crafted
+  // request cannot bypass the admin panel (pending agent S — fails until
+  // the suspension gate lands in the Edge Function).
+  const redeem = api.match(/path === "\/api\/coupons\/redeem"[\s\S]*?\n {4}\}/)[0];
+  assert.ok(redeem.includes('SUSPENDED'), 'redeem must reject suspended accounts with 403 SUSPENDED');
+});

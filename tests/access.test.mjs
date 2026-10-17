@@ -123,3 +123,15 @@ test("daysBetween floors and clamps — no free day from a rounding drift", () =
   assert.equal(daysBetween(NOW - 5 * DAY, NOW), 0, "never negative");
   assert.equal(daysBetween(0, NOW), Infinity);
 });
+
+test("suspended is a distinct client-visible state, never folded into expiry", () => {
+  // CONTRACT-activation-v1445 §1 display rules: Suspended ≠ expired — two
+  // distinct messages, two distinct UI states. An admin suspension must
+  // never read as "your subscription ended" (or as active). Pending agent C
+  // wiring the suspended flag through computeAccess — fails until then.
+  const a = computeAccess({ user: user({ suspended: true, subEnd: NOW + 10 * DAY }) }, NOW);
+  assert.match(String(a.reason), /suspend/i, "an admin suspension must surface as its own state, not active");
+  assert.notEqual(a.reason, "active", "suspended must never compute as active");
+  assert.notEqual(a.reason, "subscription_expired", "suspended must never compute as an expiry");
+  assert.notEqual(a.reason, "trial_expired", "suspended must never compute as an expiry");
+});

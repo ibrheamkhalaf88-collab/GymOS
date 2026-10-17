@@ -453,7 +453,7 @@ export const codesDb = {
         });
         setJwt(r.token);
         sessionStorage.setItem("dp_code", r.record.code);
-        return { ok: true, record: r.record };
+        return { ok: true, record: r.record, expired: !!r.expired };
       } catch (err) {
         return { ok: false, error: err.code || "WRONG_PASSWORD" };
       }

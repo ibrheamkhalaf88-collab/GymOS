@@ -3234,12 +3234,23 @@ function openChangeCode() {
           REVOKED: "Code has been revoked / الكود ملغي",
           ALREADY_USED: "Code already used on another device / الكود مستخدم على جهاز آخر",
           DEVICE_LIMIT: "Device limit reached / تم الوصول لحد الأجهزة",
+          ACTIVATION_DISABLED: "Code activation is currently disabled — contact admin / التفعيل عبر الأكواد موقوف حالياً — تواصل مع الإدارة",
+          SUSPENDED: "Account suspended by administrator / الحساب موقوف إدارياً",
+          SUB_EXPIRED: "Your subscription has expired — please renew / انتهى اشتراكك، يرجى التجديد",
+          CODE_BOUND_TO_OTHER: "This code belongs to another account / الكود مخصص لحساب آخر",
+          CODE_ALREADY_USED: "Code already consumed / الكود مستهلك مسبقاً",
+          CODE_EXPIRED: "Code has expired / الكود منتهي الصلاحية",
         };
         msgEl.textContent = errors[res.error] || "Failed / فشل";
         return;
       }
+      if (res.record) {
+        try { const { license } = await import("./license.js"); license.save(res.record); } catch {}
+        try { const { writeCodeSession } = await import("./session.js"); writeCodeSession(res.record); } catch {}
+        sessionStorage.setItem("dp_code", res.record.code);
+      }
       mod.close();
-      showToast("? Activation code updated / تم تحديث كود التفعيل");
+      showToast(res.idempotent ? "Already active / مفعّل مسبقاً" : "? Activation code updated / تم تحديث كود التفعيل");
       setTimeout(() => location.reload(), 500);
     } catch {
       msgEl.textContent = "Connection error / خطأ بالاتصال";

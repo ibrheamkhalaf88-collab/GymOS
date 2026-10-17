@@ -85,3 +85,15 @@ test("the users table's stale-refresh trap is fixed", () => {
   const refreshAt = block.indexOf("await loadUsers()");
   assert.ok(releaseAt > 0 && refreshAt > releaseAt, "flag released before the refresh");
 });
+
+test("overview stats consume the server status composer, not raw metadata filters", () => {
+  // CONTRACT-activation-v1445 §2/§10.4: the server composer is authoritative.
+  // The old `u.subscription === 'trial'` filters never matched free_trial
+  // accounts (normalizeUser's `u.subTier || u.subscription` merge corrupts
+  // the field) — 5 live trial accounts showed Trial=0. Pending agent U —
+  // fails until the panel renders the composer's status object.
+  assert.ok(!/u\.subscription === ['"]trial['"]/.test(panel),
+    "panel must not filter raw subscription === 'trial' (free_trial rows never match it)");
+  assert.ok(panel.includes("subStatus") || panel.includes("accountStatus"),
+    "stats must read the server status object (subStatus / accountStatus)");
+});

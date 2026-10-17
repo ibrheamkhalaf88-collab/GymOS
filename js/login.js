@@ -247,6 +247,10 @@ form.addEventListener('submit', async (e) => {
         NO_PASSWORD: 'No password set for this code / لا توجد كلمة سر لهذا الكود',
         WRONG_PASSWORD: 'Wrong code or password / الكود أو كلمة السر خاطئة',
         RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة`,
+        SUSPENDED: 'Account suspended by administrator',
+        SUB_EXPIRED: 'Your subscription has expired',
+        ACTIVATION_DISABLED: 'Code activation disabled',
+
         NETWORK: 'No connection — check your internet / لا يوجد اتصال — افحص الشبكة',
       };
       setMsg(errors[res.error] || `Login failed (${res.error}) / فشل الدخول`);

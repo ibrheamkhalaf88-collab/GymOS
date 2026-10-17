@@ -34,6 +34,11 @@ export function computeAccess(input = {}, now = Date.now()) {
 
   // 1) A licence record (activation code, or the server-issued trial)
   //    is authoritative — it knows the real expiry instant.
+  if (lic && lic.suspended) {
+    const base = { code: String(lic.code || ""), tier: String(lic.tier || "standard"), owner: String(lic.owner || ""), expiresAt: Number(lic.expiresAt) || 0, isTrial: false, isLifetime: false };
+    return { ...base, state: READONLY, reason: "suspended", daysLeft: 0 };
+  }
+
   if (lic) {
     const exp = Number(lic.expiresAt);
     const base = {
@@ -54,6 +59,10 @@ export function computeAccess(input = {}, now = Date.now()) {
 
   // 2) No licence record. Email signups (js/signup.js) never write one,
   //    they only keep a session — so fall back to that.
+  if (user && user.suspended) {
+    return { state: READONLY, reason: "suspended", daysLeft: 0, code: "", tier: "standard", owner: "", expiresAt: 0, isTrial: false, isLifetime: false };
+  }
+
   if (user && (user.subscription === "active" || user.subscription === "trial")) {
     const subEnd = Number(user.subEnd);
     const isTrial = user.subscription === "trial";
@@ -340,6 +349,10 @@ export function showGate(access = getAccess()) {
             NO_PASSWORD: 'No password set for this code / لا توجد كلمة سر لهذا الكود',
             WRONG_PASSWORD: 'Wrong code / الكود خاطئ',
             RATE_LIMITED: `Too many attempts — wait ${Math.ceil((res.secs || 60) / 60)} min / محاولات كثيرة`,
+            SUSPENDED: 'Account suspended by administrator',
+            SUB_EXPIRED: 'Your subscription has expired',
+            ACTIVATION_DISABLED: 'Code activation disabled',
+
             NETWORK: 'No connection — check your internet / لا يوجد اتصال — افحص الشبكة',
           };
           msgEl.textContent = errors[res.error] || `Activation failed (${res.error}) / فشل التفعيل`;
