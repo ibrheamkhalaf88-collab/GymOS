@@ -1,6 +1,6 @@
 {
     "name": "gymos",
-    "version": "1.4.5",
+    "version": "1.4.6",
     "type": "module",
     "description": "Digital Pulse",
     "main": "index.html",

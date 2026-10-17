@@ -1699,17 +1699,12 @@ async function handler(req: Request): Promise<Response> {
       return json({ id: newUser?.user?.id, email: newUser?.user?.email, ...sm }, 201, origin);
     }
 
-    /* admin: suspend/resume OR set subscription (tier + days) for a user */
+    /* admin: suspend/resume OR set subscription (tier + days) for a user.
+       NOTE: /api/admin/users/{id}/actions has SIX segments — the id lives at
+       split("/")[4], unlike /api/users/{id} where it is [3]. */
     if (req.method === "POST" && path.startsWith("/api/admin/users/") && path.endsWith("/actions")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const userId = path.split("/")[3];
-      if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
-      return await runUserOp(userId, body, req, origin);
-    }
-
-    if (req.method === "POST" && path.startsWith("/api/admin/users/") && path.endsWith("/actions")) {
-      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
-      const userId = path.split("/")[3];
+      const userId = path.split("/")[4];
       if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
       return await runUserOp(userId, body, req, origin);
     }
