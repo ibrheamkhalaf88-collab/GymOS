@@ -28,6 +28,25 @@ const urlParams = new URLSearchParams(window.location.search);
 const wantReturn = urlParams.get('return');
 const returnUrl = RETURN_ALLOWED.includes(wantReturn) ? wantReturn : 'app.html';
 
+/* ?reason= explainer — activate.js bounces an unauthenticated visitor here with a
+   reason code; until now they faced a bare form with no clue why. Bilingual
+   (Arabic first), static strings only. The existing ?return= allowlist above is
+   untouched — this only renders a notice above the form. */
+const REASON_NOTICES = {
+  login_required: { ar: 'سجّل الدخول للمتابعة', en: 'Sign in to continue' },
+  request_code: { ar: 'أدخل الكود بعد تسجيل الدخول', en: 'Enter your code after signing in' },
+  trial: { ar: 'أنشئ حسابك لتفعيل التجربة', en: 'Create your account to start the trial' },
+};
+(function showReasonNotice() {
+  const notice = REASON_NOTICES[urlParams.get('reason')];
+  const el = document.getElementById('reasonNotice');
+  if (!notice || !el) return;
+  el.innerHTML = `
+    <p class="text-sm font-medium leading-relaxed" dir="rtl" style="color:#e2e4cf;">${notice.ar}</p>
+    <p class="arabic-text text-xs mt-1 leading-relaxed" dir="ltr" style="color:#8e9379;">${notice.en}</p>`;
+  el.classList.remove('hidden');
+})();
+
 // Check if this is first login (no trial used yet)
 function isFirstLogin() {
   return !localStorage.getItem('dp_welcome_shown') && !localStorage.getItem('dp_trial_used');
@@ -180,7 +199,11 @@ function checkSubscription(user) {
     ok: false,
     reason: a.reason,
     access: a,
-    message: a.reason === 'trial_expired'
+    // Suspended ≠ expired (contract §1): an admin suspension gets its own
+    // message, it must never read as "your subscription ended".
+    message: a.reason === 'suspended'
+      ? 'Account suspended — contact your administrator / الحساب موقوف إدارياً — تواصل مع الإدارة'
+      : a.reason === 'trial_expired'
       ? 'Free trial ended / انتهت الفترة المجانية'
       : 'Subscription expired / انتهى الاشتراك',
   };

@@ -103,6 +103,12 @@ async function displayUserEmail() {
 // Display user email on load
 displayUserEmail();
 
+// Why-account notice — reveal it only when the visitor has NO session.
+// With a session it stays hidden (they already know the drill).
+requireLogin().then((loggedIn) => {
+  if (!loggedIn) document.getElementById("whyAccountNotice")?.classList.remove("hidden");
+});
+
 const supportLink = document.getElementById("supportLink");
 supportLink.textContent = appConfig.supportPhone;
 supportLink.href = `tel:${appConfig.supportPhone.replace(/\s/g, "")}`;

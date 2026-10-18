@@ -11,5 +11,5 @@
     "strict": false,
     "types": []
   },
-  "include": ["gymos-api/index.ts", "gymos-drive-backup/index.ts", "deno-shims.d.ts"]
+  "include": ["gymos-api/index.ts", "gymos-drive-backup/index.ts", "gymos-expiry-cron/index.ts", "deno-shims.d.ts"]
 }

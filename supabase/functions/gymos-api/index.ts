@@ -11,6 +11,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import bcrypt from "npm:bcryptjs@2.4.3";
 import jwt from "npm:jsonwebtoken";
+// TOTP 2FA core (RFC 6238/4648) — pure module shared with the tests, which
+// import THIS file and run the RFC vectors against the real implementation.
+import { generateRecoveryCodes, generateTotpSecret, verifyTotp } from "./totp.mjs";
 
 const SUPABASE_URL = Deno.env.get("SB_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SB_SERVICE_ROLE") ?? "";
@@ -292,9 +295,11 @@ function subMeta(tierRaw: any, daysRaw: any) {
   const tier = ["trial", "monthly", "yearly", "lifetime", "none"].includes(tierRaw)
     ? tierRaw : "monthly";
   const now = Date.now();
+  // v1.4.8 batch: trial default 30 (was 14) — aligns with the "30-day free
+  // trial" the client advertises and /api/users trial filters assume.
   const days = tier === "none" || tier === "lifetime"
     ? 0
-    : Math.max(1, Math.floor(Number(daysRaw) || (tier === "monthly" ? 30 : tier === "yearly" ? 365 : tier === "trial" ? 14 : 30)));
+    : Math.max(1, Math.floor(Number(daysRaw) || (tier === "monthly" ? 30 : tier === "yearly" ? 365 : tier === "trial" ? 30 : 30)));
   // lifetime ⇒ subEnd NULL (contract §10.5): the old fake now+36500d value
   // rendered as year 2126 / "36500 days" everywhere and made the unlimited
   // branch unreachable. Existing fake values are read as lifetime by the
@@ -1108,6 +1113,38 @@ async function handler(req: Request): Promise<Response> {
         return json({ 
           error: "WRONG_CREDENTIALS" 
         }, 401, origin);
+      }
+      /* ---- TOTP 2FA gate (opt-in; default OFF) ----
+         With no enabled admin_2fa row this block is skipped entirely and
+         login behaves EXACTLY as before — the owner can never be locked out
+         by this feature. With 2FA enabled: a missing code is TOTP_REQUIRED,
+         a wrong one is TOTP_INVALID (TOTP first, then single-use bcrypt'd
+         recovery codes; a matched recovery code is consumed on the spot). */
+      const { data: tfaRow } = await sb.from("admin_2fa")
+        .select("secret, enabled, recovery_codes").eq("admin_email", ADMIN_EMAIL).maybeSingle();
+      if (tfaRow?.enabled === true && tfaRow.secret) {
+        const provided = String(body?.totp || "").trim();
+        if (!provided) {
+          failAdminIp(ip);
+          await logAdminAction(email, "login_failed", "system", null, { reason: "totp_required" }, req);
+          return json({ error: "TOTP_REQUIRED" }, 401, origin);
+        }
+        const okTotp = await verifyTotp(tfaRow.secret, provided);
+        if (!okTotp) {
+          const codes: string[] = Array.isArray(tfaRow.recovery_codes) ? tfaRow.recovery_codes : [];
+          let consumedAt = -1;
+          for (let i = 0; i < codes.length; i++) {
+            if (await bcrypt.compare(provided, codes[i])) { consumedAt = i; break; }
+          }
+          if (consumedAt < 0) {
+            failAdminIp(ip);
+            await logAdminAction(email, "login_failed", "system", null, { reason: "totp_invalid" }, req);
+            return json({ error: "TOTP_INVALID" }, 401, origin);
+          }
+          const remaining = codes.filter((_, i) => i !== consumedAt);
+          await sb.from("admin_2fa").update({ recovery_codes: remaining }).eq("admin_email", ADMIN_EMAIL);
+          await logAdminAction(ADMIN_EMAIL, "login_2fa_recovery_used", "system", null, { remaining_codes: remaining.length }, req);
+        }
       }
       clearAdminIp(ip);
       await logAdminAction(ADMIN_EMAIL, "login_success", "system", null, {}, req);
@@ -1924,6 +1961,178 @@ async function handler(req: Request): Promise<Response> {
         .eq("id", id);
       if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
       return json({ ok: true }, 200, origin);
+    }
+
+    /* ============================================================
+       admin: expiring-subscriptions report — GET /api/admin/expiring?days=14
+       Composed through the §2 status composer from the same data the users
+       list uses (auth users × their primary code row): only accounts whose
+       subStatus is "active" or "trial", whose subEnd falls inside
+       [now, now + days], and that are NOT suspended. Sorted by subEnd asc.
+       ============================================================ */
+    if (req.method === "GET" && path === "/api/admin/expiring") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const days = Math.min(365, Math.max(1, Math.floor(Number(url.searchParams.get("days")) || 14)));
+      const now = Date.now();
+      const horizon = now + days * DAY_MS;
+      // All users, all pages (same pagination shape as /api/users).
+      const users: any[] = [];
+      for (let page = 1; page <= 50; page++) {
+        const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+        if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        users.push(...(data?.users || []));
+        if ((data?.users || []).length < 200) break;
+      }
+      // One codes fetch, grouped by both owner formats (same as /api/users).
+      const { data: allCodes } = await sb.from("codes").select("*");
+      const codeByOwner = new Map<string, any[]>();
+      for (const c of allCodes || []) {
+        const k = String(c.owner || "").toLowerCase();
+        if (!codeByOwner.has(k)) codeByOwner.set(k, []);
+        codeByOwner.get(k)!.push(c);
+      }
+      const rows: any[] = [];
+      for (const u of users) {
+        const owners = [`user:${u.id}`, String(u.email || "").toLowerCase()];
+        const owned: any[] = [];
+        for (const o of owners) for (const c of (codeByOwner.get(o) || [])) owned.push(c);
+        const status = accountStatusOf(pickPrimaryCode(owned), u.user_metadata || {}, { appSuspended: !!u.app_metadata?.suspended });
+        // Suspended accounts are an admin decision, not an email reminder.
+        if (status.accountStatus !== "allowed") continue;
+        if (status.subStatus !== "active" && status.subStatus !== "trial") continue;
+        const endMs = parseWhen(status.subEnd);
+        if (endMs == null || endMs < now || endMs > horizon) continue;
+        rows.push({
+          id: u.id,
+          email: u.email,
+          full_name: u.user_metadata?.full_name || u.email || "",
+          plan: status.plan,
+          subEnd: status.subEnd,
+          remainingDays: status.remainingDays,
+          codeUsed: status.codeUsed,
+          activationSource: status.activationSource,
+        });
+      }
+      rows.sort((a, b) => (Date.parse(a.subEnd) || 0) - (Date.parse(b.subEnd) || 0));
+      return json({ days, total: rows.length, data: rows }, 200, origin);
+    }
+
+    /* admin: contact-messages inbox — GET /api/admin/contact-messages?limit=100
+       Newest first; resolved flags come from migration 0012 columns. */
+    if (req.method === "GET" && path === "/api/admin/contact-messages") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const u = new URL(req.url);
+      const limit = Math.min(200, Math.max(1, Number(u.searchParams.get("limit")) || 100));
+      const { data: list, error } = await sb.from("contact_messages")
+        .select("*").order("created_at", { ascending: false }).limit(limit);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({
+        data: (list || []).map((m: any) => ({
+          id: m.id, name: m.name, email: m.email, subject: m.subject, message: m.message,
+          created: m.created_at, resolved: m.resolved === true, resolvedAt: m.resolved_at || null,
+        })),
+      }, 200, origin);
+    }
+    /* admin: resolve / unresolve one contact message. Conditional select-back
+       so an unknown id reports 404 (the supabase-js "count is null unless you
+       select" trap documented above applies here too). */
+    if (req.method === "PATCH" && path === "/api/admin/contact-messages/resolve") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const id = String(body?.id || "");
+      if (!id) return json({ error: "MISSING_ID" }, 400, origin);
+      // contact_messages.id is a uuid — a non-uuid would surface as a Postgres
+      // cast error (500); reject it up front as a bad request instead.
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        return json({ error: "BAD_REQUEST", message: "id must be a contact_messages uuid" }, 400, origin);
+      }
+      const resolved = body?.resolved === undefined ? true : !!body?.resolved;
+      const { data, error } = await sb.from("contact_messages")
+        .update({ resolved, resolved_at: resolved ? new Date().toISOString() : null })
+        .eq("id", id).select("id").maybeSingle();
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      if (!data) return json({ error: "NOT_FOUND" }, 404, origin);
+      await logAdminAction(ADMIN_EMAIL, "resolve_contact", "contact_message", id, { resolved }, req);
+      return json({ ok: true, id, resolved }, 200, origin);
+    }
+
+    /* ============================================================
+       admin: TOTP 2FA for the admin panel — opt-in, DEFAULT OFF.
+       Storage: public.admin_2fa (migration 0012, service_role only).
+       With no enabled row the login gate above is a no-op, so enabling or
+       abandoning setup can never lock the owner out. Secret format and
+       verification live in ./totp.mjs (RFC 6238, tested against the RFC
+       vectors in tests/expiry-2fa.test.mjs).
+       ============================================================ */
+    if (req.method === "POST" && path === "/api/admin/2fa/setup") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      // Fresh 160-bit secret; overwrites any prior secret, resets recovery
+      // codes, and flips back to disabled — /enable must re-verify a live
+      // code before the gate arms again.
+      const secret = generateTotpSecret();
+      const { error } = await sb.from("admin_2fa").upsert(
+        { admin_email: ADMIN_EMAIL, secret, enabled: false, recovery_codes: [] },
+        { onConflict: "admin_email" });
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "2fa_setup", "system", ADMIN_EMAIL, {}, req);
+      return json({
+        secret,
+        otpauth: `otpauth://totp/GymOS:${encodeURIComponent(ADMIN_EMAIL)}?secret=${secret}&issuer=GymOS`,
+      }, 200, origin);
+    }
+    if (req.method === "POST" && path === "/api/admin/2fa/enable") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      const { data: row } = await sb.from("admin_2fa")
+        .select("secret, enabled").eq("admin_email", ADMIN_EMAIL).maybeSingle();
+      if (!row?.secret) return json({ error: "NOT_SETUP" }, 400, origin);
+      if (!(await verifyTotp(row.secret, String(body?.code || "")))) {
+        return json({ error: "TOTP_INVALID" }, 401, origin);
+      }
+      const recoveryCodes = generateRecoveryCodes(8, 10);
+      const hashed: string[] = [];
+      for (const rc of recoveryCodes) hashed.push(await bcrypt.hash(rc, BCRYPT_COST));
+      const { error } = await sb.from("admin_2fa")
+        .update({ enabled: true, recovery_codes: hashed }).eq("admin_email", ADMIN_EMAIL);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "2fa_enable", "system", ADMIN_EMAIL, {}, req);
+      // Plaintext codes are returned EXACTLY once — the table only stores
+      // bcrypt hashes.
+      return json({ ok: true, recoveryCodes }, 200, origin);
+    }
+    if (req.method === "POST" && path === "/api/admin/2fa/disable") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
+      failAdminIp(ip);
+      const { data: row } = await sb.from("admin_2fa")
+        .select("secret, enabled, recovery_codes").eq("admin_email", ADMIN_EMAIL).maybeSingle();
+      if (!row || row.enabled !== true) return json({ error: "NOT_ENABLED" }, 400, origin);
+      const provided = String(body?.code ?? body?.recoveryCode ?? "").trim();
+      let ok = row.secret ? await verifyTotp(row.secret, provided) : false;
+      if (!ok) {
+        const codes: string[] = Array.isArray(row.recovery_codes) ? row.recovery_codes : [];
+        for (const h of codes) {
+          if (await bcrypt.compare(provided, h)) { ok = true; break; }
+        }
+      }
+      if (!ok) return json({ error: "TOTP_INVALID" }, 401, origin);
+      // Row deleted entirely: the login gate falls back to password-only and
+      // the next setup starts from a clean slate.
+      const { error } = await sb.from("admin_2fa").delete().eq("admin_email", ADMIN_EMAIL);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      await logAdminAction(ADMIN_EMAIL, "2fa_disable", "system", ADMIN_EMAIL, {}, req);
+      return json({ ok: true }, 200, origin);
+    }
+    if (req.method === "GET" && path === "/api/admin/2fa/status") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const { data: row } = await sb.from("admin_2fa")
+        .select("enabled").eq("admin_email", ADMIN_EMAIL).maybeSingle();
+      return json({ enabled: row?.enabled === true }, 200, origin);
     }
 
     /* contact form */

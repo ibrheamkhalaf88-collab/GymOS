@@ -25,3 +25,8 @@ declare module "npm:jsonwebtoken" {
   const jwt: any;
   export default jwt;
 }
+
+declare module "npm:nodemailer@6.10.0" {
+  const nodemailer: any;
+  export default nodemailer;
+}

@@ -167,14 +167,23 @@ function fmtDate(ts) {
 
 function gateContent(a) {
   const isLocked = a.state === LOCKED;
+  // Suspended ≠ expired (contract §1): an admin suspension gets its own title,
+  // its own message and NO inline activation form — the server's §3.1 gate
+  // makes a suspension un-liftable by codes, so the form would only invite a
+  // guaranteed SUSPENDED rejection.
+  const isSuspended = a.reason === "suspended";
   const when = fmtDate(a.expiresAt);
-  const title = isLocked ? "Activate your gym" : "Free trial ended";
-  const titleAr = isLocked ? "فعّل التطبيق" : "انتهت الفترة المجانية";
-  const icon = isLocked ? "🔑" : "⏳";
-  const message = isLocked
+  const title = isSuspended ? "Account suspended" : isLocked ? "Activate your gym" : "Free trial ended";
+  const titleAr = isSuspended ? "الحساب موقوف إدارياً" : isLocked ? "فعّل التطبيق" : "انتهت الفترة المجانية";
+  const icon = isSuspended ? "⛔" : isLocked ? "🔑" : "⏳";
+  const message = isSuspended
+    ? "This account was suspended by the administrator. Your data is safe — you can still view, search and export everything — but changes are paused until the suspension is lifted."
+    : isLocked
     ? "Enter the activation code we sent you to start managing your gym."
     : "Your data is safe. You can still view, search and export everything.";
-  const messageAr = isLocked
+  const messageAr = isSuspended
+    ? "تم إيقاف هذا الحساب من قِبل الإدارة. بياناتك محفوظة — ما زال بإمكانك عرض أعضائك والبحث وتصدير كل شيء — لكن التعديلات متوقفة حتى يُرفع الإيقاف."
+    : isLocked
     ? "أدخل كود التفعيل الذي أرسلناه لك لبدء إدارة صالتك."
     : "بياناتك محفوظة. لا يزال بإمكانك عرض وبحث وتصدير كل شيء.";
 
@@ -189,7 +198,7 @@ function gateContent(a) {
       ${esc(message)}
       <br /><span dir="rtl" style="color:#8b8f78">${esc(messageAr)}</span>
     </p>
-    ${!isLocked ? `
+    ${!isLocked && !isSuspended ? `
     <div style="background:#14150f;border:1px solid #2a2c1e;border-radius:12px;padding:14px;margin-bottom:20px">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#6b6f5a;margin-bottom:9px">Still available</div>
       <div style="font-size:12.5px;color:${INK};line-height:1.9">
@@ -200,6 +209,7 @@ function gateContent(a) {
         ✕ Adding or editing members<br />✕ Payments and check-ins
       </div>
     </div>` : ""}
+    ${isSuspended ? "" : `
     <!-- Inline activation form -->
     <form id="activationFormInline" class="space-y-4" autocomplete="off">
       <div class="flex justify-center gap-2 sm:gap-3" dir="ltr" style="margin-bottom: 8px;">
@@ -226,15 +236,20 @@ function gateContent(a) {
       <div class="flex gap-2">
         <button type="button" id="toggleManualBtn" class="flex-1 py-2 text-xs uppercase tracking-widest font-headline opacity-70 hover:opacity-100 transition-opacity" style="color:#c7c6c6; background: transparent; border: none;">Show manual entry / إدخال يدوي</button>
       </div>
-    </form>
+    </form>`}
     ${isLocked ? `<a href="activate.html#trial" style="display:block;text-align:center;margin-top:10px;background:transparent;color:${INK};font-weight:700;padding:13px;border-radius:12px;text-decoration:none;border:1px solid #333527;font-size:13.5px">
       Start a 30-day free trial
       <span style="display:block;font-size:11px;font-weight:600;opacity:.7" dir="rtl">ابدأ تجربة مجانية ٣٠ يوم</span>
     </a>` : ""}
-    <p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
+    ${isSuspended
+      ? `<p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
+          تواصل مع الإدارة لرفع الإيقاف
+          <span style="display:block">Contact your administrator to lift the suspension</span>
+        </p>`
+      : `<p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
       Need a code? Contact us on WhatsApp
       <span dir="rtl" style="display:block">تحتاج كود؟ تواصل معنا على واتساب</span>
-    </p>`;
+    </p>`}`;
 }
 
 // Modal shell with semi-transparent backdrop
@@ -379,10 +394,23 @@ export function isGateOpen() {
 }
 
 /* Read-only strip along the bottom of the app, so the state is
-   visible before the user discovers a dead button. */
+   visible before the user discovers a dead button.
+   A SUSPENDED account is a different state with a different message
+   (contract §1) — it gets its own banner pinned to the TOP of the app
+   in an amber/red tone; the bottom strip says "trial ended", which is
+   the wrong message for an admin suspension. */
 const BANNER_ID = "dpAccessBar";
+const SUSPENDED_BANNER_ID = "dpSuspendedBar";
+
+function removeBannerStrip() {
+  document.getElementById(BANNER_ID)?.remove();
+  document.body.style.paddingBottom = "";
+}
+
 export function showBanner(access = getAccess()) {
-  if (access.state !== READONLY) { hideBanner(); return; }
+  if (access.state !== READONLY) { removeBannerStrip(); hideSuspendedBanner(); return; }
+  if (access.reason === "suspended") { removeBannerStrip(); showSuspendedBanner(); return; }
+  hideSuspendedBanner();
   if (document.getElementById(BANNER_ID)) return;
   const el = document.createElement("div");
   el.id = BANNER_ID;
@@ -394,9 +422,170 @@ export function showBanner(access = getAccess()) {
   document.body.style.paddingBottom = "64px";
 }
 
+/* The suspended banner — bilingual, Arabic first (RTL), unmistakable. */
+function showSuspendedBanner() {
+  if (document.getElementById(SUSPENDED_BANNER_ID)) return;
+  const el = document.createElement("div");
+  el.id = SUSPENDED_BANNER_ID;
+  el.setAttribute("role", "alert");
+  el.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:99990;background:#20100a;border-bottom:1px solid #6b2a12;padding:11px 14px;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;font-family:Inter,Tajawal,system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5)";
+  el.innerHTML = `<span style="font-size:13px;font-weight:700;color:#ffb9a0" dir="rtl">⛔ الحساب موقوف إدارياً — تواصل مع الإدارة</span>
+    <span style="font-size:12px;color:#d9a08c">Account suspended — contact your administrator</span>`;
+  document.body.appendChild(el);
+}
+
+export function hideSuspendedBanner() {
+  document.getElementById(SUSPENDED_BANNER_ID)?.remove();
+}
+
 export function hideBanner() {
-  document.getElementById(BANNER_ID)?.remove();
-  document.body.style.paddingBottom = "";
+  removeBannerStrip();
+  hideSuspendedBanner();
+}
+
+/* ---------------------------------------------------------------
+   Reconnect re-check (owner-flagged flaw #8)
+   ---------------------------------------------------------------
+   The gate recomputes from localStorage, but a suspension or expiry
+   that happened server-side never reaches an idle device: the server
+   only ever ANSWERS, it never pushes. So the moment the browser fires
+   'online' we (1) ask the same endpoints the app-start flow uses for
+   a fresh verdict, and (2) re-render the gate/banner so a suspension
+   or early expiry applies as soon as the device reconnects — not
+   only on the next reload.
+
+   • live email session → POST /api/auth/mine  (findLinkedCode, the
+     exact call linkCloudIdentity() uses at app start)
+   • code-only device  → POST /api/auth/refresh (the remintJwt()
+     endpoint; called directly because remintJwt swallows the error
+     code and we must distinguish SUSPENDED from a dead network)
+
+   A SUSPENDED verdict is written onto the local licence (computeAccess
+   reads lic.suspended) so the state flips on THIS session. A healthy
+   verdict refreshes expiresAt from the server record and lifts a stale
+   suspension mark — admin reactivation propagates too. Anything else
+   (offline, 429, NOT_FOUND, transport error) stays silent: the fail-
+   OPEN rule wins, the server remains the authority on every write. */
+
+const RECONNECT_THROTTLE_MS = 10_000; // flaky links fire 'online' repeatedly
+let _lastReconnectCheck = 0;
+let _recheckInFlight = false;
+
+const UA_SLICE = () => String((typeof navigator !== "undefined" && navigator.userAgent) || "").slice(0, 40);
+
+function markLicense(patch) {
+  const lic = readJSON(LICENSE_KEY);
+  if (!lic) return;
+  try { localStorage.setItem(LICENSE_KEY, JSON.stringify({ ...lic, ...patch })); } catch { /* private mode */ }
+}
+
+function applyVerdict(error, record) {
+  const lic = readJSON(LICENSE_KEY);
+  if (!lic) return;
+  if (error === "SUSPENDED") {
+    if (!lic.suspended) markLicense({ suspended: true });
+    return;
+  }
+  if (error) return; // REVOKED / NOT_FOUND / RATE_LIMITED / network — never guess
+  const patch = {};
+  if (lic.suspended) patch.suspended = false;
+  // Only a positive finite expiry is safe to mirror — expiryMs() returns
+  // null for lifetime codes, and Number(null) === 0 would masquerade as
+  // the lifetime sentinel and wipe a real countdown.
+  const recExp = record ? Number(record.expiresAt) : NaN;
+  if (Number.isFinite(recExp) && recExp > 0 && recExp !== Number(lic.expiresAt)) {
+    patch.expiresAt = recExp;
+  }
+  if (Object.keys(patch).length) markLicense(patch);
+}
+
+async function fetchServerVerdict() {
+  const lic = readJSON(LICENSE_KEY);
+  const deviceId = localStorage.getItem("dp_device_id") || "";
+  if (!lic?.code || !deviceId) return;
+  const { appConfig } = await import("./config.js");
+  const base = String(appConfig.apiUrl || "").replace(/\/+$/, "");
+  if (!base || !navigator.onLine) return;
+
+  // 1) Email-session device — the /api/auth/mine path from app start.
+  let emailPathTried = false;
+  try {
+    const { supabase } = await import("./supabase-client.js");
+    const { data: { session } } = await (supabase?.auth.getSession?.() ?? Promise.resolve({ data: { session: null } }));
+    const token = session?.access_token;
+    if (token) {
+      emailPathTried = true;
+      try {
+        const { findLinkedCode } = await import("./db.js");
+        const res = await findLinkedCode(token, deviceId, UA_SLICE());
+        applyVerdict(null, res?.record || null);
+      } catch (e) {
+        applyVerdict(e?.code || null, null);
+      }
+    }
+  } catch { /* supabase-client unavailable — code-only path below still runs */ }
+
+  // 2) Code-only device — /api/auth/refresh. Same trust rules as remintJwt:
+  //    the deviceId must already be registered, so a stolen code alone
+  //    learns nothing (the server answers NOT SUSPENDED only for a bound device).
+  if (!emailPathTried) {
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (appConfig.supabaseAnonKey) headers.apikey = appConfig.supabaseAnonKey;
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      let res;
+      try {
+        res = await fetch(`${base}/api/auth/refresh`, {
+          method: "POST", headers,
+          body: JSON.stringify({ code: lic.code, deviceId }),
+          signal: ctrl.signal,
+        });
+      } finally { clearTimeout(t); }
+      const data = await res.json().catch(() => ({}));
+      applyVerdict(res.ok ? null : (data.error || "REQUEST_FAILED"), null);
+    } catch { /* transport failure — fail open, stay silent */ }
+  }
+}
+
+async function onReconnect() {
+  const now = Date.now();
+  if (now - _lastReconnectCheck < RECONNECT_THROTTLE_MS) return; // no double-refresh
+  _lastReconnectCheck = now;
+  if (_recheckInFlight) return;
+  _recheckInFlight = true;
+  try {
+    await fetchServerVerdict();
+  } finally {
+    _recheckInFlight = false;
+  }
+  const cur = getAccess(true);
+  showBanner(cur);
+  enforceSyncSuspension(cur.reason === "suspended");
+  if (cur.state !== FULL) showGate(cur);
+  else hideGate();
+}
+
+/* Suspended accounts must not keep the cloud-sync loop retrying in the
+   background — every attempt just hits the server's SUSPENDED gate and
+   the badge flaps "login expired" with nothing actionable. The retry
+   loop itself lives in store.js (startSync/stopSync + the 20s interval),
+   which is OUTSIDE this file's ownership — so we drive it through the
+   store's public API from here and flag it in the contract report.
+   startSync() is idempotent and re-checks entitlements, so restarting
+   after the suspension lifts is safe. */
+let _syncStoppedByUs = false;
+async function enforceSyncSuspension(suspended) {
+  try {
+    const { store } = await import("./store.js");
+    if (suspended) {
+      store.stopSync();
+      _syncStoppedByUs = true;
+    } else if (_syncStoppedByUs) {
+      _syncStoppedByUs = false;
+      store.startSync();
+    }
+  } catch { /* store unavailable (pure-Node tests / offline shell) — never break the gate */ }
 }
 
 /* ---------------------------------------------------------------
@@ -407,6 +596,12 @@ export function install({ blockOnLocked = true } = {}) {
   const a = getAccess();
   setBlockedHandler((acc) => showGate(acc));
   showBanner(a);
+  enforceSyncSuspension(a.reason === "suspended");
+
+  // Reconnect re-check (flaw #8): suspension/expiry must apply as soon as
+  // the device regains network — a tablet left offline all day must not
+  // keep running on a stale FULL state until the next reload.
+  window.addEventListener("online", onReconnect);
 
   if (blockOnLocked && a.state === LOCKED) {
     showGate(a);
@@ -420,6 +615,7 @@ export function install({ blockOnLocked = true } = {}) {
   setInterval(() => {
     const cur = getAccess(true);
     showBanner(cur);
+    enforceSyncSuspension(cur.reason === "suspended");
     if (cur.state !== FULL) showGate(cur);
     else { hideGate(); hideBanner(); }
   }, 60_000);
@@ -428,6 +624,7 @@ export function install({ blockOnLocked = true } = {}) {
   window.addEventListener("storage", (e) => {
     if (e.key === LICENSE_KEY || e.key === SESSION_KEY) {
       const cur = getAccess(true);
+      enforceSyncSuspension(cur.reason === "suspended");
       if (canWrite(cur)) { hideGate(); hideBanner(); }
       else showGate(cur);
     }

@@ -123,6 +123,19 @@
             class="auth-input" placeholder="7+ characters" />
         </div>
 
+        <!-- Two-factor (TOTP) — shown only when the server asks for it -->
+        <div id="totpWrap" class="hidden">
+          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block mb-1.5" style="color:#c4c9ac;">
+            Two-factor code / رمز التحقق الثنائي
+          </label>
+          <input id="totpCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code"
+            class="auth-input" placeholder="123456" dir="ltr"
+            style="letter-spacing:.4em; text-align:center;" />
+          <p id="totpHint" class="text-xs opacity-60 px-1 mt-1.5" style="color:#c4c9ac;">
+            Open Google Authenticator and enter the current 6-digit code / افتح Google Authenticator وأدخل الرمز الحالي من 6 أرقام
+          </p>
+        </div>
+
         <button id="adminLoginBtn" type="submit" class="auth-btn">
           <span class="flex flex-col items-center leading-none">
             <span>Admin Sign In</span>
@@ -156,6 +169,8 @@
     const msg = $('#adminLoginMsg');
     const btn = $('#adminLoginBtn');
     const form = $('#adminLoginForm');
+    const totpWrap = $('#totpWrap');
+    const totpInput = $('#totpCode');
     let loading = false;
 
     function setMsg(text, color = '#ff3366') {
@@ -212,6 +227,7 @@
 
       const email = $('#adminEmail').value.trim().toLowerCase();
       const password = $('#adminPassword').value;
+      const totp = (totpInput?.value || '').trim();
 
       if (!email || !password) {
         setMsg('All fields are required / جميع الحقول مطلوبة');
@@ -221,14 +237,32 @@
       setLoading(true);
       setMsg('');
 
-      // Authenticate via the GymOS Edge Function (admin JWT)
+      // Authenticate via the GymOS Edge Function (admin JWT).
+      // Resubmits the same credentials + totp when the server asks for a 2FA code.
       try {
         const res = await fetch(`${appConfig.apiUrl}/api/admin/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, ...(totp ? { totp } : {}) }),
         });
         const data = await res.json();
+
+        // 2FA required → reveal the code field, keep credentials, wait for the code
+        if (res.status === 401 && /TOTP_REQUIRED/i.test(String(data.error || ''))) {
+          if (totpWrap) totpWrap.classList.remove('hidden');
+          setMsg('رمز التحقق مطلوب — أدخل رمز Google Authenticator / Verification code required', '#CCFF00');
+          setLoading(false);
+          totpInput?.focus();
+          return;
+        }
+        // Wrong code → bilingual error, select the field for a quick retry
+        if (res.status === 401 && /TOTP_INVALID/i.test(String(data.error || ''))) {
+          setMsg('رمز التحقق غير صحيح / Verification code incorrect', '#ff3366');
+          setLoading(false);
+          totpInput?.focus();
+          totpInput?.select();
+          return;
+        }
         if (!res.ok || !data.token) throw new Error(data.error || 'HTTP ' + res.status);
 
         sessionStorage.setItem('dp_admin_token', data.token);

@@ -554,6 +554,13 @@
       border-color: color-mix(in srgb, var(--accent) 25%, transparent);
     }
     .v2-nav-item .nv-ico { width: 17px; height: 17px; flex-shrink: 0; opacity: 0.9; }
+    .nv-badge {
+      margin-inline-start: auto; min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 999px; background: var(--accent); color: #000;
+      font-size: 0.62rem; font-weight: 800; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .nv-badge[hidden] { display: none; }
 
     /* Main column */
     .v2-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -735,6 +742,7 @@
         <button class="v2-nav-item" data-view="sync"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg><span data-i18n="nav.sync">Cloud Sync</span></button>
         <button class="v2-nav-item" data-view="backups"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg><span data-i18n="nav.backups">Backups & Recovery</span></button>
         <button class="v2-nav-item" data-view="activity"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2.5-6 4 12L16 12h5"/></svg><span data-i18n="nav.activity">Sessions & Activity</span></button>
+        <button class="v2-nav-item" data-view="messages"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><span data-i18n="nav.messages">Messages</span><span id="msgUnreadBadge" class="nv-badge" hidden>0</span></button>
         <button class="v2-nav-item" data-view="security"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-3.6 8-10V5l-8-3-8 3v7c0 6.4 8 10 8 10z"/><path d="M9.2 12l2 2 3.8-4"/></svg><span data-i18n="nav.security">Security & Resets</span></button>
         <button class="v2-nav-item" data-view="audit"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M9.5 12h6M9.5 15.5h6M9.5 8.5h2"/></svg><span data-i18n="nav.audit">Errors & Audit Logs</span></button>
         <button class="v2-nav-item" data-view="versions"><svg class="nv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l6 3v5c0 4.4-2.6 8.1-6 10-3.4-1.9-6-5.6-6-10V6z"/><path d="M9.5 12l1.8 1.8 3.4-3.6"/></svg><span data-i18n="nav.versions">App Versions</span></button>
@@ -793,6 +801,7 @@
             <div class="bento-card tone-violet"><div class="k" data-i18n="ov.trial">Trial</div><div class="v" id="statTrial">—</div></div>
             <div class="bento-card tone-red"><div class="k" data-i18n="ov.expired">Expired subscriptions</div><div class="v" id="statExpired">—</div></div>
             <div class="bento-card tone-amber"><div class="k" data-i18n="ov.suspended">Suspended</div><div class="v" id="ovSuspended">—</div></div>
+            <div class="bento-card tone-amber" id="ovExpiringCard" role="button" tabindex="0" style="cursor:pointer;" aria-label="Expiring within 14 days" title="Expiring within 14 days / ينتهي خلال 14 يوم"><div class="k" data-i18n="ov.expiring">Expiring within 14 days</div><div class="v" id="ovExpiring">—</div><div class="n" id="ovExpiringNote" data-i18n="ov.expiringHint">Click to list these accounts</div></div>
             <div class="bento-card tone-red"><div class="k" data-i18n="ov.syncFail">Sync/API errors (24h log)</div><div class="v" id="ovSyncFail">—</div><div class="n" id="ovSyncFailNote"></div></div>
             <div class="bento-card tone-muted"><div class="k" data-i18n="ov.online">Confirmed online now</div><div class="v" style="font-size:1rem; padding-top:.4rem;"><span class="na-pill" data-i18n="cm.notAvailable">NOT AVAILABLE</span></div><div class="n" data-i18n="ov.onlineNote">Requires last_seen heartbeat on codes table (extension point identified)</div></div>
             <div class="bento-card tone-muted"><div class="k" data-i18n="ov.backups">Successful backups</div><div class="v" id="ovBackups" style="font-size:1.05rem;">—</div><div class="n" id="ovBackupsNote">…</div></div>
@@ -926,6 +935,14 @@
           <span id="codeCountBadge" class="section-count">0</span>
         </h2>
         <div class="flex items-center gap-2">
+          <button id="exportCodesXlsxBtn" class="btn btn-secondary btn-sm" title="Export all codes to Excel (.xlsx)">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="li.exportXlsx">Export XLSX</span>
+          </button>
+          <button id="exportCodesCsvBtn" class="btn btn-secondary btn-sm" title="Export all codes to CSV">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="li.exportCsv">Export CSV</span>
+          </button>
           <button id="toggleCodesBtn" class="btn btn-secondary btn-sm">
             <svg id="codesToggleIcon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             <span id="codesToggleText">Show / عرض</span>
@@ -1035,6 +1052,27 @@
             <div class="bento-card tone-amber"><div class="k" data-i18n="bk.drive">Google Drive engine</div><div class="v" id="bkDrive" style="font-size:1.05rem;">…</div><div class="n" id="bkDriveNote">—</div></div>
             <div class="bento-card tone-green"><div class="k" data-i18n="bk.adminJson">Admin JSON snapshots</div><div class="v" style="font-size:1.05rem;" data-i18n="bk.available">AVAILABLE</div><div class="n" data-i18n="bk.adminJsonNote">Per-account download + snapshot-first restore below</div></div>
           </div>
+          <div class="v2-panel" style="margin-bottom:1rem;"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">🔗</span><span data-i18n="bk.setupTitle">Google Drive setup</span></h2></div>
+            <div class="chart-wrap" style="display:grid; gap:.7rem;">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="text-sm" data-i18n="bk.setupAccounts">Accounts connected to Drive</span>
+                <span class="font-headline" id="bkDriveAccounts" style="color:var(--accent);">—</span>
+              </div>
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="text-sm" data-i18n="bk.setupRedirect">OAuth redirect URI (read-only)</span>
+                <span class="flex items-center gap-2" style="min-width:0;">
+                  <code class="mono" id="bkDriveRedirect" dir="ltr" style="font-size:.66rem; color:var(--text-muted); max-width:min(340px, 100%); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">…</code>
+                  <button id="bkDriveCopyBtn" class="btn btn-secondary btn-sm flex-shrink-0" title="Copy redirect URI">⧉ <span data-i18n="act.copy">Copy</span></button>
+                </span>
+              </div>
+              <ol class="text-sm" dir="auto" style="color:var(--text-muted); line-height:1.9; padding-inline-start:1.2rem; margin:0;">
+                <li><span data-i18n="bk.step1">Create an OAuth Client ID (type: Web application)</span> — <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent);">console.cloud.google.com/apis/credentials ↗</a></li>
+                <li data-i18n="bk.step2">Paste the redirect URI above into “Authorized redirect URIs”</li>
+                <li data-i18n="bk.step3">Send GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to إبراهيم to set them as function secrets</li>
+              </ol>
+            </div>
+          </div></div>
           <div class="v2-panel"><div class="v2-panel-inner">
             <div class="section-header"><h2 class="section-title"><span class="icon">☁️</span><span data-i18n="bk.perAccount">Recovery posture per account</span></h2></div>
             <div class="overflow-x-auto">
@@ -1083,6 +1121,35 @@
             <div class="section-header"><h2 class="section-title"><span class="icon">🔑</span><span data-i18n="se.recentResets">Recent password-reset activity</span></h2></div>
             <div class="chart-wrap"><div id="seResetList" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div></div>
           </div></div>
+          <div class="v2-panel" style="margin-top:1rem;"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">🛡️</span><span data-i18n="se.tfaTitle">Two-factor authentication (TOTP)</span></h2></div>
+            <div class="chart-wrap" style="display:grid; gap:.8rem;">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <span class="text-sm" data-i18n="se.tfaStatus">Status</span>
+                <span id="tfaStatus" class="font-headline" style="font-size:.9rem;">…</span>
+              </div>
+              <button id="tfaSetupBtn" class="btn btn-primary btn-sm hidden" style="justify-self:start;" data-i18n="se.tfaSetup">Enable 2FA…</button>
+              <div id="tfaEnableBox" class="hidden" style="border:1px solid var(--border); border-radius:.8rem; padding:.8rem;">
+                <p class="text-xs" style="color:var(--text-muted); margin:0 0 .6rem;" data-i18n="se.tfaEnableHint">In Google Authenticator: “+” → Enter a setup key → paste the secret below (Time-based)</p>
+                <div class="flex items-center gap-2 flex-wrap" style="margin-bottom:.6rem;">
+                  <code class="mono" id="tfaSecret" dir="ltr" style="font-size:.8rem; color:var(--accent); letter-spacing:.08em; word-break:break-all;"></code>
+                  <button id="tfaSecretCopyBtn" class="btn btn-secondary btn-sm flex-shrink-0">⧉ <span data-i18n="act.copy">Copy</span></button>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <input id="tfaEnableCode" class="input" type="text" inputmode="numeric" maxlength="6" placeholder="123456" dir="ltr" style="background:var(--bg); width:9rem; letter-spacing:.25em; text-align:center;" aria-label="6-digit code" />
+                  <button id="tfaEnableBtn" class="btn btn-primary btn-sm" data-i18n="se.tfaEnable">Confirm & enable</button>
+                </div>
+                <p id="tfaMsg" class="text-xs" style="color:var(--text-muted); margin:.6rem 0 0; min-height:1rem;"></p>
+              </div>
+              <div id="tfaDisableBox" class="hidden">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs" style="color:var(--text-muted);" data-i18n="se.tfaDisableHint">Enter a current 6-digit code to disable</span>
+                  <input id="tfaDisableCode" class="input" type="text" inputmode="numeric" maxlength="6" placeholder="123456" dir="ltr" style="background:var(--bg); width:9rem; letter-spacing:.25em; text-align:center;" aria-label="6-digit code" />
+                  <button id="tfaDisableBtn" class="btn btn-danger btn-sm" data-i18n="se.tfaDisable">Disable 2FA</button>
+                </div>
+              </div>
+            </div>
+          </div></div>
         </div>
 
         <!-- ============ ERRORS & AUDIT ============ -->
@@ -1109,6 +1176,36 @@
               <button id="auAuditRefresh" class="btn btn-secondary btn-sm" data-i18n="act.refresh">تحديث</button>
             </div>
             <div class="chart-wrap"><div id="auAuditList" class="timeline"><div class="empty-state"><span class="icon">⏳</span></div></div></div>
+          </div></div>
+        </div>
+
+        <!-- ============ MESSAGES ============ -->
+        <div class="v2-view" id="view-messages">
+          <div class="view-title">
+            <h1 data-i18n="ms.title">Messages</h1>
+            <span class="sub" data-i18n="ms.sub">Customer contact-form submissions — resolve after handling</span>
+          </div>
+          <div class="v2-panel"><div class="v2-panel-inner">
+            <div class="section-header">
+              <h2 class="section-title"><span class="icon">✉️</span><span data-i18n="ms.inbox">Contact inbox</span><span id="msCount" class="section-count">0</span></h2>
+              <button id="msRefresh" class="btn btn-secondary btn-sm" data-i18n="act.refresh">تحديث</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2" style="margin:.6rem 0;">
+              <div class="seg" id="msFilterSeg" role="group" aria-label="Filter messages">
+                <button data-msfilter="all" class="active" data-i18n="ms.fAll">All</button>
+                <button data-msfilter="open" data-i18n="ms.fOpen">Unresolved</button>
+                <button data-msfilter="resolved" data-i18n="ms.fResolved">Resolved</button>
+              </div>
+              <input id="msSearch" type="text" class="input" style="background:var(--bg); max-width:220px;" placeholder="Search… / بحث" aria-label="Search messages" />
+            </div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="msTable">
+                <thead><tr>
+                  <th data-i18n="th.user">User</th><th data-i18n="ms.subject">Subject</th><th data-i18n="ms.message">Message</th><th data-i18n="th.when">When</th><th data-i18n="th.status">Status</th><th></th>
+                </tr></thead>
+                <tbody id="msBody"><tr><td colspan="6"><div class="empty-state"><span class="icon">⏳</span></div></td></tr></tbody>
+              </table>
+            </div>
           </div></div>
         </div>
 

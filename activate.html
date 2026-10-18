@@ -96,6 +96,14 @@
       </div>
     </div>
 
+    <!-- Why an account? — shown only when the visitor has NO session (js/activate.js):
+         a brand-new customer lands here holding only a code, and the sudden email ask
+         reads like a paywall. Arabic first (RTL), then English. -->
+    <div id="whyAccountNotice" class="hidden mb-5 p-3 border border-[#444933] rounded-lg text-center" style="background-color: rgba(51,54,39,.3);">
+      <p class="text-sm font-medium leading-relaxed" dir="rtl" style="color:#e2e4cf;">التفعيل يتطلب حساب مجاني (إيميل فقط) — ننشئه لحماية بياناتك وربط أجهزتك</p>
+      <p class="arabic-text text-xs mt-1 leading-relaxed" dir="ltr" style="color:#8e9379;">Activation requires a free account (email only) — it protects your data and links your devices</p>
+    </div>
+
     <form id="activationForm" autocomplete="off">
       <div class="form-field">
         <div class="flex justify-center gap-2 sm:gap-3" dir="ltr">

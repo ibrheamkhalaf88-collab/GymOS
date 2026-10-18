@@ -922,6 +922,97 @@ async function exportUsersCSV() {
   }
 }
 
+// ---------- Generic table export (CSV / XLSX) — shared by Users & Codes ----------
+// Lazy-loads SheetJS from vendor/xlsx.full.min.js (same pattern as js/store.js)
+let _sheetJsLoading = null;
+function ensureSheetJs() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  if (_sheetJsLoading) return _sheetJsLoading;
+  _sheetJsLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/xlsx.full.min.js';
+    s.onload = () => (typeof XLSX !== 'undefined' ? resolve() : reject(new Error('SheetJS failed to initialise')));
+    s.onerror = () => reject(new Error('Failed to load SheetJS (vendor/xlsx.full.min.js)'));
+    document.head.appendChild(s);
+  });
+  _sheetJsLoading.catch(() => { _sheetJsLoading = null; });
+  return _sheetJsLoading;
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  return /["\n,]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+/** headers: string[], rows: any[][] */
+async function exportTableRows(filenameBase, headers, rows, ext) {
+  if (ext === 'csv') {
+    const csv = '\uFEFF' + [headers.join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\r\n');
+    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `${filenameBase}-${fileStamp()}.csv`);
+    return;
+  }
+  await ensureSheetJs();
+  if (typeof XLSX === 'undefined') throw new Error('SheetJS not loaded');
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  ws['!cols'] = headers.map(() => ({ wch: 18 }));
+  XLSX.utils.book_append_sheet(wb, ws, 'data');
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  triggerDownload(new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${filenameBase}-${fileStamp()}.xlsx`);
+}
+
+// Columns: code, tier, days, owner, used, revoked, source/status, device_limit, created
+function codeExportRows(codes) {
+  const headers = ['code', 'tier', 'days', 'owner', 'used', 'revoked', 'status', 'device_limit', 'created'];
+  const rows = (codes || []).map(c => [
+    c.code || '',
+    c.tier || '',
+    Number(c.days) || 0,
+    c.owner || '',
+    c.used ? 'yes' : 'no',
+    c.revoked ? 'yes' : 'no',
+    c.revoked ? 'revoked' : (c.used ? 'used' : 'ready'),
+    c.device_limit != null ? c.device_limit : '',
+    c.created_at || c.created || '',
+  ]);
+  return { headers, rows };
+}
+
+async function exportCodesXLSX() {
+  try {
+    const codes = IS_DEMO ? demoCodesAll() : await v2FetchCodes(true);
+    const { headers, rows } = codeExportRows(codes);
+    await exportTableRows('gymos-codes', headers, rows, 'xlsx');
+    showToast('Codes exported to Excel / تم تصدير الأكواد إلى Excel', 'success');
+  } catch (err) {
+    console.error('[codes export xlsx]', err);
+    showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
+async function exportCodesCSV() {
+  try {
+    const codes = IS_DEMO ? demoCodesAll() : await v2FetchCodes(true);
+    const { headers, rows } = codeExportRows(codes);
+    await exportTableRows('gymos-codes', headers, rows, 'csv');
+    showToast('Codes exported to CSV / تم تصدير الأكواد إلى CSV', 'success');
+  } catch (err) {
+    console.error('[codes export csv]', err);
+    showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
 async function importUsers() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -975,6 +1066,8 @@ async function importUsers() {
 elements.exportUsersXlsxBtn?.addEventListener('click', exportUsersXLSX);
 elements.exportUsersCsvBtn?.addEventListener('click', exportUsersCSV);
 elements.importUsersBtn?.addEventListener('click', importUsers);
+document.getElementById('exportCodesXlsxBtn')?.addEventListener('click', exportCodesXLSX);
+document.getElementById('exportCodesCsvBtn')?.addEventListener('click', exportCodesCSV);
 
 // ---------- Cloud data: View / Backup / Restore (Phase C) ----------
 function findGymUser(id) {
@@ -1963,6 +2056,73 @@ async function v2FetchGymForCode(code) {
   const gyms = Array.isArray(r.gyms) ? r.gyms : (r.gym ? [r.gym] : []);
   return { codeRow: r.code || null, gyms };
 }
+// Expiring accounts (server endpoint; falls back to a local estimate on failure)
+async function v2FetchExpiring(force) {
+  if (IS_DEMO) return null;
+  if (!force && V2_CACHE.expiring && Date.now() - V2_CACHE.expiringAt < 60000) return V2_CACHE.expiring;
+  const r = await api('/api/admin/expiring?days=14');
+  V2_CACHE.expiring = (r && Array.isArray(r.data)) ? r.data : [];
+  V2_CACHE.expiringTotal = (r && r.total != null) ? r.total : V2_CACHE.expiring.length;
+  V2_CACHE.expiringAt = Date.now();
+  return V2_CACHE.expiring;
+}
+function expiringLocalList() {
+  const win = 14 * 86400000;
+  const now = Date.now();
+  return allUsers
+    .filter(u => u.status !== 'suspended' && u.subscription !== 'none' && u.subscription !== 'lifetime' && u.subEnd && u.subEnd > now && u.subEnd <= now + win)
+    .map(u => ({ id: u.id, email: u.email, full_name: u.name, plan: u.subscription, subEnd: u.subEnd, remainingDays: Math.max(0, Math.ceil((u.subEnd - now) / 86400000)) }))
+    .sort((a, b) => a.remainingDays - b.remainingDays);
+}
+let V2_EXPIRING = null; // list backing the expiring-soon modal
+async function refreshExpiringSoon() {
+  const el = document.getElementById('ovExpiring');
+  const note = document.getElementById('ovExpiringNote');
+  if (!el) return;
+  try {
+    const list = await v2FetchExpiring();
+    V2_EXPIRING = list || [];
+    el.textContent = String(V2_CACHE.expiringTotal != null ? V2_CACHE.expiringTotal : (list || []).length);
+    if (note) note.textContent = '';
+  } catch {
+    // Honest fallback: keep «—» when we have nothing, label the local estimate otherwise
+    const local = expiringLocalList();
+    V2_EXPIRING = local;
+    el.textContent = allUsers.length ? String(local.length) : '—';
+    if (note) note.textContent = allUsers.length ? v2t('ov.expiringLocal') : v2t('cm.notAvailable');
+  }
+}
+function openExpiringModal() {
+  const list = V2_EXPIRING != null ? V2_EXPIRING : expiringLocalList();
+  const rows = list.map(x => {
+    const days = x.remainingDays != null ? x.remainingDays : (x.subEnd ? Math.max(0, Math.ceil((ts(x.subEnd) - Date.now()) / 86400000)) : '—');
+    return `<tr>
+      <td style="padding:.3rem .5rem;">${esc(x.full_name || x.name || '—')}</td>
+      <td style="padding:.3rem .5rem;">${esc(TIER_LABEL[x.plan] || x.plan || '—')}</td>
+      <td style="padding:.3rem .5rem; font-family:monospace;">${esc(String(days))}</td>
+      <td style="padding:.3rem .5rem;"><span class="copyable" data-copy="${escAttr(x.email || '')}" style="cursor:pointer; text-decoration:underline dotted;">${esc(x.email || '—')} ⧉</span></td>
+    </tr>`;
+  }).join('');
+  openDataModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <h3 style="font-weight:bold;">⏳ ${esc(v2t('ov.expiringListTitle'))}</h3>
+      <button class="btn btn-secondary btn-sm" id="expClose">✕</button>
+    </div>
+    ${list.length ? `<table style="width:100%;font-size:.85rem;border-collapse:collapse;margin-top:.75rem;">
+      <thead><tr style="text-align:start;opacity:.7;">
+        <th style="padding:.3rem .5rem;">${esc(v2t('th.account'))}</th>
+        <th style="padding:.3rem .5rem;">Plan / الباقة</th>
+        <th style="padding:.3rem .5rem;">${esc(v2t('ov.expiringDays'))}</th>
+        <th style="padding:.3rem .5rem;">Email</th>
+      </tr></thead>
+      <tbody>${rows}</tbody></table>`
+    : `<div class="empty-state"><span class="icon">✅</span><p class="empty-state-text">${esc(v2t('ov.expiringEmpty'))}</p></div>`}
+  `);
+  document.getElementById('expClose')?.addEventListener('click', closeDataModal);
+  document.querySelectorAll('#dpDataModal [data-copy]').forEach(el => el.addEventListener('click', () => {
+    navigator.clipboard.writeText(el.dataset.copy || '').then(() => showToast('Copied / تم النسخ', 'success')).catch(() => {});
+  }));
+}
 
 // ---------- V2 i18n ----------
 const V2_I18N = {
@@ -2008,6 +2168,40 @@ const V2_I18N = {
     'st.danger': 'Danger zone', 'st.dangerVal': 'No destructive controls are exposed by design',
     'dr.overview': 'Overview', 'dr.license': 'License', 'dr.sync': 'Cloud Sync', 'dr.data': 'Customer Data',
     'dr.backup': 'Backups', 'dr.security': 'Security', 'dr.timeline': 'Activity',
+    // — Messages view —
+    'nav.messages': 'Messages',
+    'ms.title': 'Messages', 'ms.sub': 'Customer contact-form submissions — resolve after handling',
+    'ms.inbox': 'Contact inbox', 'ms.subject': 'Subject', 'ms.message': 'Message',
+    'ms.fAll': 'All', 'ms.fOpen': 'Unresolved', 'ms.fResolved': 'Resolved',
+    'ms.empty': 'No messages', 'ms.unavailable': 'Messages service is unavailable right now',
+    'ms.resolve': 'Resolve', 'ms.reopen': 'Reopen',
+    'ms.resolvedToast': 'Message resolved', 'ms.reopenedToast': 'Message reopened', 'ms.failedToast': 'Update failed',
+    'ms.viewTitle': 'Message details', 'ms.from': 'From', 'ms.copyEmail': 'Copy email',
+    // — Overview: expiring soon —
+    'ov.expiring': 'Expiring within 14 days', 'ov.expiringHint': 'Click to list these accounts',
+    'ov.expiringLocal': 'server list unavailable — showing a local estimate',
+    'ov.expiringListTitle': 'Accounts expiring within 14 days', 'ov.expiringEmpty': 'No accounts expire within 14 days', 'ov.expiringDays': 'days left',
+    // — Licenses export —
+    'li.exportXlsx': 'Export XLSX', 'li.exportCsv': 'Export CSV',
+    // — Backups: Drive setup —
+    'bk.setupTitle': 'Google Drive setup', 'bk.setupAccounts': 'Accounts connected to Drive',
+    'bk.setupRedirect': 'OAuth redirect URI (read-only)',
+    'bk.step1': 'Create an OAuth Client ID (type: Web application)',
+    'bk.step2': 'Paste the redirect URI above into “Authorized redirect URIs”',
+    'bk.step3': 'Send GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to إبراهيم to set them as function secrets',
+    'bk.redirectCopied': 'Redirect URI copied',
+    // — Security: 2FA —
+    'se.tfaTitle': 'Two-factor authentication (TOTP)', 'se.tfaStatus': 'Status',
+    'se.tfaOn': 'Enabled', 'se.tfaOff': 'Disabled',
+    'se.tfaSetup': 'Enable 2FA…', 'se.tfaEnable': 'Confirm & enable', 'se.tfaDisable': 'Disable 2FA',
+    'se.tfaEnableHint': 'In Google Authenticator: “+” → Enter a setup key → paste the secret below (Time-based)',
+    'se.tfaDisableHint': 'Enter a current 6-digit code to disable',
+    'se.tfaDisabled': '2FA disabled',
+    'se.tfaRecoveryTitle': 'Recovery codes (shown once)',
+    'se.tfaRecoveryWarn': 'Save them now — they will not be shown again',
+    'se.tfaCopyAll': 'Copy all',
+    // — Shared —
+    'act.copy': 'Copy', 'cm.notAvailable': 'NOT AVAILABLE',
   },
   ar: {
     'nav.overview': 'النظرة العامة', 'nav.users': 'المستخدمون والحسابات', 'nav.licenses': 'الاشتراكات والتراخيص',
@@ -2051,9 +2245,48 @@ const V2_I18N = {
     'st.danger': 'منطقة الخطر', 'st.dangerVal': 'لا توجد عناصر تحكم مدمرة بالتصميم',
     'dr.overview': 'نظرة عامة', 'dr.license': 'الترخيص', 'dr.sync': 'المزامنة', 'dr.data': 'بيانات العملاء',
     'dr.backup': 'النسخ', 'dr.security': 'الأمان', 'dr.timeline': 'النشاط',
+    // — Messages view —
+    'nav.messages': 'الرسائل',
+    'ms.title': 'الرسائل', 'ms.sub': 'رسائل نموذج التواصل من العملاء — عالِجها ثم علّمها كمُعالَجة',
+    'ms.inbox': 'صندوق رسائل التواصل', 'ms.subject': 'الموضوع', 'ms.message': 'الرسالة',
+    'ms.fAll': 'الكل', 'ms.fOpen': 'غير معالجة', 'ms.fResolved': 'معالجة',
+    'ms.empty': 'لا رسائل', 'ms.unavailable': 'خدمة الرسائل غير متاحة حالياً',
+    'ms.resolve': 'معالجة', 'ms.reopen': 'إعادة فتح',
+    'ms.resolvedToast': 'تم تعليم الرسالة كمعالجة', 'ms.reopenedToast': 'تم إعادة فتح الرسالة', 'ms.failedToast': 'فشل التحديث',
+    'ms.viewTitle': 'تفاصيل الرسالة', 'ms.from': 'من', 'ms.copyEmail': 'نسخ البريد',
+    // — Overview: expiring soon —
+    'ov.expiring': 'ينتهي خلال 14 يوم', 'ov.expiringHint': 'اضغط لعرض هذه الحسابات',
+    'ov.expiringLocal': 'قائمة الخادم غير متاحة — يُعرض تقدير محلي',
+    'ov.expiringListTitle': 'حسابات تنتهي خلال 14 يوم', 'ov.expiringEmpty': 'لا حسابات تنتهي خلال 14 يوم', 'ov.expiringDays': 'يوم متبقٍ',
+    // — Licenses export —
+    'li.exportXlsx': 'تصدير XLSX', 'li.exportCsv': 'تصدير CSV',
+    // — Backups: Drive setup —
+    'bk.setupTitle': 'إعداد Google Drive', 'bk.setupAccounts': 'حسابات مرتبطة بـ Drive',
+    'bk.setupRedirect': 'رابط إعادة التوجيه OAuth (للقراءة فقط)',
+    'bk.step1': 'أنشئ معرّف عميل OAuth (النوع: تطبيق ويب)',
+    'bk.step2': 'الصق رابط إعادة التوجيه أعلاه في «Authorized redirect URIs»',
+    'bk.step3': 'أرسل GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET إلى إبراهيم لضبطهما كسرّي الدالة',
+    'bk.redirectCopied': 'تم نسخ رابط التوجيه',
+    // — Security: 2FA —
+    'se.tfaTitle': 'التحقق بخطوتين (TOTP)', 'se.tfaStatus': 'الحالة',
+    'se.tfaOn': 'مفعّل', 'se.tfaOff': 'غير مفعّل',
+    'se.tfaSetup': 'تفعيل التحقق بخطوتين…', 'se.tfaEnable': 'تأكيد وتفعيل', 'se.tfaDisable': 'تعطيل التحقق بخطوتين',
+    'se.tfaEnableHint': 'في Google Authenticator: «+» → إدخال مفتاح إعداد → الصق المفتاح أدناه (Time-based)',
+    'se.tfaDisableHint': 'أدخل رمزاً حالياً من 6 أرقام للتعطيل',
+    'se.tfaDisabled': 'تم تعطيل التحقق بخطوتين',
+    'se.tfaRecoveryTitle': 'رموز الاسترداد (تظهر مرة واحدة)',
+    'se.tfaRecoveryWarn': 'احفظها الآن — لن تُعرض مرة أخرى',
+    'se.tfaCopyAll': 'نسخ الكل',
+    // — Shared —
+    'act.copy': 'نسخ', 'cm.notAvailable': 'غير متوفر',
   },
 };
 function v2Lang() { return localStorage.getItem('dp_admin_lang') || 'ar'; }
+// Lookup a V2 i18n key in the current language (falls back to the key itself)
+function v2t(key) {
+  const d = V2_I18N[v2Lang()] || V2_I18N.en;
+  return (d && d[key]) || key;
+}
 function applyI18n() {
   const lang = v2Lang();
   const dict = V2_I18N[lang] || V2_I18N.en;
@@ -2138,6 +2371,9 @@ async function refreshOverview() {
     { label: 'Suspended', value: suspended, color: 'var(--warning)' },
     { label: 'None', value: none, color: 'var(--text-muted)' },
   ]);
+
+  // Expiring-soon card (loader-aware: stays «—» until the fetch settles)
+  refreshExpiringSoon();
 
   try {
     const errs = await v2FetchErrors();
@@ -2225,7 +2461,18 @@ async function refreshBackupsView() {
     const r = await fetch(API_BASE.replace('/gymos-api', '/gymos-drive-backup') + '/health', { method: 'GET' });
     if (r.ok) { if (drive) { drive.textContent = 'UP'; drive.style.color = 'var(--success)'; } }
     else { if (drive) { drive.textContent = 'DOWN (' + r.status + ')'; drive.style.color = 'var(--danger)'; } }
-  } catch { if (drive) { drive.textContent = 'UNREACHABLE'; drive.style.color = 'var(--danger)'; } }
+    // Drive setup card: connected-accounts count only if the health payload exposes it
+    const accEl = document.getElementById('bkDriveAccounts');
+    if (accEl) {
+      const h = r.ok ? await r.json().catch(() => null) : null;
+      const n = h ? (h.connected ?? h.accounts ?? h.linked ?? h.drives) : undefined;
+      accEl.textContent = (typeof n === 'number') ? String(n) : v2t('cm.notAvailable');
+    }
+  } catch {
+    if (drive) { drive.textContent = 'UNREACHABLE'; drive.style.color = 'var(--danger)'; }
+    const accEl = document.getElementById('bkDriveAccounts');
+    if (accEl) accEl.textContent = v2t('cm.notAvailable');
+  }
   if (driveNote) driveNote.textContent = 'Last checked / آخر تحقق: ' + checkedAt;
   const body = document.getElementById('bkTableBody');
   if (!body) return;
@@ -2296,6 +2543,111 @@ async function refreshSecurityView() {
         : '<div class="empty-state"><span class="icon">📭</span><p class="empty-state-text">No reset activity recorded yet</p></div>';
     }
   } catch { const fa = document.getElementById('seFailedAdmin'); if (fa) fa.textContent = '—'; }
+  tfaRefreshStatus(); // 2FA status line (never blocks the rest of the view)
+}
+
+// ---------- V2: Two-factor auth (TOTP) ----------
+let _tfaSecret = null; // held only while the setup box is visible — wiped after enable/close
+async function tfaRefreshStatus() {
+  const st = document.getElementById('tfaStatus');
+  const setupBtn = document.getElementById('tfaSetupBtn');
+  const enBox = document.getElementById('tfaEnableBox');
+  const disBox = document.getElementById('tfaDisableBox');
+  if (!st) return;
+  st.textContent = '…'; st.style.color = 'var(--text-muted)';
+  try {
+    const r = await api('/api/admin/2fa/status');
+    const on = !!(r && r.enabled);
+    st.textContent = on ? v2t('se.tfaOn') : v2t('se.tfaOff');
+    st.style.color = on ? 'var(--success)' : 'var(--text-muted)';
+    if (setupBtn) setupBtn.classList.toggle('hidden', on);
+    if (enBox) enBox.classList.add('hidden');
+    if (disBox) disBox.classList.toggle('hidden', !on);
+  } catch {
+    // Honest state when the endpoint is not deployed yet
+    st.textContent = v2t('cm.notAvailable'); st.style.color = 'var(--text-muted)';
+    if (setupBtn) setupBtn.classList.add('hidden');
+    if (enBox) enBox.classList.add('hidden');
+    if (disBox) disBox.classList.add('hidden');
+  }
+}
+async function tfaStartSetup() {
+  const btn = document.getElementById('tfaSetupBtn');
+  const box = document.getElementById('tfaEnableBox');
+  const sec = document.getElementById('tfaSecret');
+  const msg = document.getElementById('tfaMsg');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  if (msg) msg.textContent = '…';
+  try {
+    const r = await api('/api/admin/2fa/setup', { method: 'POST', body: JSON.stringify({}) });
+    _tfaSecret = (r && r.secret) || '';
+    if (sec) sec.textContent = _tfaSecret;
+    if (msg) msg.textContent = '';
+    if (box) box.classList.remove('hidden');
+    document.getElementById('tfaEnableCode')?.focus();
+  } catch (e) {
+    if (msg) msg.textContent = String(e.message || e).slice(0, 120);
+  } finally { btn.disabled = false; }
+}
+async function tfaConfirmEnable() {
+  const btn = document.getElementById('tfaEnableBtn');
+  const msg = document.getElementById('tfaMsg');
+  const code = (document.getElementById('tfaEnableCode')?.value || '').trim();
+  if (!btn || btn.disabled) return;
+  if (!/^\d{6}$/.test(code)) { if (msg) msg.textContent = '6 digits required / يلزم 6 أرقام'; return; }
+  btn.disabled = true;
+  if (msg) msg.textContent = '…';
+  try {
+    const r = await api('/api/admin/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+    // Wipe the secret from DOM + memory immediately — never shown again after setup
+    _tfaSecret = null;
+    const sec = document.getElementById('tfaSecret'); if (sec) sec.textContent = '';
+    const box = document.getElementById('tfaEnableBox'); if (box) box.classList.add('hidden');
+    const codeIn = document.getElementById('tfaEnableCode'); if (codeIn) codeIn.value = '';
+    tfaShowRecovery((r && r.recoveryCodes) || []);
+    await tfaRefreshStatus();
+  } catch (e) {
+    if (msg) msg.textContent = String(e.message || e).slice(0, 120);
+  } finally { btn.disabled = false; }
+}
+function tfaShowRecovery(codes) {
+  if (!codes.length) return;
+  const list = codes.map(c => `<div class="mono" dir="ltr" style="font-size:.95rem; letter-spacing:.12em; padding:.15rem 0;">${esc(String(c))}</div>`).join('');
+  openDataModal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <h3 style="font-weight:bold;">🔐 ${esc(v2t('se.tfaRecoveryTitle'))}</h3>
+      <button class="btn btn-secondary btn-sm" id="tfaRecClose">✕</button>
+    </div>
+    <p class="text-sm" style="color:var(--warning); margin:.8rem 0;">⚠️ ${esc(v2t('se.tfaRecoveryWarn'))}</p>
+    <div class="result-box" style="flex-direction:column; align-items:stretch;">${list}</div>
+    <div class="flex justify-end gap-2" style="margin-top:1rem;">
+      <button class="btn btn-primary btn-sm" id="tfaRecCopy">⧉ ${esc(v2t('se.tfaCopyAll'))}</button>
+    </div>`);
+  document.getElementById('tfaRecClose')?.addEventListener('click', closeDataModal);
+  document.getElementById('tfaRecCopy')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(codes.join('\n')).then(() => showToast('Copied / تم النسخ', 'success')).catch(() => {});
+  });
+}
+async function tfaConfirmDisable() {
+  const btn = document.getElementById('tfaDisableBtn');
+  const code = (document.getElementById('tfaDisableCode')?.value || '').trim();
+  if (!btn || btn.disabled) return;
+  if (!/^\d{6}$/.test(code)) { showToast('6 digits required / يلزم 6 أرقام', 'error'); return; }
+  const ok = await showConfirm({
+    title: v2t('se.tfaDisable'), message: v2t('se.tfaDisableHint'),
+    icon: '🛡️', iconColor: '#fb5b74', okText: v2t('se.tfaDisable'), okClass: 'btn-danger',
+  });
+  if (!ok) return;
+  btn.disabled = true;
+  try {
+    await api('/api/admin/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+    showToast(v2t('se.tfaDisabled'), 'success');
+    const codeIn = document.getElementById('tfaDisableCode'); if (codeIn) codeIn.value = '';
+    await tfaRefreshStatus();
+  } catch (e) {
+    showToast(String(e.message || e).slice(0, 120), 'error');
+  } finally { btn.disabled = false; }
 }
 
 // ---------- V2: Errors & Audit view ----------
@@ -2808,6 +3160,101 @@ async function drRenderTimeline(u) {
     : '<div class="empty-state"><span class="icon">📜</span><p class="empty-state-text">No recorded events for this account yet — nothing is fabricated</p></div>';
 }
 
+// ---------- Messages view (contact inbox) ----------
+let msFilter = 'all';
+let msSearchQ = '';
+let V2_MESSAGES = null; // cached list from GET /api/admin/contact-messages
+
+async function refreshMessagesView(force) {
+  const body = document.getElementById('msBody');
+  if (!body) return;
+  if (!force && V2_MESSAGES) { renderMessages(); return; }
+  body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><span class="icon">⏳</span><p class="empty-state-text">…</p></div></td></tr>';
+  try {
+    const r = await api('/api/admin/contact-messages?limit=100');
+    V2_MESSAGES = (r && Array.isArray(r.data)) ? r.data : null;
+    if (V2_MESSAGES == null) throw new Error('bad shape');
+  } catch {
+    V2_MESSAGES = null;
+    body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><span class="icon">⚠️</span><p class="empty-state-text">' + esc(v2t('ms.unavailable')) + '</p></div></td></tr>';
+    updateMsgBadge();
+    return;
+  }
+  renderMessages();
+  updateMsgBadge();
+}
+
+function updateMsgBadge() {
+  const badge = document.getElementById('msgUnreadBadge');
+  if (!badge) return;
+  const open = (V2_MESSAGES || []).filter(m => !m.resolved).length;
+  badge.textContent = String(open);
+  badge.hidden = open === 0;
+}
+
+function renderMessages() {
+  const body = document.getElementById('msBody');
+  if (!body) return;
+  const all = V2_MESSAGES || [];
+  const q = (msSearchQ || '').trim().toLowerCase();
+  const rows = all.filter(m => {
+    if (msFilter === 'open' && m.resolved) return false;
+    if (msFilter === 'resolved' && !m.resolved) return false;
+    if (!q) return true;
+    return [m.name, m.email, m.subject, m.message].some(v => String(v || '').toLowerCase().includes(q));
+  });
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty-state"><span class="icon">✉️</span><p class="empty-state-text">' + esc(v2t('ms.empty')) + '</p></div></td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(m => '<tr data-ms-id="' + escAttr(String(m.id)) + '" style="cursor:pointer;' + (m.resolved ? 'opacity:.55;' : '') + '">'
+    + '<td style="padding:.45rem .6rem;">' + esc(m.name || '—') + '<div style="font-size:.72rem;opacity:.65;">' + esc(m.email || '') + '</div></td>'
+    + '<td style="padding:.45rem .6rem;">' + esc(m.subject || '—') + '</td>'
+    + '<td style="padding:.45rem .6rem;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(m.message || '') + '</td>'
+    + '<td style="padding:.45rem .6rem;font-size:.78rem;opacity:.75;">' + (m.created ? esc(fmtDay(m.created)) : '—') + '</td>'
+    + '<td style="padding:.45rem .6rem;">' + (m.resolved
+      ? '<span class="badge" style="color:#7bd97b;">✔ ' + esc(v2t('ms.fResolved')) + '</span>'
+      : '<span class="badge" style="color:#ffcc33;">● ' + esc(v2t('ms.fOpen')) + '</span>') + '</td>'
+    + '<td style="padding:.45rem .6rem;"><button class="btn btn-secondary btn-sm" data-ms-resolve="' + escAttr(String(m.id)) + '" data-ms-resolved="' + (m.resolved ? '1' : '0') + '">' + esc(m.resolved ? v2t('ms.reopen') : v2t('ms.resolve')) + '</button></td>'
+    + '</tr>').join('');
+}
+
+function openMessageModal(id) {
+  const m = (V2_MESSAGES || []).find(x => String(x.id) === String(id));
+  if (!m) return;
+  openDataModal(
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">'
+    + '<h3 style="font-weight:bold;">✉️ ' + esc(v2t('ms.viewTitle')) + '</h3>'
+    + '<button class="btn btn-secondary btn-sm" id="msModalClose">✕</button></div>'
+    + '<div style="margin-top:.9rem;font-size:.88rem;line-height:1.7;display:grid;gap:.55rem;">'
+    + '<div><b>' + esc(v2t('ms.from')) + ':</b> ' + esc(m.name || '—') + ' — <span class="copyable" data-copy="' + escAttr(m.email || '') + '" style="cursor:pointer;color:#CCFF00;">' + esc(m.email || '') + '</span></div>'
+    + '<div><b>' + esc(v2t('ms.subject')) + ':</b> ' + esc(m.subject || '—') + '</div>'
+    + '<div style="white-space:pre-wrap;background:rgba(127,148,184,.06);border:1px solid rgba(127,148,184,.15);border-radius:10px;padding:.8rem;">' + esc(m.message || '') + '</div>'
+    + '<div style="opacity:.65;font-size:.75rem;">' + (m.created ? esc(fmtDay(m.created)) : '') + '</div>'
+    + '</div>');
+  document.getElementById('msModalClose')?.addEventListener('click', closeDataModal);
+  document.querySelectorAll('#dpDataModal [data-copy]').forEach(el => el.addEventListener('click', () => {
+    navigator.clipboard.writeText(el.dataset.copy || '').then(() => showToast(v2t('ms.copyEmail'), 'success')).catch(() => {});
+  }));
+}
+
+async function toggleMessageResolved(id, resolve) {
+  const btn = document.querySelector('[data-ms-resolve="' + id + '"]');
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/admin/contact-messages/resolve', { method: 'PATCH', body: JSON.stringify({ id, resolved: resolve }) });
+    const m = (V2_MESSAGES || []).find(x => String(x.id) === String(id));
+    if (m) m.resolved = resolve;
+    showToast(resolve ? v2t('ms.resolvedToast') : v2t('ms.reopenedToast'), 'success');
+    renderMessages();
+    updateMsgBadge();
+  } catch (err) {
+    showToast(v2t('ms.failed') + ' — ' + (err.message || ''), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 // ---------- V2 init ----------
 V2_LOADERS.overview = refreshOverview;
 V2_LOADERS.sync = refreshSyncView;
@@ -2816,6 +3263,7 @@ V2_LOADERS.activity = refreshActivityView;
 V2_LOADERS.security = refreshSecurityView;
 V2_LOADERS.audit = () => refreshAuditView(false);
 V2_LOADERS.versions = refreshVersionsView;
+V2_LOADERS.messages = () => refreshMessagesView(false);
 
 function v2Init() {
   applyI18n();
@@ -2887,9 +3335,57 @@ function v2Init() {
   const audRef = document.getElementById('auAuditRefresh');
   if (audRef) audRef.addEventListener('click', () => refreshAuditView(true));
 
+  // Expiring-soon card (Overview) → list modal
+  const expCard = document.getElementById('ovExpiringCard');
+  if (expCard) {
+    expCard.addEventListener('click', openExpiringModal);
+    expCard.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openExpiringModal(); } });
+  }
+
+  // Messages view: filter chips, search, refresh, row actions
+  document.querySelectorAll('#msFilterSeg button').forEach(b => b.addEventListener('click', () => {
+    msFilter = b.dataset.msfilter || 'all';
+    document.querySelectorAll('#msFilterSeg button').forEach(x => x.classList.toggle('active', x === b));
+    renderMessages();
+  }));
+  const msSearch = document.getElementById('msSearch');
+  if (msSearch) msSearch.addEventListener('input', () => { msSearchQ = msSearch.value; renderMessages(); });
+  const msRef = document.getElementById('msRefresh');
+  if (msRef) msRef.addEventListener('click', () => refreshMessagesView(true));
+  const msBody = document.getElementById('msBody');
+  if (msBody) msBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-ms-resolve]');
+    if (btn) {
+      e.stopPropagation();
+      toggleMessageResolved(btn.dataset.msResolve, btn.dataset.msResolved !== '1');
+      return;
+    }
+    const row = e.target.closest('tr[data-ms-id]');
+    if (row) openMessageModal(row.dataset.msId);
+  });
+
+  // Drive setup card: read-only redirect URI + copy
+  const redirEl = document.getElementById('bkDriveRedirect');
+  if (redirEl) redirEl.textContent = API_BASE.replace('/gymos-api', '/gymos-drive-backup') + '/drive-callback';
+  const bkCopy = document.getElementById('bkDriveCopyBtn');
+  if (bkCopy) bkCopy.addEventListener('click', () => {
+    navigator.clipboard.writeText(redirEl ? redirEl.textContent : '').then(() => showToast(v2t('bk.redirectCopied'), 'success')).catch(() => {});
+  });
+
+  // 2FA controls
+  document.getElementById('tfaSetupBtn')?.addEventListener('click', tfaStartSetup);
+  document.getElementById('tfaEnableBtn')?.addEventListener('click', tfaConfirmEnable);
+  document.getElementById('tfaDisableBtn')?.addEventListener('click', tfaConfirmDisable);
+  document.getElementById('tfaSecretCopyBtn')?.addEventListener('click', () => {
+    const s = document.getElementById('tfaSecret')?.textContent || '';
+    if (!s) return;
+    navigator.clipboard.writeText(s).then(() => showToast('Copied / تم النسخ', 'success')).catch(() => {});
+  });
+
   // Boot view from hash, then periodic overview refresh
   const initial = (location.hash.match(/view-([a-z]+)/) || [])[1];
   showView(initial && document.getElementById('view-' + initial) ? initial : 'overview');
+  refreshMessagesView(false).catch(() => {}); // populate the sidebar badge quietly
   setInterval(() => {
     const active = document.querySelector('.v2-view.active');
     if (active && active.id === 'view-overview') refreshOverview().catch(() => {});
