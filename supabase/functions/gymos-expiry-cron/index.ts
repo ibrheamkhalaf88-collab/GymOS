@@ -247,7 +247,7 @@ async function auditRun(details: Record<string, unknown>): Promise<void> {
 }
 
 async function run(days: number): Promise<Record<string, unknown>> {
-  const rows = await collectExpiring(days);
+  let rows = await collectExpiring(days);
   const details: Record<string, unknown> = {
     days, count: rows.length, sent: 0, failures: 0, failed: [] as string[],
   };
@@ -259,6 +259,23 @@ async function run(days: number): Promise<Record<string, unknown>> {
     return { ok: true, ...details };
   }
   details.skipped_no_smtp = 0;
+  // Dedup (migration 0014): ONE notice per (email, sub_end). This cron fires
+  // DAILY — without the check a 13-day window would email the same customer
+  // 13 times. A renewal creates a new sub_end, which is eligible again.
+  {
+    const { data: prior } = await sb.from("expiry_notices").select("email,sub_end");
+    const seen = new Set((prior || []).map((n: any) => `${String(n.email).toLowerCase()}|${new Date(n.sub_end).toISOString()}`));
+    rows = rows.filter((r: any) => {
+      if (r.subEnd == null) return true; // no fixed end -> nothing to dedup on
+      const key = `${String(r.email).toLowerCase()}|${new Date(r.subEnd).toISOString()}`;
+      if (seen.has(key)) {
+        details.dedup_skipped = Number(details.dedup_skipped || 0) + 1;
+        return false;
+      }
+      return true;
+    });
+  }
+  details.emailable = rows.length;
   const transport = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 465,
@@ -274,6 +291,13 @@ async function run(days: number): Promise<Record<string, unknown>> {
         html: emailHtml(r),
       });
       details.sent = Number(details.sent) + 1;
+      // Record AFTER a successful send so a failed send retries next run.
+      if (r.subEnd != null) {
+        await sb.from("expiry_notices").upsert(
+          { email: String(r.email).toLowerCase(), sub_end: new Date(r.subEnd).toISOString() },
+          { onConflict: "email,sub_end" }
+        );
+      }
     } catch (e) {
       // NEVER throw on an individual email failure — count it and continue.
       details.failures = Number(details.failures) + 1;
