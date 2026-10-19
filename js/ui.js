@@ -63,7 +63,7 @@ export const fmt = {
   },
   date(ts, lang = "en") {
     try {
-      return new Date(ts).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", year: "numeric" });
+      return new Date(ts).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "numeric", year: "numeric" });
     } catch { return "—"; }
   },
   timeAgo(ts, lang = "en") {

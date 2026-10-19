@@ -377,7 +377,7 @@ const shortId = (id) => {
 function fmtSync(ms) {
   if (!ms) return '—';
   const d = new Date(ms);
-  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+  return `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric' })} ${d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 // ---------- Demo Helpers ----------
@@ -571,7 +571,7 @@ function expiryText(user) {
   if (unlimited) return '<span style="color: var(--accent);">♾️ غير محدود / Unlimited</span>';
   if (!user.subEnd) return '—';
   if (user.subEnd > Date.now() + 36000 * 86400000) return '<span style="color: var(--accent);">♾️ غير محدود / Unlimited</span>';
-  return new Date(user.subEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(user.subEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 
 function renderUsers(users) {
@@ -662,7 +662,7 @@ function previewText() {
   if (tier === 'none') return 'No subscription / بدون اشتراك';
   const days = parseInt(elements.userDays.value) || DEFAULT_DAYS[tier] || 30;
   const end = Date.now() + days * 86400000;
-  return `${days} days → ${new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}  (${days} يوم)`;
+  return `${days} days → ${new Date(end).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' })}  (${days} يوم)`;
 }
 
 function refreshPreview() {
@@ -1494,7 +1494,7 @@ async function loadCodes() {
     const owner = c.owner ? esc(c.owner) : '—';
     const deviceCount = Array.isArray(c.devices) ? c.devices.length : 0;
     const deviceLimit = c.device_limit || 3;
-    const expires = c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : (c.tier === 'lifetime' ? '♾️ Lifetime' : '—');
+    const expires = c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' }) : (c.tier === 'lifetime' ? '♾️ Lifetime' : '—');
 
     return `
       <tr class="hover:bg-[#171717]/50 transition-colors">
@@ -1987,7 +1987,7 @@ loadUsers();
 // ---------- V2 helpers ----------
 function fmtDay(ms) {
   if (!ms) return '—';
-  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' });
 }
 function fmtAgo(ms) {
   if (!ms) return '—';
@@ -2364,7 +2364,7 @@ function weeklyBuckets(field) {
   for (let i = 7; i >= 0; i--) {
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7 + 1);
     const start = new Date(end.getTime() - 7 * 86400000);
-    weeks.push({ start: start.getTime(), end: end.getTime(), label: new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }), value: 0 });
+    weeks.push({ start: start.getTime(), end: end.getTime(), label: new Date(start).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric' }), value: 0 });
   }
   for (const u of allUsers) {
     const t = Number(u[field] || 0);

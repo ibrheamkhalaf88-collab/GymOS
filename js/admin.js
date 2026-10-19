@@ -36,7 +36,7 @@ function setMsg(el, text, color = '#ff3366') {
 function formatDate(ts) {
   if (!ts) return '—';
   return new Date(ts).toLocaleDateString('en-GB', {
-    year: 'numeric', month: 'short', day: 'numeric',
+    year: 'numeric', month: 'numeric', day: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
 }

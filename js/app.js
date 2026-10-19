@@ -1757,7 +1757,7 @@ function printMonthlyReport() {
   const exp = rows.filter((l) => l.type === "expense").reduce((s, l) => s + Number(l.amount || 0), 0);
   const money = (n) => `$${Number(n).toFixed(2)}`;
   openPrintWindow(`تقرير ${gymName()}`, `
-    <h1>${escapeHtml(gymName())} — تقرير ${AR_MONTHS[base.getMonth()]} ${base.getFullYear()}</h1>
+    <h1>${escapeHtml(gymName())} — تقرير ${base.getMonth() + 1}/${base.getFullYear()}</h1>
     <div class="sub">إيرادات: ${money(rev)} · مصروفات: ${money(exp)} · صافي: ${money(rev - exp)}</div>
     <table><thead><tr><th>التاريخ</th><th>البيان</th><th>النوع</th><th>المبلغ</th></tr></thead><tbody>
       ${rows.map((l) => `<tr><td>${fmt.date(l.date)}</td><td>${escapeHtml(l.note || l.title || "—")}</td><td>${l.type === "revenue" ? "إيراد" : "مصروف"}</td><td dir="ltr">${money(l.amount)}</td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:#888">لا حركات هذا الشهر</td></tr>`}
@@ -2046,15 +2046,15 @@ function viewLedger() {
   const fNet = fIn - fOut;
 
   const mNum = String(base.getMonth() + 1).padStart(2, "0");
-  const monthLabel = `${mNum} · ${EN_MONTHS[base.getMonth()]} ${base.getFullYear()}`;
-  const monthLabelAr = `${AR_MONTHS[base.getMonth()]} ${arDigits(base.getFullYear())}`;
+  const monthLabel = `${mNum} · ${base.getFullYear()}`;
+  const monthLabelAr = `${mNum} · ${arDigits(base.getFullYear())}`;
 
   // Quick-jump options: last 12 months (numbered)
   let jumpOptions = "";
   for (let o = 0; o >= -11; o--) {
     const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + o);
     const sel = o === (ledgerOffset || 0) ? "selected" : "";
-    jumpOptions += `<option value="${o}" ${sel}>${d.getMonth() + 1} · ${AR_MONTHS[d.getMonth()]} ${d.getFullYear()}</option>`;
+    jumpOptions += `<option value="${o}" ${sel}>${d.getMonth() + 1} · ${d.getFullYear()}</option>`;
   }
 
   // ---- Trainer salary reminders (current real month) ----
@@ -3157,7 +3157,7 @@ function viewProfile() {
       <div class="p-3 bg-surface-container rounded-lg border border-outline-variant flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <span class="font-headline text-sm ${actionColors[l.action] || ''}">${actionIcons[l.action] || l.action} ${l.action.toUpperCase()}</span>
-          <span class="text-xs text-muted font-mono">${new Date(l.ts).toLocaleString("ar-EG")}</span>
+          <span class="text-xs text-muted font-mono">${new Date(l.ts).toLocaleString("ar-EG", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
         </div>
         <div class="flex items-center gap-2 flex-wrap text-sm">
           <span class="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-label uppercase">${collectionLabels[l.collection] || l.collection}</span>
@@ -3427,7 +3427,7 @@ async function configureDriveBackup() {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="font-headline text-sm ${isConnected ? "text-primary" : "text-alert"}">${isConnected ? "? Connected / متصل" : "?? Not connected / غير متصل"}</p>
-            <p class="text-xs text-muted mt-1">${isConnected ? `Last linked: ${status.linkedAt ? new Date(status.linkedAt).toLocaleString("ar-EG") : "—"}` : "Connect your Google account to enable automatic backups"}</p>
+            <p class="text-xs text-muted mt-1">${isConnected ? `Last linked: ${status.linkedAt ? new Date(status.linkedAt).toLocaleString("ar-EG", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}` : "Connect your Google account to enable automatic backups"}</p>
           </div>
           <span class="material-symbols-outlined ${isConnected ? "text-primary" : "text-alert"} text-2xl">cloud</span>
         </div>
@@ -3539,7 +3539,7 @@ async function configureDriveBackup() {
             ${files.length ? files.map(f => `
               <div class="p-3 bg-surface-container rounded-lg border border-outline-variant flex flex-col gap-1">
                 <p class="font-headline text-sm truncate">${escapeHtml(f.name)}</p>
-                <p class="text-xs text-muted">${f.size ? (Number(f.size)/1024).toFixed(1) + " KB" : "—"} · ${f.createdTime ? new Date(f.createdTime).toLocaleString("ar-EG") : "—"}</p>
+                <p class="text-xs text-muted">${f.size ? (Number(f.size)/1024).toFixed(1) + " KB" : "—"} · ${f.createdTime ? new Date(f.createdTime).toLocaleString("ar-EG", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}</p>
               </div>`).join("") : `
               <p class="text-center text-muted py-4">No backup files found / لا توجد نسخ بعد</p>
             `}

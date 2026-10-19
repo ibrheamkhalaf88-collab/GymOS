@@ -161,7 +161,7 @@ function esc(s) {
 function fmtDate(ts) {
   if (!ts || !Number.isFinite(ts) || ts <= 0) return "";
   try {
-    return new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    return new Date(ts).toLocaleDateString(undefined, { year: "numeric", month: "numeric", day: "numeric" });
   } catch { return ""; }
 }
 
