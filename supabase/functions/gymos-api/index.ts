@@ -982,7 +982,7 @@ async function handler(req: Request): Promise<Response> {
       const ip = clientIp(req);
       if (tooManyOtpIp(ip)) return json({ error: "RATE_LIMITED", message: "Too many requests — try again later" }, 429, origin);
       const email = String(body?.email || "").trim().toLowerCase();
-      if (!email || !email.includes("@")) return json({ error: "BAD_REQUEST" }, 400, origin);
+      if (!email || !/^[^\\s@]+@[^\\s@]+\.[^\\s@]+$/.test(email)) return json({ error: "BAD_REQUEST", message: "Invalid email format" }, 400, origin);
       if (tooManyOtpEmail(email)) return json({ error: "RATE_LIMITED", message: "Too many codes sent to this email — try again later" }, 429, origin);
       failOtpIp(ip);
       failOtpEmail(email);
@@ -1020,6 +1020,7 @@ async function handler(req: Request): Promise<Response> {
       failOtpVerify(ip);
       const email = String(body?.email || "").trim().toLowerCase();
       const code = String(body?.code || "").trim();
+      if (!/^\d{6}$/.test(code)) return json({ error: "BAD_REQUEST", message: "Code must be exactly 6 digits" }, 400, origin);
       const newPw = String(body?.newPassword || "");
       if (!email || !code || newPw.length < 8) return json({ error: "BAD_REQUEST", message: "email, code, and newPassword(8+) required" }, 400, origin);
       // verify OTP
@@ -1074,6 +1075,7 @@ async function handler(req: Request): Promise<Response> {
       if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED" }, 429, origin);
       failAdminDestructiveIp(ip);
       const code = String(body?.code || "").trim();
+      if (!/^\d{6}$/.test(code)) return json({ error: "BAD_REQUEST", message: "Code must be exactly 6 digits" }, 400, origin);
       const newPw = String(body?.newPassword || "");
       if (!code || newPw.length < 8) return json({ error: "BAD_REQUEST" }, 400, origin);
       const { data: otpRow } = await sb.from("otp_codes").select("*")
@@ -1102,6 +1104,7 @@ async function handler(req: Request): Promise<Response> {
       failOtpVerify(ip);
       if (email) failOtpEmailVerify(email);
       const code = String(body?.code || "").trim();
+      if (!/^\d{6}$/.test(code)) return json({ error: "BAD_REQUEST", message: "Code must be exactly 6 digits" }, 400, origin);
       if (!email || !code) return json({ error: "BAD_REQUEST" }, 400, origin);
       // Atomic verify: UPDATE ... WHERE used=false returns 0 rows if already consumed.
       const { data: otpRow } = await sb.from("otp_codes").select("*")
