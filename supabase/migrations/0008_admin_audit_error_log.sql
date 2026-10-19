@@ -136,3 +136,4 @@ END $$;
 --   GET /api/admin/errors?q=&page=&perPage=&error_code=&endpoint=&resolved=
 -- 
 -- Both are ADMIN ONLY (require admin JWT)
+-- ROLLBACK: drop table if exists public.admin_error_log; drop table if exists public.admin_audit_log; (loses the audit trail — compliance risk)

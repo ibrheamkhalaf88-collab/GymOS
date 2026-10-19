@@ -33,3 +33,5 @@ create table if not exists public.gyms (
 
 create index if not exists codes_code_idx on public.codes (code);
 create index if not exists gyms_code_idx on public.gyms (code);
+
+-- ROLLBACK: drop table if exists public.gyms; drop table if exists public.codes; (foundation — dropping destroys ALL customer data; never run outside a full reset)

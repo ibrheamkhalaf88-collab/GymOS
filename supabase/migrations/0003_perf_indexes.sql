@@ -15,3 +15,5 @@ create index if not exists codes_owner_trgm on public.codes using gin (owner gin
 
 -- Gym load by code+device_id already indexed (gyms_code_device_idx), add saved_at for ETag
 create index if not exists gyms_saved_at_idx on public.gyms (saved_at desc);
+
+-- ROLLBACK: drop index if exists codes_created_at_desc, codes_used_revoked, codes_owner_trgm, gyms_saved_at_idx, gyms_code_device_idx on public...; drop extension if exists pg_trgm; (performance only — safe to drop)

@@ -36,3 +36,4 @@ grant all on public.drive_tokens to service_role;
 
 -- Index for cleanup queries
 create index if not exists drive_tokens_expires_at_idx on public.drive_tokens (expires_at);
+-- ROLLBACK: drop table if exists public.drive_tokens; (disconnects every Drive account — customers must re-consent)

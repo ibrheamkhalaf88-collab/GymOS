@@ -67,3 +67,5 @@ begin
     execute 'grant all on sequence public.coupons_id_seq to service_role';
   end if;
 end $$;
+
+-- ROLLBACK: drop table if exists public.coupons; (loses coupon history; NEVER rerun this file — historical typo pol.policname)

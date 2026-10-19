@@ -16,3 +16,5 @@ ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
 -- Only the gymos-api Edge Function (service_role) should touch this table.
 REVOKE ALL ON public.contact_messages FROM anon, authenticated;
 GRANT ALL ON public.contact_messages TO service_role;
+
+-- ROLLBACK: drop table if exists public.contact_messages; (loses contact-form history)

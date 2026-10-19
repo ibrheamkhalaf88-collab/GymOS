@@ -1073,6 +1073,18 @@
               </ol>
             </div>
           </div></div>
+          <div class="v2-panel" style="margin-bottom:1rem;"><div class="v2-panel-inner">
+            <div class="section-header"><h2 class="section-title"><span class="icon">☁️</span><span data-i18n="bk.driveStatus">Drive backup status per account</span></h2></div>
+            <div class="overflow-x-auto">
+              <table class="data-table" id="bkDriveStatusTable">
+                <thead><tr>
+                  <th data-i18n="th.code">Code</th><th data-i18n="bk.dsState">State</th><th data-i18n="bk.dsLast">Last Drive backup</th><th data-i18n="bk.dsExpires">Token expires</th>
+                </tr></thead>
+                <tbody id="bkDriveStatusBody"><tr><td colspan="4"><div class="empty-state"><span class="icon">⏳</span></div></td></tr></tbody>
+              </table>
+            </div>
+            <p class="text-xs" style="color:var(--text-muted); margin:.6rem 0 0;" data-i18n="bk.driveStatusNote">Drive backups are customer-device driven — a pulled token stops them silently. Stale ≥ 7 days needs attention.</p>
+          </div></div>
           <div class="v2-panel"><div class="v2-panel-inner">
             <div class="section-header"><h2 class="section-title"><span class="icon">☁️</span><span data-i18n="bk.perAccount">Recovery posture per account</span></h2></div>
             <div class="overflow-x-auto">

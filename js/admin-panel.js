@@ -1225,14 +1225,29 @@ async function restoreUserData(id) {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       showToast('Unsupported file shape / شكل الملف غير مدعوم', 'error'); return;
     }
-    // Accept either our own export ({ codes: [...] }) or a raw gym-data object.
+    // Accept either our own export ({ codes: [...] }), the FULL dump
+    // ({ generatedAt, codes: [toRecord], gyms: [rows], users, … } — v1.4.9,
+    // QA A5: the full dump used to be rejected by this tool), or a raw
+    // gym-data object.
     let targetCode = codes[0];
     let data = null;
     if (Array.isArray(parsed.codes)) {
-      const entry = parsed.codes.find(e => codes.includes(e?.code?.code)) || parsed.codes[0];
-      targetCode = entry?.code?.code || targetCode;
-      const rows = entry.gyms || [];
-      data = (rows.find(g => g.device_id === '') || rows[0])?.data || null;
+      // Full-dump entries are flat toRecord objects ({code: 'X', …});
+      // per-code exports are nested ({code: {code: 'X'}, gyms: [...]}).
+      const flat = parsed.codes.find(e => e?.code && typeof e.code === 'string');
+      const entry = flat
+        ? (parsed.gyms || []).length ? { code: { code: codes.find(c => parsed.gyms.some(g => g.code === c)) || flat.code }, gyms: (parsed.gyms || []).filter(g => codes.includes(g.code)) } : null
+        : parsed.codes.find(e => codes.includes(e?.code?.code)) || parsed.codes[0];
+      if (entry) {
+        targetCode = entry?.code?.code || targetCode;
+        const rows = entry.gyms || [];
+        data = (rows.find(g => g.device_id === '') || rows[0])?.data || null;
+      }
+      if (data == null && Array.isArray(parsed.gyms)) {
+        // full-dump fallback: shared (device_id '') row for one of this account's codes
+        const row = parsed.gyms.find(g => codes.includes(g.code) && g.device_id === '') || parsed.gyms.find(g => codes.includes(g.code));
+        if (row) { targetCode = row.code; data = row.data || null; }
+      }
     } else {
       data = parsed;
     }
@@ -2177,6 +2192,7 @@ const V2_I18N = {
     'ms.resolve': 'Resolve', 'ms.reopen': 'Reopen',
     'ms.resolvedToast': 'Message resolved', 'ms.reopenedToast': 'Message reopened', 'ms.failedToast': 'Update failed',
     'ms.viewTitle': 'Message details', 'ms.from': 'From', 'ms.copyEmail': 'Copy email',
+  'dr.syncOn': 'Turn sync ON', 'dr.syncOff': 'Turn sync OFF',
     // — Overview: expiring soon —
     'ov.expiring': 'Expiring within 14 days', 'ov.expiringHint': 'Click to list these accounts',
     'ov.expiringLocal': 'server list unavailable — showing a local estimate',
@@ -2190,6 +2206,12 @@ const V2_I18N = {
     'bk.step2': 'Paste the redirect URI above into “Authorized redirect URIs”',
     'bk.step3': 'Send GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to إبراهيم to set them as function secrets',
     'bk.redirectCopied': 'Redirect URI copied',
+  // ☁️ Backups: Drive status per account (v1.4.9)
+  'bk.driveStatus': 'Drive backup status per account',
+  'bk.dsState': 'State', 'bk.dsLast': 'Last Drive backup', 'bk.dsExpires': 'Token expires',
+  'bk.driveStatusNote': 'Drive backups are customer-device driven — a pulled token stops them silently. Stale ≥ 7 days needs attention.',
+  'bk.dsNever': 'Never backed up', 'bk.dsStale': 'Stale ≥ 7d', 'bk.dsOk': 'Healthy',
+  'bk.dsExpired': 'token expired', 'bk.dsNone': 'No accounts connected to Drive yet',
     // — Security: 2FA —
     'se.tfaTitle': 'Two-factor authentication (TOTP)', 'se.tfaStatus': 'Status',
     'se.tfaOn': 'Enabled', 'se.tfaOff': 'Disabled',
@@ -2254,6 +2276,7 @@ const V2_I18N = {
     'ms.resolve': 'معالجة', 'ms.reopen': 'إعادة فتح',
     'ms.resolvedToast': 'تم تعليم الرسالة كمعالجة', 'ms.reopenedToast': 'تم إعادة فتح الرسالة', 'ms.failedToast': 'فشل التحديث',
     'ms.viewTitle': 'تفاصيل الرسالة', 'ms.from': 'من', 'ms.copyEmail': 'نسخ البريد',
+  'dr.syncOn': 'تفعيل المزامنة', 'dr.syncOff': 'إيقاف المزامنة',
     // — Overview: expiring soon —
     'ov.expiring': 'ينتهي خلال 14 يوم', 'ov.expiringHint': 'اضغط لعرض هذه الحسابات',
     'ov.expiringLocal': 'قائمة الخادم غير متاحة — يُعرض تقدير محلي',
@@ -2267,6 +2290,12 @@ const V2_I18N = {
     'bk.step2': 'الصق رابط إعادة التوجيه أعلاه في «Authorized redirect URIs»',
     'bk.step3': 'أرسل GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET إلى إبراهيم لضبطهما كسرّي الدالة',
     'bk.redirectCopied': 'تم نسخ رابط التوجيه',
+  // ☁️ Backups: Drive status per account (v1.4.9)
+  'bk.driveStatus': 'حالة نسخ Drive لكل حساب',
+  'bk.dsState': 'الحالة', 'bk.dsLast': 'آخر نسخة Drive', 'bk.dsExpires': 'انتهاء التوكن',
+  'bk.driveStatusNote': 'نسخ Drive تتم من أجهزة العملاء — سحب التوكن يوقفها بصمت. الأقدم من 7 أيام يحتاج انتباهاً.',
+  'bk.dsNever': 'لم تُنسخ أبداً', 'bk.dsStale': 'قديم ≥ 7 أيام', 'bk.dsOk': 'سليم',
+  'bk.dsExpired': 'توكن منتهي', 'bk.dsNone': 'لا حسابات متصلة بـ Drive بعد',
     // — Security: 2FA —
     'se.tfaTitle': 'التحقق بخطوتين (TOTP)', 'se.tfaStatus': 'الحالة',
     'se.tfaOn': 'مفعّل', 'se.tfaOff': 'غير مفعّل',
@@ -2474,6 +2503,28 @@ async function refreshBackupsView() {
     if (accEl) accEl.textContent = v2t('cm.notAvailable');
   }
   if (driveNote) driveNote.textContent = 'Last checked / آخر تحقق: ' + checkedAt;
+  // v1.4.9 (QA A8): Drive backup visibility — per-account last-backup states.
+  // A pulled token shows as never_backed_up/stale instead of failing silently.
+  try {
+    const ds = await api('/api/admin/drive-status');
+    const body2 = document.getElementById('bkDriveStatusBody');
+    if (body2) {
+      const rows = Array.isArray(ds?.rows) ? ds.rows : [];
+      const stateBadge = (s) => {
+        if (s === 'never_backed_up') return '<span class="badge" style="color:#ffcc33;">● ' + esc(v2t('bk.dsNever')) + '</span>';
+        if (s === 'stale') return '<span class="badge" style="color:#ff9800;">⚠ ' + esc(v2t('bk.dsStale')) + '</span>';
+        if (s === 'connected') return '<span class="badge" style="color:#7bd97b;">✔ ' + esc(v2t('bk.dsOk')) + '</span>';
+        return '<span class="badge">' + esc(s) + '</span>';
+      };
+      body2.innerHTML = rows.length ? rows.map(x => '<tr>'
+        + '<td class="mono text-xs">' + esc(x.code) + '</td>'
+        + '<td>' + stateBadge(x.state) + (x.tokenExpired ? ' <span class="badge" style="color:#ff3366;">' + esc(v2t('bk.dsExpired')) + '</span>' : '') + '</td>'
+        + '<td>' + (x.lastBackupAt ? esc(fmtDay(Date.parse(x.lastBackupAt))) + ' <span class="subline">' + esc(fmtAgo(Date.parse(x.lastBackupAt))) + '</span>' : '—') + '</td>'
+        + '<td>' + (x.expiresAt ? esc(fmtDay(Date.parse(x.expiresAt))) : '—') + '</td>'
+        + '</tr>').join('')
+        : '<tr><td colspan="4"><div class="empty-state"><span class="icon">☁️</span><p class="empty-state-text">' + esc(v2t('bk.dsNone')) + '</p></div></td></tr>';
+    }
+  } catch { /* drive-status endpoint unavailable — keep the table as-is */ }
   const body = document.getElementById('bkTableBody');
   if (!body) return;
   try {
@@ -3071,7 +3122,12 @@ async function drRenderData(u) {
         <dt>Last updated</dt><dd>${(g && g.gyms || []).reduce((m, x) => Math.max(m, x.saved_at ? Date.parse(x.saved_at) : 0), 0) ? fmtAgo((g.gyms).reduce((m, x) => Math.max(m, x.saved_at ? Date.parse(x.saved_at) : 0), 0)) : '—'}</dd>
       </dl>
       ${members.length ? `<div class="chart-title" style="margin-bottom:0.3rem;">Members preview (first 5 of ${members.length})</div><ul style="padding-inline-start:1.1rem;">${preview}</ul>` : ''}
-      <p class="text-xs" style="color:var(--text-muted); margin:0.6rem 0 1.2rem;">Full records stay in the account's own cloud row; this drawer never mixes accounts and never edits customer data.</p>`;
+      <p class="text-xs" style="color:var(--text-muted); margin:0.6rem 0 1.2rem;">Full records stay in the account's own cloud row; this drawer never mixes accounts and never edits customer data.</p>
+      <div class="chart-title" style="margin-bottom:0.4rem;">Cloud sync</div>
+      <div class="flex items-center justify-between gap-2 flex-wrap" style="margin-bottom:1.2rem;">
+        <span class="text-sm">${c.sync_enabled !== false ? '<span class="badge" style="color:#7bd97b;">✔ ON</span>' : '<span class="badge" style="color:#ff9800;">OFF</span>'}</span>
+        <button class="btn btn-secondary btn-sm" data-sync-toggle="${esc(c.code)}" data-sync-next="${c.sync_enabled !== false ? '0' : '1'}">${c.sync_enabled !== false ? esc(v2t('dr.syncOff')) : esc(v2t('dr.syncOn'))}</button>
+      </div>`;
   }
   panel.innerHTML = html;
 }
@@ -3370,6 +3426,36 @@ function v2Init() {
   const bkCopy = document.getElementById('bkDriveCopyBtn');
   if (bkCopy) bkCopy.addEventListener('click', () => {
     navigator.clipboard.writeText(redirEl ? redirEl.textContent : '').then(() => showToast(v2t('bk.redirectCopied'), 'success')).catch(() => {});
+  });
+
+  // v1.4.9: cloud-sync toggle (drawer Data tab) with the orphan warning (QA A4)
+  document.getElementById('drt-data')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-sync-toggle]');
+    if (!btn) return;
+    const code = btn.dataset.syncToggle;
+    const turningOn = btn.dataset.syncNext === '1';
+    if (!turningOn) {
+      const ok = await showConfirm({
+        title: 'إيقاف المزامنة السحابية / Turn cloud sync OFF?',
+        message: '⚠ إيقاف المزامنة يفصل بيانات كل جهاز إلى صف منفصل، وعند إعادة التفعيل تُهمَل صفوف الأجهزة ولن تُدمج (الصف المشترك القديم يبقى الكنسي) — قد يبدو وكأن البيانات «فقدت». متأكد؟ / Turning sync OFF splits every device into its own row. On re-enable, per-device rows are ORPHANED (never merged) — the old shared row stays canonical. Devices may look like they lost data. Continue?',
+        icon: '⚠️', iconColor: '#ff9800',
+        okText: 'إيقاف / Turn OFF', okClass: 'btn-warning',
+        cancelText: 'إلغاء / Cancel',
+      });
+      if (!ok) return;
+    }
+    btn.disabled = true;
+    try {
+      // NOTE the body key is sync_enabled (QA A4 contract finding) — a wrong
+      // key here would silently DISABLE sync (!!undefined → false).
+      await api('/api/codes/' + encodeURIComponent(code) + '/sync', { method: 'PATCH', body: JSON.stringify({ sync_enabled: turningOn }) });
+      showToast(turningOn ? 'Cloud sync ON / المزامنة مفعّلة' : 'Cloud sync OFF / المزامنة موقوفة', 'success');
+      V2_CACHE.codes = null;
+      if (typeof drCurrent !== 'undefined' && drCurrent) drRenderData(drCurrent);
+    } catch (err) {
+      showToast('Failed / فشل — ' + (err.message || ''), 'error');
+      btn.disabled = false;
+    }
   });
 
   // 2FA controls

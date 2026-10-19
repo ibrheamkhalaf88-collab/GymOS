@@ -77,3 +77,5 @@ where not exists (select 1 from public.codes c where c.code = g.code);
 --     -> expected 401/403
 --   POST /api/admin/login on the Edge Function -> must still return 200
 --     for valid credentials and 200 for GET /api/users.
+
+-- ROLLBACK: NOT RECOMMENDED (re-opens anon/authenticated writes to customer data). Technically: grant usage/select/insert/update/delete on public.codes, public.gyms to anon, authenticated; alter table ... disable row level security;

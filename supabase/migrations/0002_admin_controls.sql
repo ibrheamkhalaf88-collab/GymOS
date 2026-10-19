@@ -31,3 +31,5 @@ begin
 end $$;
 
 create index if not exists gyms_code_device_idx on public.gyms (code, device_id);
+
+-- ROLLBACK: alter table public.codes drop column if exists data_enabled, drop column if exists sync_enabled, drop column if exists device_limit, drop column if exists devices; alter table public.gyms drop column if exists device_id; (drops admin flags — sync/data behavior reverts to defaults)

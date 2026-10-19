@@ -7,3 +7,5 @@
 alter table public.codes
   add column if not exists revoked_at timestamptz,
   add column if not exists revoked_by text;
+
+-- ROLLBACK: alter table public.codes drop column if exists revoked, drop column if exists revoked_at, drop column if exists revoked_by; (loses revocation history)

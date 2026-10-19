@@ -302,6 +302,10 @@ async function handler(req: Request): Promise<Response> {
       const blob = await createBackup(auth.code);
       const result = await uploadToDrive(accessToken, auth.code, blob);
       await cleanupOldBackups(accessToken, auth.code);
+      // v1.4.9 (QA A8 — silent backup stoppage): stamp the success so the
+      // admin panel can show "last Drive backup" per account. A pulled token
+      // stops this stamp from moving, which is exactly the signal we want.
+      await sb.from("drive_tokens").update({ last_backup_at: new Date().toISOString() }).eq("code", auth.code);
 
       return json({ ok: true, file: result.name, fileId: result.id }, 200, origin);
     }

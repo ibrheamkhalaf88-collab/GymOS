@@ -652,12 +652,21 @@ async function runUserOp(userId, body, req, origin) {
         if (op === "suspend") {
           const meta = { ...existing.app_metadata, suspended: true };
           await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
-          if (primary) await sb.from("codes").update({ account_suspended: true, suspended_at: new Date().toISOString(), suspended_by: ADMIN_EMAIL }).eq("code", primary.code);
+          // v1.4.9 security fix (QA A3 finding #2): mirror suspension to ALL
+          // owned codes, not just the primary — a suspended user could
+          // otherwise still log in through a secondary code they own.
+          const ownedCodes = (codeRows || []).map((c: any) => c.code).filter(Boolean);
+          if (ownedCodes.length) {
+            await sb.from("codes").update({ account_suspended: true, suspended_at: new Date().toISOString(), suspended_by: ADMIN_EMAIL }).in("code", ownedCodes);
+          }
           action = "suspend_user";
         } else if (op === "reactivate") {
           const meta = { ...existing.app_metadata, suspended: false };
           await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
-          if (primary) await sb.from("codes").update({ account_suspended: false, suspended_at: null, suspended_by: null }).eq("code", primary.code);
+          const ownedCodes = (codeRows || []).map((c: any) => c.code).filter(Boolean);
+          if (ownedCodes.length) {
+            await sb.from("codes").update({ account_suspended: false, suspended_at: null, suspended_by: null }).in("code", ownedCodes);
+          }
           action = "reactivate_user";
         } else if (op === "terminate") {
           // expire now: code row + metadata
@@ -826,6 +835,20 @@ async function handler(req: Request): Promise<Response> {
       if (rec.used) {
         const okClaimed = !codeOwner || acceptable.has(codeOwner);
         if (okClaimed) {
+          // v1.4.9 security fix (QA A3 finding #1): the idempotent path used to
+          // mint a full token for ANY deviceId with no limit check and no
+          // registration — an unlimited-device bypass. Enforce the SAME device
+          // gate as a fresh claim: limit check + roster registration.
+          const devicesNow: any[] = Array.isArray(rec.devices) ? rec.devices : [];
+          const knownDev = devicesNow.find((d: any) => d.deviceId === devId);
+          const devLimit = Number(rec.device_limit) || 3;
+          if (!knownDev && devicesNow.length >= devLimit) {
+            return json({ error: "DEVICE_LIMIT", limit: devLimit, traceId }, 429, origin);
+          }
+          if (!knownDev) {
+            devicesNow.push({ deviceId: devId, name: devName, at: Date.now() });
+            await sb.from("codes").update({ devices: devicesNow }).eq("code", rec.code);
+          }
           const token = await signJwt({ code: rec.code, deviceId: devId });
           clearIp(ip);
           return json({ ok: true, idempotent: true, record: toClientRecord(rec), token,
@@ -932,6 +955,17 @@ async function handler(req: Request): Promise<Response> {
       if (!rec || !rec.used) { failIp(ip); return json({ error: "NOT_FOUND" }, 404, origin); }
       if (rec.revoked) { failIp(ip); return json({ error: "REVOKED" }, 403, origin); }
       if (rec.account_suspended === true) { failIp(ip); return json({ error: "SUSPENDED" }, 403, origin); }
+      // v1.4.9 defense-in-depth (QA A3 finding #2): the code row mirror can
+      // lag for stacked codes — consult the OWNER's auth suspension directly
+      // when the owner is a linked auth user ("user:<uuid>" format).
+      if (typeof rec.owner === "string" && rec.owner.startsWith("user:")) {
+        try {
+          const { data: ownerUser } = await sb.auth.admin.getUserById(String(rec.owner).slice(5));
+          if ((ownerUser?.user?.app_metadata as any)?.suspended === true) {
+            failIp(ip); return json({ error: "SUSPENDED" }, 403, origin);
+          }
+        } catch { /* owner lookup is best-effort — the row mirror remains the gate */ }
+      }
       if (!rec.pass_hash) return json({ error: "NO_PASSWORD" }, 400, origin);
       // Credentials gate; expiry gate below — never let an expired licence in.
       const ok = await bcrypt.compare(String(body?.password || ""), rec.pass_hash);
@@ -1103,12 +1137,13 @@ async function handler(req: Request): Promise<Response> {
           password_match: passwordMatch,
           received_len: receivedPassword.length, 
           expected_len: ADMIN_PASSWORD?.length || 0, 
-          expected_prefix: ADMIN_PASSWORD?.slice(0, 4) || "none",
-          received_prefix: receivedPassword.slice(0, 4) || "none",
           raw_body_len: rawBody.length,
           body_is_null: body === null,
-          content_type: req.headers.get("content-type") || "none",
-          raw_body_preview: rawBody.slice(0, 100)
+          content_type: req.headers.get("content-type") || "none"
+          // v1.4.9 security fix (QA A8 finding): REMOVED expected_prefix (4 chars
+          // of the REAL password), received_prefix, and raw_body_preview (the
+          // typed password itself) — the audit log must never store fragments
+          // of credentials.
         }, req);
         return json({ 
           error: "WRONG_CREDENTIALS" 
@@ -1203,10 +1238,36 @@ async function handler(req: Request): Promise<Response> {
           sb.from("gyms").select("*").order("saved_at", { ascending: false }),
         ]);
         if (codesRes.error || gymsRes.error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+        // v1.4.9 (QA A1/A8 preservation gap): the dump used to cover codes+gyms
+        // ONLY — a lost Supabase project meant losing every ACCOUNT. Add auth
+        // users (SAFE fields: no passwords/tokens exist here by design) and
+        // contact messages so the dump is a true full snapshot. Additive keys —
+        // the panel's restore reads gyms only and ignores unknown sections.
+        const allUsers: any[] = [];
+        for (let page = 1; page <= 25; page++) {
+          const { data: uPage } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+          for (const u of uPage?.users || []) {
+            allUsers.push({
+              id: u.id,
+              email: u.email,
+              created_at: u.created_at,
+              last_sign_in_at: u.last_sign_in_at,
+              email_confirmed_at: (u as any).email_confirmed_at ?? null,
+              // user_metadata carries the subscription block; app_metadata only
+              // carries the suspended flag — both are safe and restorable.
+              user_metadata: u.user_metadata || {},
+              app_metadata: { suspended: !!(u.app_metadata as any)?.suspended },
+            });
+          }
+          if ((uPage?.users || []).length < 200) break;
+        }
+        const { data: msgs } = await sb.from("contact_messages").select("*").order("created_at", { ascending: false });
         return json({
           generatedAt: Date.now(),
           codes: (codesRes.data || []).map(toRecord),
           gyms: gymsRes.data || [],
+          users: allUsers,
+          contact_messages: msgs || [],
         }, 200, origin);
       }
       if (req.method === "PUT") {
@@ -1214,6 +1275,12 @@ async function handler(req: Request): Promise<Response> {
         const data = body?.data;
         if (!code) return json({ error: "BAD_REQUEST" }, 400, origin);
         if (!data || typeof data !== "object" || Array.isArray(data)) return json({ error: "BAD_REQUEST" }, 400, origin);
+        // v1.4.9 fix (QA A5 finding): restoring data for a removed/non-existent
+        // code used to succeed with 200 and create an orphan gyms row (data
+        // with no code, no owner, no access). Reject instead — the dump remains
+        // the record, but restore targets living codes only.
+        const { data: liveCode } = await sb.from("codes").select("code").eq("code", code).maybeSingle();
+        if (!liveCode) return json({ error: "NOT_FOUND", message: "Code does not exist — restore refused (orphan protection)" }, 404, origin);
         const { data: cur } = await sb.from("gyms").select("data").eq("code", code).eq("device_id", "").maybeSingle();
         const { error } = await sb.from("gyms").upsert(
           { code, device_id: "", data, saved_at: new Date().toISOString() },
@@ -1223,6 +1290,34 @@ async function handler(req: Request): Promise<Response> {
         return json({ ok: true, previous: cur?.data ?? null }, 200, origin);
       }
       return json({ error: "METHOD_NOT_ALLOWED" }, 405, origin);
+    }
+
+    /* admin: Drive status per account (v1.4.9, QA A8 — silent backup stoppage).
+       Surfaces connected/never-backed-up/stale states so a pulled Drive token
+       is VISIBLE instead of failing silently forever. */
+    if (req.method === "GET" && path === "/api/admin/drive-status") {
+      if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const { data: toks, error } = await sb.from("drive_tokens")
+        .select("code, created_at, expires_at, last_backup_at");
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      const now = Date.now();
+      const rows = (toks || []).map((t: any) => {
+        const last = t.last_backup_at ? Date.parse(t.last_backup_at) : null;
+        const daysSince = last ? Math.floor((now - last) / 86400000) : null;
+        let state = "connected";
+        if (!last) state = "never_backed_up";
+        else if (daysSince != null && daysSince >= 7) state = "stale";
+        return {
+          code: t.code,
+          linkedAt: t.created_at,
+          expiresAt: t.expires_at,
+          lastBackupAt: t.last_backup_at || null,
+          daysSinceBackup: daysSince,
+          state,
+          tokenExpired: t.expires_at ? new Date(t.expires_at).getTime() <= now : false,
+        };
+      });
+      return json({ rows, total: rows.length }, 200, origin);
     }
 
     /* admin: list codes — paginated when query present, legacy array otherwise */
@@ -1795,11 +1890,22 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, suspended: !!suspend }, 200, origin);
     }
 
-    /* admin: delete user */
+    /* admin: delete user — v1.4.9 (QA A8): permanent GoTrue deletion now
+       requires an explicit confirmation token, mirroring the codes pattern
+       (?confirm=DELETE-<userId>). Codes/gyms data is NOT cascaded here —
+       orphan handling is a deliberate separate decision. */
     if (req.method === "DELETE" && path.startsWith("/api/users/")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
       const userId = path.split("/")[3];
       if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
+      const { searchParams } = new URL(req.url);
+      if (searchParams.get("confirm") !== `DELETE-${userId}`) {
+        return json({
+          error: "CONFIRMATION_REQUIRED",
+          message: `Permanent user deletion requires confirmation. Add ?confirm=DELETE-${userId}`,
+          confirmToken: `DELETE-${userId}`
+        }, 400, origin);
+      }
       const { error } = await sb.auth.admin.deleteUser(userId);
       if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
       await logAdminAction(ADMIN_EMAIL, "delete_user", "user", userId, {}, req);

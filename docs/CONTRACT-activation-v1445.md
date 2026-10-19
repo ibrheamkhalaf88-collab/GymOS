@@ -143,3 +143,17 @@ New i18n keys: both en+ar blocks in V2_I18N; inline bilingual strings acceptable
 
 
 - No secrets/Authorization headers in logs or reports. No edits to real customer subscriptions (report conflicts, propose targeted fixes only). Code `Y67R5T` is untouched by tests. Live E2E only with TEST-prefixed records, cleaned up. Admin rate limits shared (30/min/IP): pace calls. Don't trust `Y67R5T`-adjacent data during probes. push/deploy = owner confirmation.
+
+---
+
+## §12 — ملاحظات العقد من جولة القبول النهائي (v1.4.9، 2026-10-19 — من وكلاء QA A3/A4/A5/A7)
+
+هذه ملاحظات سلوك **حية ومؤكدة** — أي عميل/سكربت جديد التزم بها حرفياً:
+
+1. **`PATCH /api/codes/{code}/sync`** — مفتاح الجسم هو **`sync_enabled`** (boolean). إرسال `{enabled:true}` يعطّل المزامنة **بصمت** (`!!undefined → false`). نفس النمط لـ`/data` (`data_enabled`).
+2. **`PATCH /api/codes/{code}/reset-password`** — **يتجاهل** كلمة المرور المرسلة؛ يولّد `tempPassword` (12 محرف) ويعيده **مرة واحدة** في الرد. التقاطه إلزامي.
+3. **`POST /api/auth/login`** يتطلب `used=true` — كود طازج غير مفعّل يرجع `404 NOT_FOUND` (التفعيل يمر حصراً عبر `/api/auth/activate` بهوية جلسة).
+4. **دمج بيانات النادي (`PUT /api/gym` + restore)** يسقط أي مفتاح خارج `members/devices/trainers/ledger/_tombstones` — أي metadata يجب أن تُخزّن داخل مجموعة. الدمج per-item عبر `updatedAt` (الأحدث يفوز).
+5. **`DELETE /api/users/{id}`** (منذ v1.4.9) يتطلب `?confirm=DELETE-<userId>` — نفس نمط حذف الأكواد.
+6. **`PUT /api/admin/backup`** (restore) يرفض **404** أي كود غير موجود (حماية orphan — منذ v1.4.9).
+7. **الـdump الكامل** (`GET /api/admin/backup` بدون scope) منذ v1.4.9: `{generatedAt, codes[], gyms[], users[], contact_messages[]}` — أدوات الاستعادة يجب أن تعرف الأقسام الجديدة (اللوحة تدعمه).
