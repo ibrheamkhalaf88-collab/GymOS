@@ -9,7 +9,7 @@ import { writeSession } from './session.js';
 
 const $    = (sel, root = document) => root.querySelector(sel);
 const msg  = $('#signupMsg');
-const btn  = $('#signupBtn');
+const btn  = $('#sendCodeBtn');
 const form = $('#signupForm');
 const googleBtn = $('#googleBtn');
 let loading = false;
@@ -36,14 +36,14 @@ async function setLoading(on) {
       <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-      </svg> Creating account...</div>`;
+      </svg> Sending code...</div>`;
   } else {
     btn.innerHTML = `
       <div class="flex flex-col items-center">
-        <span>Create Account</span>
-        <span class="text-xs opacity-80" dir="rtl">إنشاء حساب جديد</span>
+        <span>SEND VERIFICATION CODE</span>
+        <span class="text-xs opacity-80" dir="rtl">إرسال رمز التحقق</span>
       </div>
-      <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>`;
+      <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>`;
   }
 }
 
