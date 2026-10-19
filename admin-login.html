@@ -198,7 +198,7 @@
     // Supabase anon key + API URL come from js/config.js (single source of truth)
     const ANON_KEY = appConfig.supabaseAnonKey;
 
-    /* -------- Forgot password -------- */
+    /* -------- Forgot password (OTP) -------- */
     $('#forgotPwdLink').addEventListener('click', async (e) => {
       e.preventDefault();
       const email = $('#adminEmail').value.trim().toLowerCase();
@@ -206,18 +206,34 @@
         setMsg('Enter your email first / أدخل بريدك الإلكتروني أولاً');
         return;
       }
+      if (email !== 'ibrheamshady@gmail.com') {
+        setMsg('Only the admin account can reset via this page / فقط حساب المدير');
+        return;
+      }
       try {
-        let sb = null;
-        try { const mod = await import('./js/supabase-client.js'); sb = mod.supabase; } catch { /* offline */ }
-        if (!sb) throw new Error('offline');
-        const { error } = await sb.auth.resetPasswordForEmail(email, {
-          redirectTo: `${location.origin}${location.pathname.replace(/admin-login\.html$/, '')}reset-password.html`
+        const res = await fetch(`${appConfig.apiUrl}/api/admin/send-reset-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         });
-        if (error) throw error;
-        setMsg(`✅ Reset email sent to ${email} / تم إرسال رابط الاستعادة إلى بريدك`, '#CCFF00');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || 'Failed');
+        setMsg('✅ Reset code sent to your email / تم إرسال رمز الاستعادة إلى بريدك', '#CCFF00');
+        // Prompt for code + new password
+        const code = prompt('Enter the 6-digit code from your email / أدخل رمز 6 أرقام من بريدك:');
+        if (!code) return;
+        const newPw = prompt('Enter new admin password (8+ chars) / أدخل كلمة السر الجديدة (8+ أحرف):');
+        if (!newPw || newPw.length < 8) { setMsg('Password must be 8+ chars / 8 أحرف على الأقل'); return; }
+        const res2 = await fetch(`${appConfig.apiUrl}/api/admin/verify-reset-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, newPassword: newPw }),
+        });
+        const data2 = await res2.json();
+        if (!res2.ok) throw new Error(data2.message || data2.error || 'Reset failed');
+        setMsg('✅ Password updated — sign in with new password / تم تغيير كلمة السر — سجّل الدخول', '#CCFF00');
       } catch (err) {
         console.error('[admin-login] forgotPwd:', err);
-        setMsg('Could not send reset email — try again / تعذر إرسال إيميل الاستعادة');
+        setMsg('Could not reset password — try again / تعذر تغيير كلمة السر');
       }
     });
 
