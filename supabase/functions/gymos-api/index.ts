@@ -472,6 +472,13 @@ const otpVerifyLimiter = limiter(OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS, 2000);
 const tooManyOtpVerify = (ip: string) => otpVerifyLimiter.blocked(ip);
 const failOtpVerify = (ip: string) => otpVerifyLimiter.hit(ip);
 
+// Per-email verify limiter (prevents distributed brute-force on a single email)
+const OTP_EMAIL_VERIFY_WINDOW_MS = 15 * 60 * 1000;
+const OTP_EMAIL_VERIFY_MAX = 10;
+const otpEmailVerifyLimiter = limiter(OTP_EMAIL_VERIFY_MAX, OTP_EMAIL_VERIFY_WINDOW_MS, 5000);
+const tooManyOtpEmailVerify = (email: string) => otpEmailVerifyLimiter.blocked(email);
+const failOtpEmailVerify = (email: string) => otpEmailVerifyLimiter.hit(email);
+
 // per-code activation limit (NAT-safe: keyed by code, not by a shared IP)
 const actLimiter = limiter(20, LOCK_MS);
 const tooManyCode = (code: string) => actLimiter.blocked(code);
@@ -1020,7 +1027,11 @@ async function handler(req: Request): Promise<Response> {
         .eq("email", email).eq("code", code).eq("used", false)
         .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!otpRow) return json({ error: "INVALID_CODE", message: "Invalid or expired code" }, 400, origin);
-      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
+      const { data: updated, error: updateErr } = await sb.from("otp_codes").update({ used: true })
+        .eq("id", otpRow.id).eq("used", false).select("id");
+      if (updateErr || !updated || updated.length === 0) {
+        return json({ error: "INVALID_CODE", message: "Code already used" }, 400, origin);
+      }
       // find code row by owner
       const { data: rec } = await sb.from("codes").select("*").eq("owner", email).maybeSingle();
       if (!rec) return json({ error: "NOT_FOUND", message: "No account for this email" }, 404, origin);
@@ -1038,6 +1049,7 @@ async function handler(req: Request): Promise<Response> {
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await sb.from("otp_codes").insert({ email: ADMIN_EMAIL, code, expires_at: expiresAt });
+      await logAdminAction(ADMIN_EMAIL, "admin_password_reset_requested", "system", null, { method: "otp" }, req);
       const smtpPass = Deno.env.get("SMTP_PASS") || Deno.env.get("smtp_pass") || "";
       if (smtpPass) {
         try {
@@ -1068,9 +1080,16 @@ async function handler(req: Request): Promise<Response> {
         .eq("email", ADMIN_EMAIL).eq("code", code).eq("used", false)
         .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!otpRow) return json({ error: "INVALID_CODE" }, 400, origin);
-      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
-      // store new password in admin_settings
-      await sb.from("admin_settings").upsert({ key: "admin_password", value: newPw, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      const { data: updated, error: updateErr } = await sb.from("otp_codes").update({ used: true })
+        .eq("id", otpRow.id).eq("used", false).select("id");
+      if (updateErr || !updated || updated.length === 0) {
+        return json({ error: "INVALID_CODE", message: "Code already used" }, 400, origin);
+      }
+      // v1.4.11 (security): hash the password with bcrypt before storing.
+      const hashedPw = await bcrypt.hash(newPw, BCRYPT_COST);
+      await sb.from("admin_settings").upsert({ key: "admin_password", value: hashedPw, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      // audit log
+      await logAdminAction(ADMIN_EMAIL, "admin_password_reset", "system", null, { method: "otp" }, req);
       return json({ ok: true, message: "Admin password updated" }, 200, origin);
     }
 
@@ -1078,15 +1097,22 @@ async function handler(req: Request): Promise<Response> {
     if (req.method === "POST" && path === "/api/auth/verify-otp") {
       const ip = clientIp(req);
       if (tooManyOtpVerify(ip)) return json({ error: "RATE_LIMITED", message: "Too many attempts — try again later" }, 429, origin);
-      failOtpVerify(ip);
       const email = String(body?.email || "").trim().toLowerCase();
+      if (email && tooManyOtpEmailVerify(email)) return json({ error: "RATE_LIMITED", message: "Too many attempts for this email — try again later" }, 429, origin);
+      failOtpVerify(ip);
+      if (email) failOtpEmailVerify(email);
       const code = String(body?.code || "").trim();
       if (!email || !code) return json({ error: "BAD_REQUEST" }, 400, origin);
+      // Atomic verify: UPDATE ... WHERE used=false returns 0 rows if already consumed.
       const { data: otpRow } = await sb.from("otp_codes").select("*")
         .eq("email", email).eq("code", code).eq("used", false)
         .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!otpRow) return json({ error: "INVALID_CODE", message: "Invalid or expired code" }, 400, origin);
-      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
+      const { data: updated, error: updateErr } = await sb.from("otp_codes").update({ used: true })
+        .eq("id", otpRow.id).eq("used", false).select("id");
+      if (updateErr || !updated || updated.length === 0) {
+        return json({ error: "INVALID_CODE", message: "Code already used" }, 400, origin);
+      }
       const { data: existingCode } = await sb.from("codes").select("*").eq("owner", email).maybeSingle();
       let rec = existingCode;
       if (!rec) {
@@ -1295,12 +1321,21 @@ async function handler(req: Request): Promise<Response> {
       const receivedPassword = String(body?.password || "");
       const emailMatch = safeEqual(email, ADMIN_EMAIL);
       // Admin password: check DB first (updated via OTP reset), then env var fallback.
+      // v1.4.11 (security): DB-stored passwords are bcrypt-hashed. Legacy
+      // plaintext rows are detected by the absence of a bcrypt prefix and
+      // compared with safeEqual (backward compat) — then re-hashed on next reset.
       let effectiveAdminPassword = ADMIN_PASSWORD;
+      let dbPasswordIsHashed = false;
       try {
         const { data: row } = await sb.from("admin_settings").select("value").eq("key", "admin_password").maybeSingle();
-        if (row?.value) effectiveAdminPassword = row.value;
+        if (row?.value) {
+          effectiveAdminPassword = row.value;
+          dbPasswordIsHashed = /^\$2[aby]\$/.test(row.value);
+        }
       } catch { /* fall back to env */ }
-      const passwordMatch = safeEqual(receivedPassword, effectiveAdminPassword);
+      const passwordMatch = dbPasswordIsHashed
+        ? await bcrypt.compare(receivedPassword, effectiveAdminPassword)
+        : safeEqual(receivedPassword, effectiveAdminPassword);
       if (!emailMatch || !passwordMatch) {
         failAdminIp(ip);
         await logAdminAction(email, "login_failed", "system", null, { 
