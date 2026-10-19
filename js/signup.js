@@ -3,7 +3,7 @@
 // ============================================================
 import { supabase } from './supabase-client.js';
 import { validatePassword } from './validate.js';
-import { APP_BASE } from './config.js';
+import { APP_BASE, appConfig } from './config.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 import { writeSession } from './session.js';
 
@@ -101,146 +101,154 @@ function mapSignupError(err) {
   return `Signup failed — ${err?.message || 'unknown error'}`;
 }
 
-/* -------- Form submit -------- */
+/* -------- OTP helpers -------- */
+let pendingEmail = '';
+let resendCooldownTimer = null;
+
+function showStep(step) {
+  document.getElementById('stepEmail').classList.toggle('hidden', step !== 'email');
+  document.getElementById('stepOtp').classList.toggle('hidden', step !== 'otp');
+}
+
+function getOtpCode() {
+  return Array.from(document.querySelectorAll('.otp-box')).map((b) => b.value).join('');
+}
+
+function clearOtpBoxes() {
+  document.querySelectorAll('.otp-box').forEach((b) => { b.value = ''; });
+}
+
+// Auto-advance between OTP boxes
+document.querySelectorAll('.otp-box').forEach((box, idx, boxes) => {
+  box.addEventListener('input', (e) => {
+    const v = e.target.value.replace(/[^0-9]/g, '');
+    e.target.value = v.slice(0, 1);
+    if (v && idx < boxes.length - 1) boxes[idx + 1].focus();
+  });
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus();
+  });
+  box.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+    text.split('').forEach((ch, i) => { if (boxes[i]) boxes[i].value = ch; });
+    if (text.length === 6) boxes[5].focus();
+  });
+});
+
+/* -------- Step 1: Send OTP -------- */
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (loading) return;
 
-  const email    = $('#email').value.trim().toLowerCase();
-  const password = $('#password').value;
-  const name     = $('#name').value.trim() || email.split('@')[0];
+  const email = $('#email').value.trim().toLowerCase();
+  const name  = $('#name').value.trim() || email.split('@')[0];
 
-  // Validation
-  if (!email || !password) {
-    setMsg('Email and password are required / البريد وكلمة السر مطلوبة');
-    return;
-  }
-  if (!email.includes('@')) {
+  if (!email || !email.includes('@')) {
     setMsg('Invalid email / البريد غير صحيح');
-    return;
-  }
-  if (!validatePassword(password)) {
-    setMsg('Password must be 8+ chars with 1 letter + 1 digit / يجب أن تكون كلمة المرور 8 حروف على الأقل وتحتوي على رقم');
-    return;
-  }
-  if (password !== $('#confirm').value) {
-    setMsg('Passwords do not match / كلمتا المرور غير متطابقتين');
     return;
   }
 
   setLoading(true);
   setMsg('');
 
-  // Try Supabase first
-  let result;
-  if (supabase) {
-    let realError = null;
-    try {
-      const { error, data } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          /* Land the confirmation link on our PKCE callback so supabase-js
-             exchanges the code and signs the user in (same path as resend). */
-          emailRedirectTo: `${APP_BASE}auth/callback.html`,
-          data: {
-            name: name,
-            subscription: 'trial',
-            subStart: Date.now(),
-            subEnd: Date.now() + 30 * 86400000,
-            subTier: 'free_trial',
-          },
-        },
-      });
-
-      if (error) { realError = error; throw error; }
-
-      if (data.user) {
-        /* Email confirmation is ON for this project: when the user has to
-           confirm first, signUp returns NO session and the address will not
-           sign in until the link is clicked. Auto-entering the app here is
-           what made users feel "the account exists but login is stuck". */
-        if (!data.session) {
-          // Defensive fallback (shouldn't trigger now that mailer_autoconfirm=true):
-          // if Supabase ever requires confirmation again, surface a clear message
-          // and send the user to login instead of a dead-end screen.
-          setMsg('Account created — please sign in to continue / تم إنشاء الحساب — سجّل الدخول للمتابعة', '#CCFF00');
-          setLoading(false);
-          setTimeout(() => { window.location.href = 'login.html'; }, 1500);
-          return;
-        }
-        result = {
-          ok: true,
-          user: {
-            id: data.user.id,
-            email: data.user.email,
-            name: name,
-            status: 'active',
-            subscription: 'trial',
-            subStart: Date.now(),
-            subEnd: Date.now() + 30 * 86400000,
-            subTier: 'free_trial',
-          }
-        };
-      } else {
-        throw new Error('No user returned');
-      }
-    } catch (err) {
-      if (realError) {
-        // Real Supabase error (already-registered email, weak remote password, …) —
-        // surface it instead of silently creating a local demo account.
-        setMsg(mapSignupError(realError));
-        setLoading(false);
-        return;
-      }
-      console.warn('[signup] Supabase failed, falling back to demo:', err?.message || err);
-    }
+  if (!supabase) {
+    setMsg('No connection / لا اتصال');
+    setLoading(false);
+    return;
   }
 
-  if (!result) {
-    // NEVER invent a local lookalike account when a real identity already lives
-    // on this device (session, saved user or licence): the demo record uses a
-    // different id, so it would hide the real data behind another namespace.
-    const hasRealIdentity = localStorage.getItem('dp_current_user') || localStorage.getItem('dp_license')
-      || Object.keys(localStorage).some((k) => k.startsWith('sb-') && k.endsWith('-auth-token'));
-    if (hasRealIdentity) {
-      setMsg('لا يوجد اتصال بالإنترنت — أعد المحاولة / No internet connection — please try again');
-      setLoading(false);
-      return;
-    }
-    result = await demoSignUp(email, password, name);
-    if (!result.ok) {
-      setMsg(result.error || 'Signup failed');
-      setLoading(false);
-      return;
-    }
-  }
-
-  // Success
-  // Signup OK — 30-day free trial, then admin approves
-
-  // Store user for immediate login.
-  // session.js is the single writer for dp_current_user: it persists ONLY the
-  // normalised shape — passHash/plainPassword and any other stray field are
-  // dropped structurally, so no password can ever live inside the session.
-  writeSession(result.user);
-
-  // Mint/adopt the server code for this account right away — without it the
-  // account's data never syncs and a second device would show an empty gym.
   try {
-    if (supabase) {
-      const { linkCloudIdentity } = await import('./cloud-link.js');
-      await linkCloudIdentity(supabase);
-    }
-  } catch {}
+    const res = await fetch(`${appConfig.apiUrl}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error || 'Failed to send code');
 
-  // Auto-login after signup
-  setMsg('✓ Account created — 30 days free / أنشأت حسابك — لديك 30 يوم مجاني ثم يفعّل الأدمن', '#CCFF00');
-  setLoading(false);
+    pendingEmail = email;
+    $('#otpEmail').textContent = email;
+    showStep('otp');
+    clearOtpBoxes();
+    document.querySelectorAll('.otp-box')[0].focus();
+    setMsg('✓ Code sent — check your email / تم إرسال الرمز — افحص بريدك', '#CCFF00');
+  } catch (err) {
+    setMsg(`Signup failed — ${err?.message || 'unknown error'}`);
+  } finally {
+    setLoading(false);
+  }
+});
 
-  setTimeout(() => {
-    window.location.href = 'app.html';
-  }, 1500);
+/* -------- Step 2: Verify OTP -------- */
+document.getElementById('verifyOtpBtn').addEventListener('click', async () => {
+  if (loading) return;
+  const code = getOtpCode();
+  if (code.length !== 6) {
+    setMsg('Enter the full 6-digit code / أدخل الرمز كاملاً (6 أرقام)');
+    return;
+  }
+
+  setLoading(true);
+  setMsg('');
+
+  try {
+    const res = await fetch(`${appConfig.apiUrl}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: pendingEmail, code, deviceId: localStorage.getItem('dp_device_id') || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error || 'Verification failed');
+
+    const { setJwt } = await import('./db.js');
+    setJwt(data.token);
+
+    writeSession(data.user);
+
+    const { license } = await import('./license.js');
+    license.save(data.record);
+
+    localStorage.setItem('dp_license_mode', 'online');
+    localStorage.setItem('dp_cloud', '1');
+    // dp_current_user is written ONLY via writeSession() (INV5). Already called above.
+
+    setMsg('✓ Verified — welcome! / تم التحقق — أهلاً بك', '#CCFF00');
+    setTimeout(() => { window.location.href = 'app.html'; }, 1200);
+  } catch (err) {
+    setMsg(`Invalid code — ${err?.message || 'try again'} / رمز خاطئ — حاول مرة ثانية`);
+    clearOtpBoxes();
+    document.querySelectorAll('.otp-box')[0].focus();
+  } finally {
+    setLoading(false);
+  }
+});
+
+/* -------- Resend + Back -------- */
+document.getElementById('resendOtpBtn').addEventListener('click', async () => {
+  if (loading) return;
+  setLoading(true);
+  setMsg('');
+  try {
+    const res = await fetch(`${appConfig.apiUrl}/api/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: pendingEmail }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error || 'Failed to resend');
+    setMsg('✓ Code resent / تم إعادة إرسال الرمز', '#CCFF00');
+  } catch (err) {
+    setMsg(`Resend failed — ${err?.message || 'try later'} / فشل الإرسال — حاول لاحقاً`);
+  } finally {
+    setLoading(false);
+  }
+});
+
+document.getElementById('backToEmailBtn').addEventListener('click', () => {
+  showStep('email');
+  clearOtpBoxes();
+  setMsg('');
 });
 
 /* -------- Email confirmation disabled (mailer_autoconfirm=true) --------

@@ -205,65 +205,86 @@
         </div>
       </div>
 
-      <!-- FORM -->
+      <!-- FORM — 2-step OTP (email → 6-digit code) -->
       <form id="signupForm" autocomplete="off">
-        <!-- Name (optional) -->
-        <div class="form-field">
-          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Full Name / الاسم الكامل (اختياري)</label>
-          <input id="name" type="text" class="auth-input" placeholder="Your Name or Gym Name" />
-        </div>
-
-        <!-- Email -->
-        <div class="form-field">
-          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Email / البريد الإلكتروني</label>
-          <input id="email" type="email" required class="auth-input" placeholder="you@gym.com" />
-        </div>
-
-        <!-- Password -->
-        <div class="form-field">
-          <div class="flex justify-between items-center">
-            <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Password / كلمة السر</label>
-            <span class="text-xs text-[#CCFF00]">8+ chars</span>
+        <!-- STEP 1: Email -->
+        <div id="stepEmail">
+          <!-- Name (optional) -->
+          <div class="form-field">
+            <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Full Name / الاسم الكامل (اختياري)</label>
+            <input id="name" type="text" class="auth-input" placeholder="Your Name or Gym Name" />
           </div>
-          <input id="password" type="password" required minlength="8" class="auth-input" placeholder="8+ characters" />
-        </div>
 
-        <!-- Confirm -->
-        <div class="form-field">
-          <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Confirm Password / تأكيد كلمة السر</label>
-          <input id="confirm" type="password" required minlength="8" class="auth-input" placeholder="Repeat password" />
-        </div>
-
-        <!-- Submit -->
-        <button type="submit" id="signupBtn" class="auth-btn">
-          <div class="flex flex-col items-center">
-            <span>CREATE ACCOUNT</span>
-            <span class="text-xs opacity-80" dir="rtl">إنشاء حساب</span>
+          <div class="form-field">
+            <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Email / البريد الإلكتروني</label>
+            <input id="email" type="email" required class="auth-input" placeholder="you@gym.com" />
           </div>
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-        </button>
 
-        <!-- Google divider -->
-        <div class="divider relative flex items-center">
-          <div class="flex-1 h-px bg-[#333333]"></div>
-          <span class="px-4 text-xs uppercase tracking-widest opacity-50" style="color:#c4c9ac;">or continue with</span>
-          <div class="flex-1 h-px bg-[#333333]"></div>
+          <button type="submit" id="sendCodeBtn" class="auth-btn">
+            <div class="flex flex-col items-center">
+              <span>SEND VERIFICATION CODE</span>
+              <span class="text-xs opacity-80" dir="rtl">إرسال رمز التحقق</span>
+            </div>
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg>
+          </button>
+
+          <!-- Google divider -->
+          <div class="divider relative flex items-center">
+            <div class="flex-1 h-px bg-[#333333]"></div>
+            <span class="px-4 text-xs uppercase tracking-widest opacity-50" style="color:#c4c9ac;">or continue with</span>
+            <div class="flex-1 h-px bg-[#333333]"></div>
+          </div>
+
+          <button id="googleBtn" type="button" class="auth-alt-btn">
+            <svg viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.82 14.97 2 12 2 7.7 2 3.99 4.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="ltr">Sign up with Google</span>
+            <span class="font-arabic normal-case">التسجيل بـ Google</span>
+          </button>
         </div>
 
-        <!-- Google button -->
-        <button id="googleBtn" type="button" class="auth-alt-btn">
-          <svg viewBox="0 0 24 24">
-            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.82 14.97 2 12 2 7.7 2 3.99 4.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-          </svg>
-          <span class="ltr">Sign up with Google</span>
-          <span class="font-arabic normal-case">التسجيل بـ Google</span>
-        </button>
+        <!-- STEP 2: OTP (hidden until code sent) -->
+        <div id="stepOtp" class="hidden">
+          <div class="text-center mb-6">
+            <div class="w-16 h-16 mx-auto rounded-full border-2 flex items-center justify-center mb-4" style="border-color:#C3F400; background-color:#333627;">
+              <svg class="h-8 w-8" viewBox="0 0 24 24" fill="#C3F400"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            </div>
+            <h3 class="font-headline text-lg uppercase tracking-tight" style="color:#C3F400;">Enter Verification Code</h3>
+            <h3 class="font-headline text-lg arabic-text" dir="rtl" style="color:#C3F400;">أدخل رمز التحقق</h3>
+            <p class="text-sm mt-2" style="color:#c4c9ac;">We sent a 6-digit code to</p>
+            <p id="otpEmail" class="font-headline font-bold mt-1" style="color:#CCFF00;"></p>
+            <p class="text-xs arabic-text mt-1" dir="rtl" style="color:#8e9379;">أرسلنا رمز 6 أرقام إلى بريدك</p>
+          </div>
+
+          <!-- 6-digit OTP boxes -->
+          <div class="flex justify-center gap-2 mb-6" dir="ltr">
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" pattern="[0-9]" />
+          </div>
+
+          <button type="button" id="verifyOtpBtn" class="auth-btn mb-4">
+            <div class="flex flex-col items-center">
+              <span>VERIFY & CREATE ACCOUNT</span>
+              <span class="text-xs opacity-80" dir="rtl">تحقق وإنشاء حساب</span>
+            </div>
+          </button>
+
+          <div class="flex items-center justify-between text-xs" style="color:#c4c9ac;">
+            <button type="button" id="backToEmailBtn" class="hover:underline" style="color:#CCFF00;">← Change email / تغيير البريد</button>
+            <button type="button" id="resendOtpBtn" class="hover:underline" style="color:#CCFF00;">Resend code / إعادة إرسال</button>
+          </div>
+        </div>
 
         <!-- Login link -->
-        <div class="links-row flex flex-col items-center gap-2">
+        <div class="links-row flex flex-col items-center gap-2 mt-4">
           <p style="color:#c7c6c6;">
             Already have an account?
             <a href="login.html" class="text-[#CCFF00] font-headline hover:underline ml-1">Sign In / تسجيل الدخول</a>

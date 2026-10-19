@@ -534,6 +534,106 @@ if (checkExistingSession()) { /* auto-redirecting to app.html */ }
 // browser → com.digitalpulse.gym://auth/callback.html → auth/callback.html).
 armNativeOAuthReturn();
 
+/* -------- OTP login (passwordless) -------- */
+// Toggle between password and OTP mode
+const otpToggle = document.getElementById('otpLoginToggle');
+const passField = document.getElementById('passField');
+const otpField = document.getElementById('otpField');
+const verifyLoginOtpBtn = document.getElementById('verifyLoginOtpBtn');
+const backToPassBtn = document.getElementById('backToPassBtn');
+
+if (otpToggle) {
+  otpToggle.addEventListener('click', () => {
+    if (passField) passField.classList.add('hidden');
+    if (otpField) otpField.classList.remove('hidden');
+    const emailInput = document.getElementById('email');
+    if (emailInput && !emailInput.value.includes('@')) {
+      setMsg('Enter your email first / أدخل بريدك أولاً');
+    }
+  });
+}
+
+if (backToPassBtn) {
+  backToPassBtn.addEventListener('click', () => {
+    if (passField) passField.classList.remove('hidden');
+    if (otpField) otpField.classList.add('hidden');
+    setMsg('');
+  });
+}
+
+// Auto-advance OTP boxes
+document.querySelectorAll('#otpField .otp-box').forEach((box, idx, boxes) => {
+  box.addEventListener('input', (e) => {
+    const v = e.target.value.replace(/[^0-9]/g, '');
+    e.target.value = v.slice(0, 1);
+    if (v && idx < boxes.length - 1) boxes[idx + 1].focus();
+  });
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus();
+  });
+});
+
+function getLoginOtpCode() {
+  return Array.from(document.querySelectorAll('#otpField .otp-box')).map((b) => b.value).join('');
+}
+
+// Verify OTP login
+if (verifyLoginOtpBtn) {
+  verifyLoginOtpBtn.addEventListener('click', async () => {
+    const email = $('#email').value.trim().toLowerCase();
+    const code = getLoginOtpCode();
+    if (!email || !email.includes('@')) { setMsg('Enter your email first / أدخل بريدك أولاً'); return; }
+    if (code.length !== 6) { setMsg('Enter full 6-digit code / أدخل الرمز كاملاً'); return; }
+    setLoading(true); setMsg('');
+    try {
+      const { appConfig } = await import('./config.js');
+      const res = await fetch(`${appConfig.apiUrl}/api/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, deviceId: localStorage.getItem('dp_device_id') || '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Verification failed');
+      const { setJwt } = await import('./db.js');
+      setJwt(data.token);
+      const { writeSession } = await import('./session.js');
+      writeSession(data.user);
+      const { license } = await import('./license.js');
+      license.save(data.record);
+      localStorage.setItem('dp_license_mode', 'online');
+      localStorage.setItem('dp_cloud', '1');
+      setMsg('✓ Welcome! / أهلاً بك', '#CCFF00');
+      setTimeout(() => { window.location.href = 'app.html'; }, 800);
+    } catch (err) {
+      setMsg(`Invalid code — ${err?.message || 'try again'} / رمز خاطئ`);
+      document.querySelectorAll('#otpField .otp-box').forEach((b) => { b.value = ''; });
+    } finally {
+      setLoading(false);
+    }
+  });
+}
+
+// Send OTP on email blur (when in OTP mode and email is valid)
+const emailInput = document.getElementById('email');
+if (emailInput) {
+  emailInput.addEventListener('blur', async () => {
+    if (!otpField || otpField.classList.contains('hidden')) return;
+    const email = emailInput.value.trim().toLowerCase();
+    if (!email || !email.includes('@')) return;
+    try {
+      const { appConfig } = await import('./config.js');
+      await fetch(`${appConfig.apiUrl}/api/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      setMsg('✓ Code sent / تم إرسال الرمز', '#CCFF00');
+    } catch (e) {
+      setMsg('Failed to send code / فشل الإرسال');
+    }
+  });
+}
+
 /* -------- Safety net: force-unfreeze loading after 30s (last resort) -------- */
 setTimeout(() => {
   if (loading) {

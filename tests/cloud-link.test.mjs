@@ -65,7 +65,9 @@ test("client: db.js exposes discover + mint helpers with the session's bearer", 
 });
 
 test("client: login, signup and app-boot all adopt the cloud code (never blocking)", () => {
-  for (const [name, src] of [["login", login], ["signup", signup], ["app", app]]) {
+  // signup migrated to custom OTP (verify-otp) which mints its own code — it
+  // no longer calls linkCloudIdentity. login + app-boot still adopt via Supabase.
+  for (const [name, src] of [["login", login], ["app", app]]) {
     assert.match(src, /linkCloudIdentity/, `${name}.js must adopt the account's code`);
   }
   assert.match(link, /if \(e\?\.code !== "NO_CODE"\) throw e;/); // only NO_CODE mints a trial

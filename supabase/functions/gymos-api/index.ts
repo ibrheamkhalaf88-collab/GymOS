@@ -951,6 +951,129 @@ async function handler(req: Request): Promise<Response> {
         dataMoved, traceId }, 200, origin, dataMoved ? { "X-Data-Moved": "true" } : undefined);
     }
 
+    /* POST /api/auth/send-otp — generate 6-digit code, store, send via SMTP */
+    if (req.method === "POST" && path === "/api/auth/send-otp") {
+      const email = String(body?.email || "").trim().toLowerCase();
+      if (!email || !email.includes("@")) return json({ error: "BAD_REQUEST" }, 400, origin);
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const { error: insertErr } = await sb.from("otp_codes").insert({ email, code, expires_at: expiresAt });
+      if (insertErr) return json({ error: "INTERNAL_ERROR", message: insertErr.message }, 500, origin);
+      const smtpUser = "digitalpulse.ps@gmail.com";
+      const smtpPass = Deno.env.get("SMTP_PASS") || Deno.env.get("smtp_pass") || "";
+      if (smtpPass) {
+        try {
+          const nodemailer = await import("npm:nodemailer@6.10.0");
+          const transport = nodemailer.default.createTransport({
+            host: "smtp.gmail.com", port: 465, secure: true,
+            auth: { user: smtpUser, pass: smtpPass },
+          });
+          await transport.sendMail({
+            from: smtpUser, to: email,
+            subject: "رمز التحقق / Your verification code — Digital Pulse",
+            html: `<div style="background:#0a0a0a;padding:36px 12px;text-align:center;"><div style="max-width:480px;margin:0 auto;background:#000;border:1px solid #444933;border-radius:14px;padding:34px 24px;"><p style="color:#C3F400;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;margin:12px 0;">DIGITAL PULSE</p><h2 style="color:#fff;font-size:19px;margin:12px 0;" dir="rtl">رمز التحقق / Verification Code</h2><p style="color:#c4c9ac;font-size:14px;margin:8px 0;" dir="rtl">أدخل هذا الرمز في الموقع للتحقق من بريدك</p><p style="color:#CCFF00;font-size:36px;font-weight:bold;letter-spacing:8px;margin:20px 0;">${code}</p><p style="color:#5a5e4a;font-size:12px;margin:0;" dir="rtl">إذا لم تطلب هذا الرمز، تجاهل هذا البريد.</p></div></div>`,
+          });
+        } catch (e) {
+          console.error("[send-otp] email failed:", e);
+        }
+      }
+      return json({ ok: true }, 200, origin);
+    }
+
+    /* POST /api/auth/reset-password-otp — verify code, set new password */
+    if (req.method === "POST" && path === "/api/auth/reset-password-otp") {
+      const email = String(body?.email || "").trim().toLowerCase();
+      const code = String(body?.code || "").trim();
+      const newPw = String(body?.newPassword || "");
+      if (!email || !code || newPw.length < 8) return json({ error: "BAD_REQUEST", message: "email, code, and newPassword(8+) required" }, 400, origin);
+      // verify OTP
+      const { data: otpRow } = await sb.from("otp_codes").select("*")
+        .eq("email", email).eq("code", code).eq("used", false)
+        .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!otpRow) return json({ error: "INVALID_CODE", message: "Invalid or expired code" }, 400, origin);
+      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
+      // find code row by owner
+      const { data: rec } = await sb.from("codes").select("*").eq("owner", email).maybeSingle();
+      if (!rec) return json({ error: "NOT_FOUND", message: "No account for this email" }, 404, origin);
+      const pass_hash = await bcrypt.hash(newPw, BCRYPT_COST);
+      const { error } = await sb.from("codes").update({ pass_hash }).eq("code", rec.code);
+      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      return json({ ok: true, message: "Password reset successful" }, 200, origin);
+    }
+
+    /* POST /api/admin/send-reset-otp — send OTP to admin email */
+    if (req.method === "POST" && path === "/api/admin/send-reset-otp") {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      await sb.from("otp_codes").insert({ email: ADMIN_EMAIL, code, expires_at: expiresAt });
+      const smtpPass = Deno.env.get("SMTP_PASS") || Deno.env.get("smtp_pass") || "";
+      if (smtpPass) {
+        try {
+          const nodemailer = await import("npm:nodemailer@6.10.0");
+          const transport = nodemailer.default.createTransport({
+            host: "smtp.gmail.com", port: 465, secure: true,
+            auth: { user: "digitalpulse.ps@gmail.com", pass: smtpPass },
+          });
+          await transport.sendMail({
+            from: "digitalpulse.ps@gmail.com", to: ADMIN_EMAIL,
+            subject: "رمز تغيير كلمة سر الأدمن / Admin password reset code",
+            html: `<div style="background:#0a0a0a;padding:36px 12px;text-align:center;"><div style="max-width:480px;margin:0 auto;background:#000;border:1px solid #444933;border-radius:14px;padding:34px 24px;"><p style="color:#C3F400;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;margin:12px 0;">DIGITAL PULSE — ADMIN</p><h2 style="color:#fff;font-size:19px;margin:12px 0;" dir="rtl">رمز تغيير كلمة السر</h2><p style="color:#CCFF00;font-size:36px;font-weight:bold;letter-spacing:8px;margin:20px 0;">${code}</p><p style="color:#5a5e4a;font-size:12px;margin:0;" dir="rtl">إذا لم تطلب هذا، تجاهل هذا البريد.</p></div></div>`,
+          });
+        } catch (e) { console.error("[admin send-reset-otp] email failed:", e); }
+      }
+      return json({ ok: true }, 200, origin);
+    }
+
+    /* POST /api/admin/verify-reset-otp — verify code, set new admin password */
+    if (req.method === "POST" && path === "/api/admin/verify-reset-otp") {
+      const code = String(body?.code || "").trim();
+      const newPw = String(body?.newPassword || "");
+      if (!code || newPw.length < 8) return json({ error: "BAD_REQUEST" }, 400, origin);
+      const { data: otpRow } = await sb.from("otp_codes").select("*")
+        .eq("email", ADMIN_EMAIL).eq("code", code).eq("used", false)
+        .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!otpRow) return json({ error: "INVALID_CODE" }, 400, origin);
+      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
+      // store new password in admin_settings
+      await sb.from("admin_settings").upsert({ key: "admin_password", value: newPw, updated_at: new Date().toISOString() }, { onConflict: "key" });
+      return json({ ok: true, message: "Admin password updated" }, 200, origin);
+    }
+
+    /* POST /api/auth/verify-otp — verify code, create/find code, generate JWT */
+    if (req.method === "POST" && path === "/api/auth/verify-otp") {
+      const email = String(body?.email || "").trim().toLowerCase();
+      const code = String(body?.code || "").trim();
+      if (!email || !code) return json({ error: "BAD_REQUEST" }, 400, origin);
+      const { data: otpRow } = await sb.from("otp_codes").select("*")
+        .eq("email", email).eq("code", code).eq("used", false)
+        .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!otpRow) return json({ error: "INVALID_CODE", message: "Invalid or expired code" }, 400, origin);
+      await sb.from("otp_codes").update({ used: true }).eq("id", otpRow.id);
+      const { data: existingCode } = await sb.from("codes").select("*").eq("owner", email).maybeSingle();
+      let rec = existingCode;
+      if (!rec) {
+        const newCode = normCode(randomCode());
+        const insert = {
+          code: newCode, tier: "trial", days: 30, source: "otp",
+          owner: email, note: "OTP signup", data_enabled: true, sync_enabled: true,
+          device_limit: 3,
+        };
+        const { data: newRec, error } = await sb.from("codes").insert(insert).select("*").maybeSingle();
+        if (error) return json({ error: "INTERNAL_ERROR", message: error.message }, 500, origin);
+        rec = newRec;
+      }
+      const now = Date.now();
+      const days = Number(rec.days) || 30;
+      const subEnd = rec.tier === "lifetime" || rec.tier === "none" ? null : new Date(now + days * 86400000).toISOString();
+      const user = {
+        id: rec.code, email, name: email.split("@")[0],
+        status: "active", subscription: rec.tier === "lifetime" ? "active" : rec.tier,
+        subStart: new Date(now).toISOString(), subEnd, subTier: rec.tier,
+      };
+      const token = signJwt({ code: rec.code, deviceId: String(body?.deviceId || "") });
+      return json({ ok: true, token, user, record: toClientRecord(rec) }, 200, origin);
+    }
+
     /* client login */
     if (req.method === "POST" && path === "/api/auth/login") {
       const ip = clientIp(req);
@@ -1133,7 +1256,13 @@ async function handler(req: Request): Promise<Response> {
       const email = String(body?.email || "").toLowerCase().trim();
       const receivedPassword = String(body?.password || "");
       const emailMatch = safeEqual(email, ADMIN_EMAIL);
-      const passwordMatch = safeEqual(receivedPassword, ADMIN_PASSWORD);
+      // Admin password: check DB first (updated via OTP reset), then env var fallback.
+      let effectiveAdminPassword = ADMIN_PASSWORD;
+      try {
+        const { data: row } = await sb.from("admin_settings").select("value").eq("key", "admin_password").maybeSingle();
+        if (row?.value) effectiveAdminPassword = row.value;
+      } catch { /* fall back to env */ }
+      const passwordMatch = safeEqual(receivedPassword, effectiveAdminPassword);
       if (!emailMatch || !passwordMatch) {
         failAdminIp(ip);
         await logAdminAction(email, "login_failed", "system", null, { 

@@ -279,6 +279,43 @@ async function initApp() {
   // Background auth hydration with timeout protection
   await hydrateAuth();
   
+  // Admin-only button: visible only to the admin email (not in settings).
+  try {
+    const adminEmail = (appConfig?.adminEmail || '').toLowerCase();
+    let userEmail = '';
+    // Check Supabase session
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) userEmail = session.user.email.toLowerCase();
+    }
+    // Check dp_current_user (email or code-based)
+    if (!userEmail) {
+      try {
+        const u = JSON.parse(localStorage.getItem('dp_current_user') || 'null');
+        if (u?.email) userEmail = String(u.email).toLowerCase();
+      } catch {}
+    }
+    // Check license owner
+    if (!userEmail) {
+      try {
+        const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
+        if (lic?.owner && lic.owner.includes('@')) userEmail = String(lic.owner).toLowerCase();
+      } catch {}
+    }
+    const isAdmin = adminEmail && userEmail && userEmail === adminEmail;
+    const adminBtn = document.getElementById('adminPanelBtn');
+    if (adminBtn) {
+      if (isAdmin) {
+        adminBtn.classList.remove('hidden');
+        adminBtn.addEventListener('click', () => { window.location.href = 'admin.html'; });
+      } else {
+        adminBtn.classList.add('hidden');
+      }
+    }
+  } catch (e) {
+    console.warn('[initApp] admin check failed:', e?.message);
+  }
+  
   // Hide loading overlay after initialization
   const loadingOverlay = document.getElementById('loadingOverlay');
   if (loadingOverlay) {

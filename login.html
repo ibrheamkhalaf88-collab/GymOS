@@ -241,7 +241,7 @@
         </div>
 
         <!-- Password with forgot link -->
-        <div class="form-field">
+        <div id="passField" class="form-field">
           <div class="flex justify-between items-center">
             <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">
               Password / كلمة السر
@@ -252,6 +252,32 @@
           </div>
           <input id="password" type="password" required minlength="8" autocomplete="current-password"
             class="auth-input" placeholder="8+ characters" />
+        </div>
+
+        <!-- OTP boxes (hidden until "Login with code" clicked) -->
+        <div id="otpField" class="hidden">
+          <div class="flex justify-center gap-2 my-4" dir="ltr">
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+          </div>
+          <button type="button" id="verifyLoginOtpBtn" class="auth-btn mb-2">
+            <div class="flex flex-col items-center">
+              <span>VERIFY & SIGN IN</span>
+              <span class="text-xs opacity-80" dir="rtl">تحقق وتسجيل الدخول</span>
+            </div>
+          </button>
+          <button type="button" id="backToPassBtn" class="text-xs hover:underline mb-4" style="color:#CCFF00;">← Use password / استخدام كلمة السر</button>
+        </div>
+
+        <!-- Toggle link -->
+        <div class="text-center mb-4">
+          <button type="button" id="otpLoginToggle" class="text-xs hover:underline" style="color:#CCFF00;">
+            No password? Login with code / لا توجد كلمة سر؟ دخول برمز
+          </button>
         </div>
 
         <!-- Submit button -->
