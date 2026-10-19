@@ -405,6 +405,11 @@ form.addEventListener("submit", async (e) => {
     license.save(result.record);
     sessionFromCode(result.record);
     localStorage.setItem("dp_license_mode", codesDb.mode());
+    // Auto-enable cloud sync: activation already mints a JWT, so no manual
+    // "enable cloud" / password step is required for data upload. (Fixes the
+    // "client must enable sync by hand" friction.)
+    const _lic = license.get();
+    localStorage.setItem("dp_cloud", (isOnline && _lic && _lic.data_enabled !== false) ? "1" : "0");
     markDigits("success");
     if (result.alreadyUsed) {
       // This code was already activated on another device, which is exactly how

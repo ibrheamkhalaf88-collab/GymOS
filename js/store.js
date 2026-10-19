@@ -15,6 +15,19 @@ const AUDIT_MAX = 5000; // احتفظ بـ 5000 عملية كحد أقصى
 const listeners = new Map();
 let _suppressCloud = false;
 
+// Single source of truth for "is cloud sync allowed to run?". dp_cloud is the
+// explicit flag, but a licence with data_enabled implies sync is on — so a
+// freshly activated code (which mints a JWT but never asked for a password)
+// still uploads automatically instead of waiting for a manual "enable cloud".
+function cloudEnabled() {
+  if (localStorage.getItem("dp_cloud") === "1") return true;
+  try {
+    const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
+    if (lic && lic.code && lic.data_enabled !== false && lic.sync_enabled !== false) return true;
+  } catch {}
+  return false;
+}
+
 // ---- Per-account data isolation ----
 // كل حساب له نطاق تخزين خاص به (dp_<id>_members …) حتى لا يرى أو يمسح أحدهم
 // بيانات الآخر على نفس الجهاز. قبل الحسابات كانت البيانات عمومية على الجهاز.
@@ -119,7 +132,18 @@ function getAuditLog(options = {}) {
 }
 
 function write(col, list) {
-  localStorage.setItem(memColKey(col), JSON.stringify(list));
+  const key = memColKey(col);
+  const payload = JSON.stringify(list);
+  try {
+    localStorage.setItem(key, payload);
+  } catch (e) {
+    // Quota exceeded (or private mode): never silently lose the write. Surface
+    // it so the UI can warn the user to export a backup instead of pretending
+    // the data was saved.
+    console.warn("[GymOS] localStorage write failed:", e && e.message, "for", col);
+    try { window.dispatchEvent(new CustomEvent("dp:storagefull", { detail: { col, error: e && e.message } })); } catch {}
+    // Do not throw — callers expect void; the event above is the signal.
+  }
   emit(col, list);
   if (!_suppressCloud) queueCloudSave();
 }
@@ -162,14 +186,14 @@ function noteAuthFailure() {
 
 function resumeAutoSync() {
   if (_syncTimer) return;
-  if (localStorage.getItem("dp_cloud") !== "1") return;
+  if (!cloudEnabled()) return;
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   _syncTimer = setInterval(syncNow, 20000);
 }
 
 function syncStatus() {
-  const enabled = localStorage.getItem("dp_cloud") === "1";
+  const enabled = cloudEnabled();
   const pending = enabled && localStorage.getItem(PENDING_KEY) === "1";
   const state = !enabled ? "off"
     : _syncing ? "syncing"
@@ -228,7 +252,7 @@ function cloudDump() {
 }
 
 function queueCloudSave() {
-  if (localStorage.getItem("dp_cloud") !== "1") return;
+  if (!cloudEnabled()) return;
   // There are local changes not yet confirmed by the cloud → badge "unsynced".
   localStorage.setItem(PENDING_KEY, "1");
   try { window.dispatchEvent(new CustomEvent("dp:syncstatus")); } catch {}
@@ -312,7 +336,7 @@ function mergeStates(local, cloud, tombstones) {
 
 async function syncNow() {
   if (_syncing) return;
-  if (localStorage.getItem("dp_cloud") !== "1") return;
+  if (!cloudEnabled()) return;
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   _syncing = true;
@@ -378,7 +402,7 @@ let _onOnline = null;
 
 function startSync() {
   if (_syncTimer) return;
-  if (localStorage.getItem("dp_cloud") !== "1") return;
+  if (!cloudEnabled()) return;
   const lic = JSON.parse(localStorage.getItem("dp_license") || "null");
   if (!lic || !lic.code || !cloudAllowed(lic)) return;
   syncNow();

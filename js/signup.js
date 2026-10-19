@@ -161,9 +161,12 @@ form.addEventListener('submit', async (e) => {
            sign in until the link is clicked. Auto-entering the app here is
            what made users feel "the account exists but login is stuck". */
         if (!data.session) {
-          // Show the big branded "check your email" screen instead of a tiny inline note.
-          showConfirmEmailScreen(email);
+          // Defensive fallback (shouldn't trigger now that mailer_autoconfirm=true):
+          // if Supabase ever requires confirmation again, surface a clear message
+          // and send the user to login instead of a dead-end screen.
+          setMsg('Account created — please sign in to continue / تم إنشاء الحساب — سجّل الدخول للمتابعة', '#CCFF00');
           setLoading(false);
+          setTimeout(() => { window.location.href = 'login.html'; }, 1500);
           return;
         }
         result = {
@@ -240,36 +243,10 @@ form.addEventListener('submit', async (e) => {
   }, 1500);
 });
 
-/* -------- Check-your-email screen -------- */
-const confirmBlock = $('#confirmEmailBlock');
-let resendCooldownTimer = null;
-
-export function showConfirmEmailScreen(email) {
-  form.classList.add('hidden');
-  confirmBlock.classList.remove('hidden');
-  $('#confirmEmailAddr').textContent = email;
-  const resendBtn = $('#resendBtn');
-  const resendMsg = $('#resendMsg');
-  resendBtn.addEventListener('click', async () => {
-    if (resendBtn.disabled) return;
-    if (!supabase) { resendMsg.textContent = 'No connection / لا اتصال'; return; }
-    resendBtn.disabled = true;
-    resendMsg.textContent = '';
-    const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: `${APP_BASE}auth/callback.html` } });
-    resendMsg.textContent = error
-      ? 'حدث خطأ — حاول بعد دقيقة / Error — try again shortly'
-      : '✅ تم الإرسال مرة ثانية — افحص صندوق الوارد والسبام / Sent again — check inbox & spam';
-    // 30s cooldown
-    let left = 30;
-    const label = resendBtn.innerHTML;
-    resendBtn.innerHTML = `انتظر ${left} ثانية…`;
-    resendCooldownTimer = setInterval(() => {
-      left--;
-      if (left <= 0) { clearInterval(resendCooldownTimer); resendBtn.disabled = false; resendBtn.innerHTML = label; }
-      else { resendBtn.innerHTML = `انتظر ${left} ثانية…`; }
-    }, 1000);
-  });
-}
+/* -------- Email confirmation disabled (mailer_autoconfirm=true) --------
+   The "check your email" screen is no longer needed: signup creates an active
+   session immediately. Block removed from signup.html; kept this comment as a
+   marker in case confirmation is re-enabled later. */
 
 /* -------- Google OAuth (signup = sign-in or create new) -------- */
 // Same dead-button problem as login.js: give the Google button its own

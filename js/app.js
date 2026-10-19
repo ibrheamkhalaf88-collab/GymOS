@@ -245,6 +245,10 @@ import { supabase } from "./supabase-client.js";
       }
     }
     const lic = JSON.parse(localStorage.getItem('dp_license') || 'null');
+    // Auto-enable cloud sync from the licence: no manual "enable cloud" step.
+    if (lic && lic.data_enabled !== false && lic.sync_enabled !== false && localStorage.getItem('dp_cloud') !== '1') {
+      localStorage.setItem('dp_cloud', '1');
+    }
     if (lic && lic.data_enabled !== false && lic.sync_enabled !== false) store.startSync();
   } catch (e) {
     const demoUser = localStorage.getItem('dp_current_user');
@@ -280,6 +284,11 @@ async function initApp() {
   if (loadingOverlay) {
     loadingOverlay.remove();
   }
+  // Surface a full-storage failure so the user can export a backup instead of
+  // silently losing data. (store.js dispatches dp:storagefull on quota exceeded.)
+  window.addEventListener("dp:storagefull", () => {
+    showToast("الذاكرة ممتلئة — صدّر نسخة احتياطية فوراً / Storage full — export a backup now", "err", 6000);
+  });
 }
 
 async function hydrateAuth() {

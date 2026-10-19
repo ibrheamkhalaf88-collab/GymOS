@@ -805,6 +805,11 @@ async function handler(req: Request): Promise<Response> {
       if (!identity) { failIp(ip); return json({ error: "UNAUTHORIZED", traceId }, 401, origin); }
       const newCodeRaw = normCode(body?.code);
       if (!newCodeRaw || newCodeRaw.length < 4) return json({ error: "INVALID_FORMAT", traceId }, 400, origin);
+      // v1.4.10: wire the previously-dead per-code limiter (20/15min, NAT-safe
+      // since it is keyed by code rather than IP) so one code cannot be
+      // brute-forced across identities.
+      if (tooManyCode(newCodeRaw)) return json({ error: "RATE_LIMITED", secs: LOCK_MS / 1000, traceId }, 429, origin);
+      failCode(newCodeRaw);
       const devId = String(body?.deviceId || (identity.kind === "code" ? identity.deviceId : "")).slice(0, 80);
       const devName = String(body?.deviceName || "Web App").slice(0, 40);
       if (!devId) return json({ error: "BAD_REQUEST", traceId }, 400, origin);
@@ -1896,6 +1901,9 @@ async function handler(req: Request): Promise<Response> {
        orphan handling is a deliberate separate decision. */
     if (req.method === "DELETE" && path.startsWith("/api/users/")) {
       if (!authAdmin(req)) return json({ error: "FORBIDDEN" }, 403, origin);
+      const ip = clientIp(req);
+      if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_DESTRUCTIVE_WINDOW_MS / 1000 }, 429, origin);
+      failAdminDestructiveIp(ip);
       const userId = path.split("/")[3];
       if (!userId || userId === "undefined") return json({ error: "INVALID_ID" }, 400, origin);
       const { searchParams } = new URL(req.url);
