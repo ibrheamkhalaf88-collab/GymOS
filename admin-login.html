@@ -155,6 +155,62 @@
           </a>
         </p>
       </form>
+
+      <!-- Reset Password Modal (OTP) -->
+      <div id="resetOverlay" class="hidden fixed inset-0 bg-black/80 z-40" style="backdrop-filter:blur(4px);"></div>
+      <div id="resetModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="auth-card border border-[#444933] rounded-xl shadow-2xl relative overflow-hidden w-full max-w-md" style="background-color:#000;">
+          <div class="absolute top-0 left-0 w-1 h-full" style="background-color:#CCFF00;"></div>
+          <div class="p-6">
+            <h3 class="font-headline text-lg text-center mb-4" style="color:#C3F400;">Reset Admin Password</h3>
+            <h3 class="font-headline text-lg arabic-text text-center mb-6" dir="rtl" style="color:#C3F400;">إعادة تعيين كلمة سر المدير</h3>
+
+            <!-- Step 2: OTP -->
+            <div id="resetStep2">
+              <p class="text-sm text-center mb-4" style="color:#c4c9ac;">Enter the 6-digit code sent to your email</p>
+              <p class="text-xs arabic-text text-center mb-4" dir="rtl" style="color:#8e9379;">أدخل رمز 6 أرقام من بريدك</p>
+              <div id="resetOtpBoxes" class="flex justify-center gap-2 mb-6" dir="ltr">
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+                <input type="text" maxlength="1" class="otp-box auth-input text-center font-headline text-xl" style="width:48px;height:56px;padding:0;" inputmode="numeric" />
+              </div>
+              <button id="verifyResetOtpBtn" type="button" class="auth-btn mb-4">
+                <div class="flex flex-col items-center">
+                  <span>VERIFY CODE</span>
+                  <span class="text-xs opacity-80" dir="rtl">تحقق من الرمز</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Step 3: New password -->
+            <div id="resetStep3" class="hidden">
+              <input type="hidden" id="resetVerifiedCode" />
+              <div class="form-field">
+                <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">New Password / كلمة السر الجديدة</label>
+                <input id="resetNewPass" type="password" required minlength="8" class="auth-input" placeholder="8+ characters" />
+              </div>
+              <div class="form-field">
+                <label class="text-xs uppercase tracking-widest opacity-60 px-1 block" style="color:#c4c9ac;">Confirm / تأكيد</label>
+                <input id="resetConfirmPass" type="password" required minlength="8" class="auth-input" placeholder="Repeat password" />
+              </div>
+              <button id="resetPasswordBtn" type="button" class="auth-btn mb-4">
+                <div class="flex flex-col items-center">
+                  <span>RESET PASSWORD</span>
+                  <span class="text-xs opacity-80" dir="rtl">إعادة تعيين كلمة السر</span>
+                </div>
+              </button>
+            </div>
+
+            <button id="closeResetModal" type="button" class="auth-alt-btn">
+              <span>Close / إغلاق</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -198,14 +254,14 @@
     // Supabase anon key + API URL come from js/config.js (single source of truth)
     const ANON_KEY = appConfig.supabaseAnonKey;
 
-    /* -------- Forgot password (OTP) -------- */
+    /* -------- Forgot password (OTP modal) -------- */
+    const resetModal = document.getElementById('resetModal');
+    const resetOverlay = document.getElementById('resetOverlay');
+    const closeResetModal = () => { resetModal.classList.add('hidden'); resetOverlay.classList.add('hidden'); };
+
     $('#forgotPwdLink').addEventListener('click', async (e) => {
       e.preventDefault();
       const email = $('#adminEmail').value.trim().toLowerCase();
-      if (!email) {
-        setMsg('Enter your email first / أدخل بريدك الإلكتروني أولاً');
-        return;
-      }
       if (email !== 'ibrheamshady@gmail.com') {
         setMsg('Only the admin account can reset via this page / فقط حساب المدير');
         return;
@@ -217,25 +273,75 @@
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || data.error || 'Failed');
+        // Show modal
+        resetModal.classList.remove('hidden');
+        resetOverlay.classList.remove('hidden');
+        document.getElementById('resetStep1').classList.add('hidden');
+        document.getElementById('resetStep2').classList.remove('hidden');
+        document.getElementById('resetStep3').classList.add('hidden');
         setMsg('✅ Reset code sent to your email / تم إرسال رمز الاستعادة إلى بريدك', '#CCFF00');
-        // Prompt for code + new password
-        const code = prompt('Enter the 6-digit code from your email / أدخل رمز 6 أرقام من بريدك:');
-        if (!code) return;
-        const newPw = prompt('Enter new admin password (8+ chars) / أدخل كلمة السر الجديدة (8+ أحرف):');
-        if (!newPw || newPw.length < 8) { setMsg('Password must be 8+ chars / 8 أحرف على الأقل'); return; }
-        const res2 = await fetch(`${appConfig.apiUrl}/api/admin/verify-reset-otp`, {
+      } catch (err) {
+        console.error('[admin-login] forgotPwd:', err);
+        setMsg('Could not send reset email — try again / تعذر إرسال إيميل الاستعادة');
+      }
+    });
+
+    // Auto-advance OTP boxes in modal
+    document.querySelectorAll('#resetOtpBoxes .otp-box').forEach((box, idx, boxes) => {
+      box.addEventListener('input', (e) => {
+        const v = e.target.value.replace(/[^0-9]/g, '');
+        e.target.value = v.slice(0, 1);
+        if (v && idx < boxes.length - 1) boxes[idx + 1].focus();
+      });
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus();
+      });
+    });
+
+    function getResetOtpCode() {
+      return Array.from(document.querySelectorAll('#resetOtpBoxes .otp-box')).map((b) => b.value).join('');
+    }
+
+    // Verify OTP
+    document.getElementById('verifyResetOtpBtn').addEventListener('click', async () => {
+      const code = getResetOtpCode();
+      if (code.length !== 6) { setMsg('Enter full 6-digit code / أدخل الرمز كاملاً'); return; }
+      try {
+        // Store code temporarily (verify happens with password)
+        document.getElementById('resetVerifiedCode').value = code;
+        document.getElementById('resetStep2').classList.add('hidden');
+        document.getElementById('resetStep3').classList.remove('hidden');
+        setMsg('✓ Code verified — set new password / تم التحقق — أدخل كلمة السر الجديدة', '#CCFF00');
+      } catch (err) {
+        setMsg('Invalid code / رمز خاطئ');
+      }
+    });
+
+    // Set new password
+    document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+      const code = document.getElementById('resetVerifiedCode').value;
+      const newPw = document.getElementById('resetNewPass').value;
+      const confirmPw = document.getElementById('resetConfirmPass').value;
+      if (newPw.length < 8) { setMsg('Password must be 8+ chars / 8 أحرف على الأقل'); return; }
+      if (newPw !== confirmPw) { setMsg('Passwords do not match / كلمتا المرور غير متطابقتين'); return; }
+      try {
+        const res = await fetch(`${appConfig.apiUrl}/api/admin/verify-reset-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, newPassword: newPw }),
         });
-        const data2 = await res2.json();
-        if (!res2.ok) throw new Error(data2.message || data2.error || 'Reset failed');
-        setMsg('✅ Password updated — sign in with new password / تم تغيير كلمة السر — سجّل الدخول', '#CCFF00');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || data.error || 'Reset failed');
+        setMsg('✅ Password updated — sign in with new password / تم تغيير كلمة السر', '#CCFF00');
+        closeResetModal();
       } catch (err) {
-        console.error('[admin-login] forgotPwd:', err);
+        console.error('[admin-login] resetPwd:', err);
         setMsg('Could not reset password — try again / تعذر تغيير كلمة السر');
       }
     });
+
+    document.getElementById('closeResetModal').addEventListener('click', closeResetModal);
+    document.getElementById('resetOverlay').addEventListener('click', closeResetModal);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
