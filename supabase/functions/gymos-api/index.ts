@@ -453,6 +453,25 @@ const tooMany = (ip: string) => loginLimiter.blocked(ip);
 const failIp = (ip: string) => loginLimiter.hit(ip);
 const clearIp = (ip: string) => loginLimiter.clear(ip);
 
+// OTP rate limiters — prevent email spam abuse
+const OTP_IP_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const OTP_IP_MAX = 20; // 20 OTP requests per IP per hour
+const otpIpLimiter = limiter(OTP_IP_MAX, OTP_IP_WINDOW_MS, 2000);
+const tooManyOtpIp = (ip: string) => otpIpLimiter.blocked(ip);
+const failOtpIp = (ip: string) => otpIpLimiter.hit(ip);
+
+const OTP_EMAIL_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const OTP_EMAIL_MAX = 5; // 5 OTP requests per email per 15 min
+const otpEmailLimiter = limiter(OTP_EMAIL_MAX, OTP_EMAIL_WINDOW_MS, 5000);
+const tooManyOtpEmail = (email: string) => otpEmailLimiter.blocked(email);
+const failOtpEmail = (email: string) => otpEmailLimiter.hit(email);
+
+const OTP_VERIFY_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const OTP_VERIFY_MAX = 10; // 10 verify attempts per IP per 15 min
+const otpVerifyLimiter = limiter(OTP_VERIFY_MAX, OTP_VERIFY_WINDOW_MS, 2000);
+const tooManyOtpVerify = (ip: string) => otpVerifyLimiter.blocked(ip);
+const failOtpVerify = (ip: string) => otpVerifyLimiter.hit(ip);
+
 // per-code activation limit (NAT-safe: keyed by code, not by a shared IP)
 const actLimiter = limiter(20, LOCK_MS);
 const tooManyCode = (code: string) => actLimiter.blocked(code);
@@ -953,8 +972,15 @@ async function handler(req: Request): Promise<Response> {
 
     /* POST /api/auth/send-otp — generate 6-digit code, store, send via SMTP */
     if (req.method === "POST" && path === "/api/auth/send-otp") {
+      const ip = clientIp(req);
+      if (tooManyOtpIp(ip)) return json({ error: "RATE_LIMITED", message: "Too many requests — try again later" }, 429, origin);
       const email = String(body?.email || "").trim().toLowerCase();
       if (!email || !email.includes("@")) return json({ error: "BAD_REQUEST" }, 400, origin);
+      if (tooManyOtpEmail(email)) return json({ error: "RATE_LIMITED", message: "Too many codes sent to this email — try again later" }, 429, origin);
+      failOtpIp(ip);
+      failOtpEmail(email);
+      // cleanup expired OTP codes (>24h) on each send
+      await sb.from("otp_codes").delete().lt("expires_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       const { error: insertErr } = await sb.from("otp_codes").insert({ email, code, expires_at: expiresAt });
@@ -982,6 +1008,9 @@ async function handler(req: Request): Promise<Response> {
 
     /* POST /api/auth/reset-password-otp — verify code, set new password */
     if (req.method === "POST" && path === "/api/auth/reset-password-otp") {
+      const ip = clientIp(req);
+      if (tooManyOtpVerify(ip)) return json({ error: "RATE_LIMITED", message: "Too many attempts — try again later" }, 429, origin);
+      failOtpVerify(ip);
       const email = String(body?.email || "").trim().toLowerCase();
       const code = String(body?.code || "").trim();
       const newPw = String(body?.newPassword || "");
@@ -1003,6 +1032,9 @@ async function handler(req: Request): Promise<Response> {
 
     /* POST /api/admin/send-reset-otp — send OTP to admin email */
     if (req.method === "POST" && path === "/api/admin/send-reset-otp") {
+      const ip = clientIp(req);
+      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED" }, 429, origin);
+      failAdminIp(ip);
       const code = String(Math.floor(100000 + Math.random() * 900000));
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       await sb.from("otp_codes").insert({ email: ADMIN_EMAIL, code, expires_at: expiresAt });
@@ -1026,6 +1058,9 @@ async function handler(req: Request): Promise<Response> {
 
     /* POST /api/admin/verify-reset-otp — verify code, set new admin password */
     if (req.method === "POST" && path === "/api/admin/verify-reset-otp") {
+      const ip = clientIp(req);
+      if (tooManyAdminDestructive(ip)) return json({ error: "RATE_LIMITED" }, 429, origin);
+      failAdminDestructiveIp(ip);
       const code = String(body?.code || "").trim();
       const newPw = String(body?.newPassword || "");
       if (!code || newPw.length < 8) return json({ error: "BAD_REQUEST" }, 400, origin);
@@ -1041,6 +1076,9 @@ async function handler(req: Request): Promise<Response> {
 
     /* POST /api/auth/verify-otp — verify code, create/find code, generate JWT */
     if (req.method === "POST" && path === "/api/auth/verify-otp") {
+      const ip = clientIp(req);
+      if (tooManyOtpVerify(ip)) return json({ error: "RATE_LIMITED", message: "Too many attempts — try again later" }, 429, origin);
+      failOtpVerify(ip);
       const email = String(body?.email || "").trim().toLowerCase();
       const code = String(body?.code || "").trim();
       if (!email || !code) return json({ error: "BAD_REQUEST" }, 400, origin);

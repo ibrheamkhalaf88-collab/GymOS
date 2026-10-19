@@ -2,7 +2,7 @@
 // signup.js — Sign-up logic with 30-day free trial
 // ============================================================
 import { supabase } from './supabase-client.js';
-import { validatePassword } from './validate.js';
+
 import { APP_BASE, appConfig } from './config.js';
 import { isNativeApp, startNativeGoogleOAuth, armNativeOAuthReturn } from './native-oauth.js';
 import { writeSession } from './session.js';
@@ -47,63 +47,9 @@ async function setLoading(on) {
   }
 }
 
-// Demo mode: create user locally (when Supabase not connected)
-async function demoSignUp(email, password, name) {
-  const { demoUsersAll, demoUsersSave, findDemoUser } = await import('./db.js');
-
-  // Check if email already exists
-  const existing = findDemoUser(email);
-  if (existing) {
-    return { ok: false, error: 'Account already exists with this email / حساب موجود مسبقاً' };
-  }
-
-  // Validate password: must be 8+ chars with at least 1 letter + 1 digit
-  if (!validatePassword(password)) {
-    return { ok: false, error: 'Password must be 8+ chars with 1 letter + 1 digit / يجب أن تكون كلمة المرور 8 حروف على الأقل وتحتوي على رقم' };
-  }
-
-  const now = Date.now();
-  const expiry = now + 30 * 86400000; // 30-day free trial (admin approves after)
-
-  const newUser = {
-    id: 'U' + Date.now().toString(36).toUpperCase(),
-    email: email.toLowerCase(),
-    name: name || email.split('@')[0],
-    passHash: 'demo',
-    plainPassword: password,
-    status: 'active',
-    subscription: 'trial',
-    subStart: now,
-    subEnd: expiry,
-    subTier: 'free_trial',
-    createdAt: now,
-    lastLogin: null,
-  };
-
-  const list = demoUsersAll();
-  list.push(newUser);
-  demoUsersSave(list);
-
-  return { ok: true, user: newUser };
-}
-
-function mapSignupError(err) {
-  const msg = (err?.message || 'unknown error').toLowerCase();
-  if (msg.includes('already registered') || msg.includes('already been registered')) {
-    return 'هذا البريد مسجّل من قبل (ربما بجوجل أو بمحاولة قديمة) — ارجع لصفحة الدخول وجرّب "نسيت كلمة السر" أو الدخول بجوجل / This email is already registered — sign in or reset your password';
-  }
-  if (msg.includes('over_email_send_rate_limit') || msg.includes('rate limit')) {
-    return 'Too many signups — try again later / تسجيلات كثيرة — حاول لاحقاً';
-  }
-  if (msg.includes('weak password') || msg.includes('password should be')) {
-    return 'Password too weak — use 8+ chars with 1 letter + 1 digit / كلمة السر ضعيفة';
-  }
-  return `Signup failed — ${err?.message || 'unknown error'}`;
-}
-
 /* -------- OTP helpers -------- */
 let pendingEmail = '';
-let resendCooldownTimer = null;
+
 
 function showStep(step) {
   document.getElementById('stepEmail').classList.toggle('hidden', step !== 'email');
