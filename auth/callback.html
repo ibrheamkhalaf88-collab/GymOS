@@ -33,6 +33,41 @@
     </div>
   </div>
 
+  <!-- APK login: show the way back to the app at once, before anything else loads -->
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      if (q.get('native') !== '1' || q.get('error')) return;
+      if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) return;
+      if (!q.get('code') && !/(^|[#&])access_token=/.test(location.hash)) return;
+      window.__dpAppHandoff = true;
+
+      // Only a token hash is needed; Supabase's empty "#sb=" would add a second
+      // "#" to the intent URL below.
+      var payload = location.search + (q.get('code') ? '' : location.hash);
+      var customUrl = 'com.digitalpulse.gym://auth/callback.html' + payload;
+      var intentUrl = 'intent://auth/callback.html' + payload +
+        '#Intent;scheme=com.digitalpulse.gym;package=com.digitalpulse.gym;' +
+        'S.browser_fallback_url=' + encodeURIComponent(customUrl) + ';end';
+
+      document.getElementById('cbStatus').textContent = 'ارجع للتطبيق';
+      document.getElementById('cbSub').textContent = 'اضغط الزر لإكمال تسجيل الدخول داخل التطبيق / Tap to finish signing in inside the app';
+      var card = document.querySelector('.w-full.max-w-md');
+      card.querySelector('.animate-spin').parentNode.remove();
+
+      // A real link: a tap on it is what Chrome always lets open the app.
+      var link = document.createElement('a');
+      link.id = 'openAppLink';
+      link.href = /Android/i.test(navigator.userAgent) ? intentUrl : customUrl;
+      link.textContent = 'ارجع للتطبيق / Open the app';
+      link.style.cssText = 'display:block;padding:18px;border-radius:14px;background:#CCFF00;color:#000;font-size:18px;font-weight:800;text-decoration:none;text-align:center;';
+      card.appendChild(link);
+
+      // Try once on its own too; if Chrome blocks this, the link above still works.
+      setTimeout(function () { try { location.href = link.href; } catch (e) { /* the link remains */ } }, 150);
+    })();
+  </script>
+
   <!-- Handle the OAuth callback — runs immediately -->
   <script src="../vendor/supabase-js.js"></script>
   <script type="module">
@@ -127,6 +162,7 @@
       if (isNativePlatform()) return false;
       const params = new URLSearchParams(location.search);
       if (params.get('native') !== '1') return false;  // normal web login: unchanged
+      if (window.__dpAppHandoff) return true;          // the page already shows the link
       if (params.get('error')) return false;           // let the error card show
 
       if (params.get('code')) { openInstalledApp(location.search + location.hash); return true; }

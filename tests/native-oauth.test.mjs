@@ -52,14 +52,25 @@ test("callback page still completes PKCE exchange (deep link lands there)", () =
 // Regression: "Google login from the APK finishes on the WEBSITE" (2026-11).
 // The browser callback page used to finish the login itself as soon as it saw
 // a session, so the user ended logged-in in Chrome while the APK stayed logged
-// out ("تمام" → website home page). The APK now redirects straight to its own
-// scheme. Older installed APKs still send native=1, and for those the browser
-// side must always hand the result back to the app instead of finishing there.
+// out ("تمام" → website home page). The APK marks its redirect with native=1 and
+// the browser side must always hand the result back to the app. A redirect
+// straight to the app's scheme is not used: Chrome can block it with no tap, and
+// then the user has nothing to press.
 // ---------------------------------------------------------------------------
-test("native-oauth: APK redirects straight to the app, never through the website", () => {
-  assert.match(native, /const deepLink = DEEPLINK_CALLBACK \+ '\?return='/);
-  assert.match(native, /redirectTo: deepLink/);
-  assert.doesNotMatch(native, /github\.io/);
+test("native-oauth: APK redirect is marked with native=1", () => {
+  assert.match(native, /auth\/callback\.html\?native=1/);
+  assert.match(native, /redirectTo: landingPage/);
+});
+
+test("native-oauth: account chooser goes through queryParams (supabase-js ignores a bare prompt)", () => {
+  assert.match(native, /queryParams: \{ prompt: 'select_account' \}/);
+});
+
+test("callback page: APK login shows a real link back to the app before anything loads", () => {
+  const link = callback.indexOf("openAppLink");
+  const moduleScript = callback.indexOf('<script type="module">');
+  assert.ok(link > -1 && link < moduleScript, "the link is built before the module script");
+  assert.match(callback, /if \(window\.__dpAppHandoff\) return true;/);
 });
 
 test("callback page: native-originated flow hands off to the app BEFORE completing", () => {

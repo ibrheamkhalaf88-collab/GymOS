@@ -91,16 +91,17 @@ export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
   if (!browser || typeof browser.open !== 'function') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
-  // Supabase redirects straight to the app's own scheme (it is on the allowlist,
-  // with or without ?return=). No web page runs in between, so the browser can
-  // neither finish the login itself nor get stuck waiting to reopen the app.
-  // auth/callback.html keeps its native=1 hand-off for older installed APKs.
-  const deepLink = DEEPLINK_CALLBACK + '?return=' + encodeURIComponent(returnUrl);
+  // Chrome can block a redirect to an app when no tap led to it, and a blocked
+  // server redirect leaves the user stranded with nothing to press. So Google
+  // returns to a page that offers a real link back to the app (native=1 in
+  // auth/callback.html): a tap is always allowed to open the app.
+  const landingPage = 'https://ibrheamkhalaf88-collab.github.io/GymOS/auth/callback.html?native=1' +
+    '&return=' + encodeURIComponent(returnUrl);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      prompt: 'select_account',
-      redirectTo: deepLink,
+      queryParams: { prompt: 'select_account' },
+      redirectTo: landingPage,
       skipBrowserRedirect: true,
     },
   });
