@@ -126,20 +126,20 @@ test("build-apk.yml: release APK runs only on version tags, builds Release APK, 
   assert.doesNotMatch(ciYml, /assembleRelease/);
 });
 
-test("version consistency: package.json, config.js, build.gradle, build.js and sw.js all show 1.4.15", () => {
+test("version consistency: package.json, config.js, build.gradle, build.js and sw.js all show 1.4.16", () => {
   const pkg = read("package.json");
   const config = read("js/config.js");
   const gradle = read("android/app/build.gradle");
   const build = read("scripts/build.js");
   const sw = read("sw.js");
-  assert.match(pkg, /"version": "1.4.15"/);
-  assert.match(config, /appVersion: "1.4.15"/);
-  assert.match(build, /appVersion: "1.4.15"/);
-  assert.match(gradle, /versionName "1.4.15"/);
-  assert.match(gradle, /versionCode 27/);
+  assert.match(pkg, /"version": "1.4.16"/);
+  assert.match(config, /appVersion: "1.4.16"/);
+  assert.match(build, /appVersion: "1.4.16"/);
+  assert.match(gradle, /versionName "1.4.16"/);
+  assert.match(gradle, /versionCode 28/);
   // Cache name must move with the release or the service worker keeps serving
   // the previous (possibly broken) js/app.js forever.
-  assert.match(sw, /dp-cache-v27/);
+  assert.match(sw, /dp-cache-v28/);
 });
 
 test("index.html: APK download button uses correct GitHub releases download URL", () => {

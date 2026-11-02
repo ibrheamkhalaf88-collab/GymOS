@@ -47,3 +47,36 @@ test("AndroidManifest: deep-link intent filter is registered", () => {
 test("callback page still completes PKCE exchange (deep link lands there)", () => {
   assert.match(callback, /exchangeCodeForSession\(code\)/);
 });
+
+// ---------------------------------------------------------------------------
+// Regression: "Google login from the APK finishes on the WEBSITE" (2026-11).
+// The browser callback page used to finish the login itself as soon as it saw
+// a session, so the user ended logged-in in Chrome while the APK stayed logged
+// out ("تمام" → website home page). The APK now marks its redirect with
+// native=1 and the browser side must always hand the result back to the app —
+// it must never complete a login locally for a native-originated flow.
+// ---------------------------------------------------------------------------
+test("native-oauth: APK redirect is marked with native=1", () => {
+  assert.match(native, /auth\/callback\.html\?native=1/);
+});
+
+test("callback page: native-originated flow hands off to the app BEFORE completing", () => {
+  assert.match(callback, /async function handOffToAppIfRequested\(\)/);
+  assert.match(callback, /if \(params\.get\('native'\) !== '1'\) return false;/);
+  const guard = callback.indexOf("if (await handOffToAppIfRequested()) return;");
+  const complete = callback.indexOf("await completeWithUser(user)");
+  assert.ok(guard > -1, "handleCallback calls the hand-off guard");
+  assert.ok(complete > -1, "callback still completes the login for native pages");
+  assert.ok(guard < complete, "hand-off guard runs before any local completion");
+});
+
+test("callback page: hand-off uses an Android intent URL with the app package", () => {
+  assert.match(callback, /intent:\/\/auth\/callback\.html/);
+  assert.match(callback, /package=com\.digitalpulse\.gym/);
+  assert.match(callback, /S\.browser_fallback_url=/);
+});
+
+test("callback page: adopts a session forwarded from the browser (no PKCE verifier)", () => {
+  assert.match(callback, /supabase\.auth\.setSession\(\{/);
+  assert.match(callback, /refresh_token: hashTokens\(\)\.refresh_token/);
+});

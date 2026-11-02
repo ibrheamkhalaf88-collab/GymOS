@@ -69,6 +69,87 @@
       return new URL('../' + page, window.location.href).href;
     }
 
+    const isNativePlatform = () =>
+      !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+    function hashTokens() {
+      try {
+        const hp = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+        return { access_token: hp.get('access_token'), refresh_token: hp.get('refresh_token') };
+      } catch {
+        return { access_token: null, refresh_token: null };
+      }
+    }
+
+    // Sends the OAuth result back to the installed APK.
+    // Chrome ignores plain custom-scheme navigations coming from a page it
+    // opened in a Custom Tab unless there is a user gesture, but it does honour
+    // an Android `intent://` URL — so that is the primary mechanism, with the
+    // custom scheme and an explicit button as fallbacks.
+    function openInstalledApp(payload) {
+      const customUrl = 'com.digitalpulse.gym://auth/callback.html' + (payload || '');
+      const intentUrl = 'intent://auth/callback.html' + (payload || '') +
+        '#Intent;scheme=com.digitalpulse.gym;package=com.digitalpulse.gym;' +
+        'S.browser_fallback_url=' + encodeURIComponent(customUrl) + ';end';
+
+      setStatus('Opening the app', 'Completing sign in inside the app… / إكمال تسجيل الدخول في التطبيق…');
+
+      try {
+        const a = document.createElement('a');
+        a.href = intentUrl;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch { /* fall through to the location attempts below */ }
+
+      setTimeout(() => { try { window.location.href = intentUrl; } catch { /* ignore */ } }, 250);
+      setTimeout(() => { try { window.location.href = customUrl; } catch { /* ignore */ } }, 1200);
+
+      try {
+        const btn = document.createElement('button');
+        btn.textContent = 'Open app / فتح التطبيق';
+        btn.style.cssText = 'margin-top:16px;padding:12px 18px;border-radius:8px;border:1px solid #CCFF00;background:#CCFF00;color:#000;cursor:pointer;font-size:14px;font-weight:bold;';
+        btn.onclick = () => { try { window.location.href = intentUrl; } catch { /* ignore */ } };
+        document.querySelector('.w-full.max-w-md').appendChild(btn);
+      } catch { /* ignore */ }
+    }
+
+    // THE bug that stranded users on the website: this page finished the login
+    // itself whenever a session appeared, so a Google login started from the
+    // APK ended logged-in *in the browser* while the app stayed logged out
+    // ("تمام" → website home page). When the APK started the flow it marks the
+    // redirect with native=1; in that case we never complete here — we always
+    // bounce the result back to the app.
+    //   ?code=…    → the app exchanges it with its own PKCE verifier
+    //   #tokens    → the app adopts the session directly
+    async function handOffToAppIfRequested() {
+      if (isNativePlatform()) return false;
+      const params = new URLSearchParams(location.search);
+      if (params.get('native') !== '1') return false;  // normal web login: unchanged
+      if (params.get('error')) return false;           // let the error card show
+
+      if (params.get('code')) { openInstalledApp(location.search + location.hash); return true; }
+      if (/(^|[#&])access_token=/.test(location.hash)) { openInstalledApp(location.search + location.hash); return true; }
+
+      // No payload in the URL (already-consumed link, or the browser restored
+      // this page). If this browser already holds a session for the account we
+      // hand its tokens over instead of leaving the user signed in on the web.
+      try {
+        const { data } = await supabase.auth.getSession();
+        const sess = data && data.session;
+        if (sess && sess.access_token && sess.refresh_token) {
+          openInstalledApp('#access_token=' + encodeURIComponent(sess.access_token) +
+            '&refresh_token=' + encodeURIComponent(sess.refresh_token) +
+            '&token_type=bearer&type=oauth');
+          return true;
+        }
+      } catch { /* ignore */ }
+
+      setStatus('Open the app', 'Start the Google sign in from the app again. / ابدأ تسجيل الدخول من التطبيق من جديد.');
+      return true;
+    }
+
     // PKCE-only OAuth callback (Supabase JS v2 uses PKCE exclusively).
     // No implicit flow fallback — it caused double-handling and race conditions.
     async function handleCallback() {
@@ -76,6 +157,8 @@
       const code = params.get('code');
       const error = params.get('error');
       const errorDescription = params.get('error_description');
+
+      if (await handOffToAppIfRequested()) return;
 
       if (!supabase) {
         setStatus('Login failed', 'Supabase is not configured in this build.');
@@ -104,6 +187,15 @@
 
         if (session?.user) {
           user = session.user;
+        } else if (hashTokens().access_token && hashTokens().refresh_token) {
+          // Session forwarded from the browser (no PKCE verifier needed).
+          setStatus('Signing you in', 'Adopting session');
+          const { data, error: setErr } = await supabase.auth.setSession({
+            access_token: hashTokens().access_token,
+            refresh_token: hashTokens().refresh_token,
+          });
+          if (setErr) throw setErr;
+          if (data?.user) user = data.user;
         } else if (code) {
           // Explicit code exchange if auto-exchange didn't complete
           setStatus('Signing you in', 'Exchanging code');
@@ -125,40 +217,13 @@
       } catch (err) {
         console.error('Callback login failed:', err);
         const detail = (err && (err.message || err.code)) ? String(err.message || err.code) : 'unknown';
-        const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
 
         // APK intermediate case: this page ran in the system browser, where the
         // PKCE verifier does not exist (it lives in the app's WebView). Deep-link
         // back to the app with the code so the app can complete the exchange.
-        if (!isNative) {
-          const code = new URLSearchParams(location.search).get('code');
-          if (code) {
-            setStatus('Returning to app', 'Completing sign in in the app… / إكمال تسجيل الدخول في التطبيق…');
-            // Chrome (and Custom Tabs) often block JS navigation to a custom
-            // scheme without a user gesture. Use an Android intent URL, which
-            // Chrome handles specially and reliably opens the installed app.
-            const qs = location.search + location.hash;
-            const intentUrl = 'intent://auth/callback.html' + qs +
-              '#Intent;scheme=com.digitalpulse.gym;package=com.digitalpulse.gym;end';
-            const customUrl = 'com.digitalpulse.gym://auth/callback.html' + qs;
-            // Attempt auto-open via a hidden link click (user-gesture-ish) + intent URL.
-            try {
-              const a = document.createElement('a');
-              a.href = intentUrl;
-              a.style.display = 'none';
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-            } catch {}
-            setTimeout(() => { try { window.location.href = intentUrl; } catch {} }, 300);
-            // Fallback button (guaranteed user gesture).
-            try {
-              const btn = document.createElement('button');
-              btn.textContent = 'Open app / فتح التطبيق';
-              btn.style.cssText = 'margin-top:16px;padding:10px 16px;border-radius:8px;border:1px solid #CCFF00;background:#CCFF00;color:#000;cursor:pointer;font-size:13px;font-weight:bold;';
-              btn.onclick = () => { window.location.href = intentUrl; };
-              document.querySelector('.w-full.max-w-md').appendChild(btn);
-            } catch {}
+        if (!isNativePlatform()) {
+          if (code || hashTokens().access_token) {
+            openInstalledApp(location.search + location.hash);
             return;
           }
         }

@@ -93,12 +93,12 @@
   <nav class="max-w-6xl mx-auto flex items-center justify-between px-5 md:px-8 h-16">
     <a href="#" class="flex items-center gap-2.5" aria-label="Digital Pulse">
       <img src="assets/icons/icon.svg" alt="Digital Pulse" width="36" height="36" class="w-9 h-9 drop-shadow-[0_0_10px_rgba(204,255,0,0.4)]"/>
-      <span class="font-headline font-bold tracking-tight text-[#CCFF00]" translate="no">DIGITAL PULSE</span>
+      <span class="font-headline font-bold tracking-tight text-[#CCFF00] whitespace-nowrap" translate="no">DIGITAL PULSE</span>
     </a>
-    <div class="flex items-center gap-2 md:gap-3">
-      <a href="login.html" class="font-headline text-xs md:text-sm font-semibold uppercase tracking-widest px-4 py-2 rounded-full text-on-surface-variant hover:text-[#CCFF00] transition-colors">Login | تسجيل</a>
-      <a href="login.html" class="font-headline text-sm md:text-sm font-bold uppercase tracking-widest bg-[#CCFF00] text-black px-4 md:px-6 py-2.5 rounded-full hover:bg-[#b3e600] active:scale-95 transition shadow-[0_0_20px_rgba(204,255,0,0.35)]">
-        <span class="ltr">Get Started</span> · ابدأ
+    <div class="flex items-center gap-1 md:gap-3">
+      <a href="login.html" class="font-headline text-xs md:text-sm font-semibold uppercase tracking-widest px-2 md:px-4 py-2 rounded-full text-on-surface-variant hover:text-[#CCFF00] transition-colors whitespace-nowrap"><span class="hidden md:inline">Login | </span>تسجيل</a>
+      <a href="login.html" class="font-headline text-sm md:text-sm font-bold uppercase tracking-widest bg-[#CCFF00] text-black px-4 md:px-6 py-2.5 rounded-full hover:bg-[#b3e600] active:scale-95 transition shadow-[0_0_20px_rgba(204,255,0,0.35)] whitespace-nowrap">
+        <span class="ltr hidden md:inline">Get Started · </span>ابدأ
       </a>
     </div>
   </nav>
@@ -473,7 +473,7 @@
           return res.json();
         })
         .then(function(data) {
-          var tag = data.tag_name || 'v1.4.15';
+          var tag = data.tag_name || 'v1.4.16';
           noteEl.textContent = 'أحدث إصدار منشور: ' + tag + ' — يحمل أحدث نسخة موقّعة من GitHub Releases';
         })
         .catch(function(err) {

@@ -51,7 +51,7 @@ export function armNativeOAuthReturn() {
 
   const handleUrl = (url) => {
     if (typeof url !== 'string' || !url.startsWith(SCHEME)) return;
-    if (!/auth\/callback/.test(url)) return;
+    if (!url.startsWith(DEEPLINK_CALLBACK) && !/auth\/callback/.test(url)) return;
     try {
       if (sessionStorage.getItem(GUARD_KEY) === url) return;
       sessionStorage.setItem(GUARD_KEY, url);
@@ -92,13 +92,14 @@ export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
   // redirectTo must be an https URL on Supabase's allowlist (custom schemes are
-  // not reliably honored by Supabase's redirect validation, which caused login
-  // to "succeed" in the browser but never reopen the app). We use the web
-  // callback page as an intermediate: it runs in the browser, then deep-links
-  // back to the app via JS (com.digitalpulse.gym://...) which Chrome allows.
-  // Always use the published GitHub Pages callback (https, on Supabase's allowlist)
-  // — the APK's WebView origin (https://localhost) is not a valid redirect target.
-  const webCallback = 'https://ibrheamkhalaf88-collab.github.io/GymOS/auth/callback.html?return=app.html';
+  // not reliably honored by Supabase's redirect validation). We use the web
+  // callback page as an intermediate that runs in the browser and then bounces
+  // the result back into the installed app.
+  // `native=1` is the marker that tells callback.html "this login started in
+  // the APK — do NOT finish here, send it back to the app". A normal web login
+  // never sends it, so the website keeps working exactly as before.
+  const webCallback = 'https://ibrheamkhalaf88-collab.github.io/GymOS/auth/callback.html?native=1' +
+    '&return=' + encodeURIComponent(returnUrl);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
