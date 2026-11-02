@@ -244,7 +244,8 @@ body::before {
 .field-wrapper input:focus + label,
 .field-wrapper input:not(:placeholder-shown) + label,
 .field-wrapper select:focus + label,
-.field-wrapper select:not([value=""]) + label {
+.field-wrapper select:not([value=""]) + label,
+.field-wrapper .dp-select-wrap + label {
   transform: translateY(-1.5rem) scale(0.85);
   color: var(--volt);
   font-size: 0.75rem;

@@ -147,7 +147,7 @@ function updateOverlayShell(title, body) {
   el.id = "dp-update-overlay";
   el.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif";
   el.innerHTML =
-    '<div style="font-size:64px;color:#ccff00">?</div>' +
+    '<div style="font-size:64px;color:#ccff00">⬇</div>' +
     '<h1 style="font-size:24px;margin:0;font-weight:800">' + title + '</h1>' +
     '<p id="dp-update-body" style="color:#bdbdbd;max-width:320px;margin:0;line-height:1.6;direction:rtl">' + body + '</p>' +
     '<div style="width:min(280px,80vw);height:6px;border-radius:999px;background:#222;overflow:hidden">' +
@@ -189,7 +189,7 @@ function sanitizeUrl(url) {
 function showUpdateOverlay(apkUrl) {
   const safeUrl = sanitizeUrl(apkUrl);
   document.body.innerHTML = '<div style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:#000;color:#fff;text-align:center;padding:32px;font-family:sans-serif">' +
-    '<div style="font-size:72px;color:#ccff00">?</div>' +
+    '<div style="font-size:72px;color:#ccff00">⬇</div>' +
     '<h1 style="font-size:24px;margin:0;font-weight:800">تحديث مطلوب</h1>' +
     '<p style="color:#bdbdbd;max-width:300px;margin:0;line-height:1.6;direction:rtl">يتوفر إصدار أحدث من التطبيق. يرجى التحديث للمتابعة.</p>' +
     '<a href="' + safeUrl + '" target="_blank" rel="noopener" style="margin-top:8px;padding:14px 28px;border-radius:14px;background:#ccff00;color:#000;font-weight:800;text-decoration:none">تحديث الآن</a>' +
@@ -409,7 +409,7 @@ async function promptGymName(user) {
       <div style="width:100%; max-width:440px; background:#000; border:1px solid #444933; border-radius:16px; padding:28px 24px; box-shadow:0 24px 60px rgba(0,0,0,.9); position:relative; overflow:hidden">
         <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:#CCFF00"></div>
         <div style="text-align:center; margin-bottom:24px">
-          <div style="font-size:48px; line-height:1; margin-bottom:12px">???</div>
+          <div style="font-size:48px; line-height:1; margin-bottom:12px">🏋️</div>
           <h1 style="margin:0; font-size:20px; font-weight:800; letter-spacing:-.02em">Welcome to Digital Pulse</h1>
           <p style="margin:8px 0 0; font-size:16px; font-weight:700; color:#c4c9ac" dir="rtl">مرحباً بك في النبض الرقمي</p>
         </div>
@@ -535,12 +535,12 @@ function waDigits(phone) {
 }
 function waReminderLink(m) {
   const days = Math.max(0, Math.ceil((m.expiresAt - Date.now()) / DAY));
-  const txt = `مرحباً ${m.name} ?? اشتراكك في ${gymName()} ${days === 0 ? "انتهى اليوم" : `ينتهي خلال ${days} أيام`}. يسعدنا تجديد اشتراكك ??`;
+  const txt = `مرحباً ${m.name} 👋 اشتراكك في ${gymName()} ${days === 0 ? "انتهى اليوم" : `ينتهي خلال ${days} أيام`}. يسعدنا تجديد اشتراكك 💪`;
   return `https://wa.me/${waDigits(m.phone)}?text=${encodeURIComponent(txt)}`;
 }
 // Win-back message for members whose membership just lapsed.
 function waWinbackLink(m) {
-  const txt = `مرحباً ${m.name} ?? وحشتنا في ${gymName()}! اشتراكك انتهى. جدد الآن وارجع لتمرينك ??`;
+  const txt = `مرحباً ${m.name} 👋 وحشتنا في ${gymName()}! اشتراكك انتهى. جدد الآن وارجع لتمرينك 💪`;
   return `https://wa.me/${waDigits(m.phone)}?text=${encodeURIComponent(txt)}`;
 }
 
@@ -564,7 +564,7 @@ function syncExpiryNotifications() {
     if (store.insert("notifications", {
       id: nid, severity: expired ? "alert" : "info", time: now,
       titleEn: expired ? `${m.name} expired` : `${m.name} expiring in ${days}d`,
-      titleAr: expired ? `اشتراك ${m.name} انتهى ??` : `اشتراك ${m.name} ينتهي خلال ${days} ${days === 1 ? "يوم" : "أيام"} ?`,
+      titleAr: expired ? `اشتراك ${m.name} انتهى 🔴` : `اشتراك ${m.name} ينتهي خلال ${days} ${days === 1 ? "يوم" : "أيام"} ⏰`,
       subEn: "Send a WhatsApp reminder from the dashboard",
       subAr: "ابعتله تذكير واتساب من الرئيسية",
     })) added++;
@@ -790,7 +790,7 @@ function viewDashboard() {
       time: d.updatedAt || Date.now() }));
   feed.push({ sev: "info", en: "Capacity Alert", ar: "تنبيه السعة",
     subEn: `Floor utilization at ${Math.min(95, 40 + s.activeMembers * 5)}%`,
-    subAr: `استخدام الصالة بنسبة ?${Math.min(95, 40 + s.activeMembers * 5)}`,
+    subAr: `استخدام الصالة بنسبة ٪${Math.min(95, 40 + s.activeMembers * 5)}`,
     time: Date.now() - 3600000 });
   store.all("notifications").slice(0, 1).forEach((n) =>
     feed.push({ sev: n.severity, en: n.titleEn, ar: n.titleAr, subEn: n.subEn, subAr: n.subAr, time: n.time }));
@@ -816,7 +816,7 @@ function viewDashboard() {
     <div class="flex items-center gap-3">
       <span id="syncStatusIcon" class="material-symbols-outlined text-2xl">cloud_sync</span>
       <div>
-        <p id="syncStatusText" class="font-headline text-sm font-bold uppercase tracking-wider">? Synced</p>
+        <p id="syncStatusText" class="font-headline text-sm font-bold uppercase tracking-wider">✅ Synced</p>
         <p id="syncStatusDetail" class="text-xs text-muted">All data up to date</p>
       </div>
     </div>
@@ -833,7 +833,7 @@ function viewDashboard() {
     <!-- Active Members -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>?? Active Members</span><span dir="rtl" class="font-arabic">الأعضاء النشطين</span>
+        <span>👥 Active Members</span><span dir="rtl" class="font-arabic">الأعضاء النشطين</span>
       </p>
       <div class="flex items-end justify-between">
         <p class="font-display font-bold text-5xl tabular-nums text-white mt-2">${nf.format(s.activeMembers)}</p>
@@ -844,7 +844,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <div class="flex items-start justify-between">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-          <span>? Ended Today</span><span dir="rtl" class="font-arabic">انتهت اليوم</span>
+          <span>⏳ Ended Today</span><span dir="rtl" class="font-arabic">انتهت اليوم</span>
         </p>
         <div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>
       </div>
@@ -857,7 +857,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors" id="expiringSoonCard" onclick="document.getElementById('expiringSoon').scrollIntoView({behavior:'smooth'})">
       <div class="flex items-start justify-between">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-          <span>? Expiring ? 7D</span><span dir="rtl" class="font-arabic">أوشك على الانتهاء</span>
+          <span>⌛ Expiring ≤ 7D</span><span dir="rtl" class="font-arabic">أوشك على الانتهاء</span>
         </p>
         <span class="material-symbols-outlined text-frost opacity-60">hourglass_top</span>
       </div>
@@ -870,7 +870,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-alert/10 border border-alert/40 p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-alert/15 transition-colors" id="expiredPoolCard" onclick="document.getElementById('expiringSoon').scrollIntoView({behavior:'smooth'})">
       <div class="flex items-start justify-between">
         <p class="font-body font-semibold text-xs text-alert uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-          <span>?? Expired Total</span><span dir="rtl" class="font-arabic">انتهى وما جددش</span>
+          <span>🔴 Expired Total</span><span dir="rtl" class="font-arabic">انتهى وما جددش</span>
         </p>
         <span class="material-symbols-outlined text-alert opacity-60">heart_broken</span>
       </div>
@@ -882,7 +882,7 @@ function viewDashboard() {
     <!-- Total Profit -->
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
-        <span>?? Total Profit</span><span dir="rtl" class="font-arabic">اجمالي الارباح</span>
+        <span>💰 Total Profit</span><span dir="rtl" class="font-arabic">اجمالي الارباح</span>
       </p>
       <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1" dir="ltr">${fmt.money(Math.max(0, s.totalRevenue - s.totalExpenses))}</p>
     </div>
@@ -890,7 +890,7 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
       <p class="font-body font-semibold text-xs text-black uppercase tracking-[1px] flex items-start gap-1 leading-tight">
         <span class="material-symbols-outlined text-[14px] mt-0.5">build</span>
-        <span class="flex flex-col gap-0.5"><span>?? Maint. Alert</span><span>تنبيه صيانة</span></span>
+        <span class="flex flex-col gap-0.5"><span>🔧 Maint. Alert</span><span>تنبيه صيانة</span></span>
       </p>
       <p class="font-display font-bold text-3xl tabular-nums text-black mt-1">${s.maintAlerts}</p>
     </div>
@@ -898,13 +898,13 @@ function viewDashboard() {
     <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors relative overflow-hidden group col-span-2" onclick="location.hash='#/profile'">
       <div class="flex flex-col gap-0.5">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col">
-          <span>?? License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
+          <span>🔑 License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
         </p>
       </div>
       <div class="flex flex-col">
         <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} ${lic.tier ? `<span class="text-primary">· ${tierLabel(lic.tier)}</span>` : ""}</p>
         <p class="font-display font-bold text-xs text-white mt-1 uppercase">
-          <span>${licInfo.left === Infinity ? "?? LIFETIME" : licInfo.left + " Days Left"}</span><span class="ml-1 opacity-70">${licInfo.left === Infinity ? "دائم" : "يوم متبقي"}</span>
+          <span>${licInfo.left === Infinity ? "♾️ LIFETIME" : licInfo.left + " Days Left"}</span><span class="ml-1 opacity-70">${licInfo.left === Infinity ? "دائم" : "يوم متبقي"}</span>
         </p>
       </div>
       <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
@@ -914,7 +914,7 @@ function viewDashboard() {
   <!-- Renewals & follow-ups: expiring within 7 days + lapsed within 7 days -->
   <div class="mt-4" id="expiringSoon">
     <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-2 flex gap-1 items-center">
-      <span>?? Renewals</span><span>/</span><span>المتابعة والتجديد</span>
+      <span>📞 Renewals</span><span>/</span><span>المتابعة والتجديد</span>
     </h2>
     ${expiring.length ? `
       <div class="flex flex-col gap-2">
@@ -928,13 +928,13 @@ function viewDashboard() {
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="badge ${days <= 2 ? "badge-alert" : "badge-frost"}">${days === 0 ? "ينتهي اليوم" : `${days} ${days <= 2 ? "يوم" : "أيام"}`}</span>
-              ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="تذكير واتساب">?? واتساب</a>` : ""}
+              ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="تذكير واتساب">💬 واتساب</a>` : ""}
             </div>
           </div>`;
         }).join("")}
       </div>` : ""}
     ${winback.length ? `
-      <h3 class="font-display font-bold text-xs uppercase text-alert mt-3 mb-1 flex gap-1 items-center"><span>? Lapsed this week</span><span>/</span><span>انتهى مؤخراً — رجّعهم</span></h3>
+      <h3 class="font-display font-bold text-xs uppercase text-alert mt-3 mb-1 flex gap-1 items-center"><span>⛔ Lapsed this week</span><span>/</span><span>انتهى مؤخراً — رجّعهم</span></h3>
       <div class="flex flex-col gap-2">
         ${winback.map((m) => {
           const daysAgo = Math.max(1, Math.floor((Date.now() - m.expiresAt) / DAY));
@@ -946,13 +946,13 @@ function viewDashboard() {
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="badge badge-alert">${daysAgo === 1 ? "انتهى أمس" : `منتهي منذ ${daysAgo} أيام`}</span>
-              ${waDigits(m.phone) ? `<a href="${waWinbackLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="رسالة استرجاع واتساب">?? رجّعه</a>` : ""}
+              ${waDigits(m.phone) ? `<a href="${waWinbackLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="رسالة استرجاع واتساب">💬 رجّعه</a>` : ""}
             </div>
           </div>`;
         }).join("")}
       </div>` : ""}
     ${!expiring.length && !winback.length ? `
-      <p class="rounded-lg bg-surface border border-outline-variant p-3 text-muted text-xs font-headline">All memberships healthy — nothing expiring soon / كل الاشتراكات بخير ?</p>` : ""}
+      <p class="rounded-lg bg-surface border border-outline-variant p-3 text-muted text-xs font-headline">All memberships healthy — nothing expiring soon / كل الاشتراكات بخير ✅</p>` : ""}
   </div>
 
   <!-- Growth Chart Section -->
@@ -989,7 +989,7 @@ function viewDashboard() {
   <!-- Recent Alerts Feed -->
   <div class="mt-4 flex flex-col gap-2">
     <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-1 flex gap-1 items-center">
-      <span>??? System Feed</span><span>/</span><span>سجل النظام</span>
+      <span>🗂️ System Feed</span><span>/</span><span>سجل النظام</span>
     </h2>
     ${feed.slice(0, 4).map((f) => `
       <div class="rounded-lg bg-surface p-3 flex justify-between items-center text-sm fade-up" style="border-inline-start:2px solid ${f.sev === "alert" ? "#ff3366" : f.sev === "info" ? "#ccff00" : "#d1e5f3"}">
@@ -1107,10 +1107,10 @@ function viewRoster() {
     <!-- Trainer actions live ONLY on the trainers tab -->
     <div class="flex flex-wrap gap-2">
       <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">badge</span> ?? SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
+        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
       </button>
       <button id="addTrainerBtn" class="flex-1 min-w-[150px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-3 rounded-xl shadow-neon hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ? ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ➕ ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
       </button>
     </div>` : ""}
 
@@ -1120,11 +1120,11 @@ function viewRoster() {
   const renderList = () => {
     const grid = $("#rosterGrid");
 
-    // ?? TRAINERS view ??
+    // ── TRAINERS view ──
     if (rosterFilter === "trainers") {
       const trainers = store.all("trainers");
       grid.innerHTML = trainers.length ? trainers.map(trainerCard).join("")
-        : `<div class="col-span-full text-center text-muted py-12 text-sm">?? ما في مدربين — ضيف من NEW فوق</div>`;
+        : `<div class="col-span-full text-center text-muted py-12 text-sm">📭 ما في مدربين — ضيف من NEW فوق</div>`;
       grid.querySelectorAll("[data-trainer]").forEach((c) =>
         c.addEventListener("click", () => openTrainerDetails(c.dataset.trainer)));
       grid.querySelectorAll("[data-pay]").forEach((b) =>
@@ -1150,7 +1150,7 @@ function viewRoster() {
       return;
     }
 
-    // ?? ALL — notebook register book (one row per member, every status) ??
+    // ── ALL — notebook register book (one row per member, every status) ──
     if (rosterFilter === "all") {
       const qAll = rosterQuery.trim().toLowerCase();
       const rows = store.sortMembers(store.all("members"))
@@ -1161,7 +1161,7 @@ function viewRoster() {
       return;
     }
 
-    // ?? MEMBERS view ??
+    // ── MEMBERS view ──
     const q = rosterQuery.trim().toLowerCase();
     let members = store.sortMembers(store.all("members"));
     if (rosterFilter) members = members.filter((m) => effStatus(m) === rosterFilter);
@@ -1222,20 +1222,20 @@ function trainerCard(t) {
     <div class="flex-1 min-w-0">
       <div class="flex justify-between items-start gap-2">
         <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
-        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "?? فعّال ACTIVE" : contractOver ? "? انتهى العقد ENDED" : "? موعد الراتب DUE"}</span>
+        <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "🟢 فعّال ACTIVE" : contractOver ? "⚫ انتهى العقد ENDED" : "⏰ موعد الراتب DUE"}</span>
       </div>
       <p class="font-body text-xs mt-1 ${(paid && !contractOver) ? "text-primary" : "text-alert"}">
         ${contractOver
-          ? `?? انتهى العقد بتاريخ ${fmt.date(t.contractEnd, currentLang())}`
+          ? `📄 انتهى العقد بتاريخ ${fmt.date(t.contractEnd, currentLang())}`
           : st.active
-            ? `?? الاشتراك فعّال — التجديد القادم: ${fmt.date(st.until, currentLang())}`
-            : `?? انتهت باقة الراتب${st.until ? ` بتاريخ ${fmt.date(st.until, currentLang())}` : ""} — يتطلب تجديد`}
+            ? `🟢 الاشتراك فعّال — التجديد القادم: ${fmt.date(st.until, currentLang())}`
+            : `🔴 انتهت باقة الراتب${st.until ? ` بتاريخ ${fmt.date(st.until, currentLang())}` : ""} — يتطلب تجديد`}
       </p>
       <p class="font-body text-[11px] text-muted mt-0.5" dir="ltr">${fmt.money(t.salary)}/mo</p>
       <div class="flex gap-2 mt-2 flex-wrap">
-        <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">?? بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
-        ${t.contractEnd ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest ${contractOver ? "text-alert border-alert/30" : "text-muted"} text-[10px] font-label tracking-wider uppercase border border-outline-variant">? ينتهي: ${fmt.date(t.contractEnd, currentLang())}</span>` : ""}
-        ${t.phone ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant" dir="ltr">?? ${escapeHtml(t.phone)}</span>` : ""}
+        <span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant">📅 بدأ: ${t.startedAt ? fmt.date(t.startedAt, currentLang()) : "—"}</span>
+        ${t.contractEnd ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest ${contractOver ? "text-alert border-alert/30" : "text-muted"} text-[10px] font-label tracking-wider uppercase border border-outline-variant">⏳ ينتهي: ${fmt.date(t.contractEnd, currentLang())}</span>` : ""}
+        ${t.phone ? `<span class="px-2 py-0.5 rounded bg-surface-container-highest text-muted text-[10px] font-label tracking-wider uppercase border border-outline-variant" dir="ltr">📞 ${escapeHtml(t.phone)}</span>` : ""}
       </div>
     </div>
     <div class="shrink-0 flex flex-col gap-1">
@@ -1251,13 +1251,13 @@ const TIER_LABEL = { regular: "REGULAR TIER", pro: "PRO TIER", half: "HALF PASS"
   elite: "ELITE TIER", standard: "STANDARD TIER", trial: "GUEST" };
 // License tier labels (activation-code packages)
 const LICENSE_TIER = {
-  monthly: ["??", "MONTHLY", "شهرية"],
-  yearly:  ["???", "YEARLY", "سنوية"],
-  lifetime:["??", "LIFETIME", "دائمة"],
-  standard:["??", "STANDARD", "عادية"],
-  vip:     ["??", "VIP", "مميزة"],
-  guest:   ["??", "GUEST", "زائر"],
-  trial:   ["??", "TRIAL", "تجربة"],
+  monthly: ["📅", "MONTHLY", "شهرية"],
+  yearly:  ["🗓️", "YEARLY", "سنوية"],
+  lifetime:["♾️", "LIFETIME", "دائمة"],
+  standard:["🔑", "STANDARD", "عادية"],
+  vip:     ["💎", "VIP", "مميزة"],
+  guest:   ["👤", "GUEST", "زائر"],
+  trial:   ["🎁", "TRIAL", "تجربة"],
 };
 const tierLabel = (tier) => {
   const m = LICENSE_TIER[tier];
@@ -1445,16 +1445,16 @@ function openMemberModal(id = null) {
             <p class="text-[10px] uppercase tracking-widest text-muted font-headline mb-1">Subscription / الاشتراك</p>
             <p class="font-headline text-sm uppercase ${m.status === "frozen" ? "text-frost" : "text-volt"}">
               ${m.status === "frozen"
-                ? `?? Frozen / مجمد${m.remainingDays != null ? ` <span class="normal-case text-xs text-muted">— ${m.remainingDays} يوم متوقف</span>` : ""}`
-                : "? Active / فعال"}
+                ? `❄️ Frozen / مجمد${m.remainingDays != null ? ` <span class="normal-case text-xs text-muted">— ${m.remainingDays} يوم متوقف</span>` : ""}`
+                : "✅ Active / فعال"}
             </p>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <button type="button" data-edit-prices title="Edit plan prices / تعديل أسعار الباقات" class="btn-secondary text-xs px-3 py-2">
-              ??? ${prices[m?.plan] != null ? "$" + prices[m.plan] : "Prices"}
+              🏷️ ${prices[m?.plan] != null ? "$" + prices[m.plan] : "Prices"}
             </button>
             <button type="button" data-toggle-freeze class="btn-frost text-xs px-3 py-2">
-              ${m.status === "frozen" ? "? Resume / استئناف" : "?? Freeze / تجميد"}
+              ${m.status === "frozen" ? "▶ Resume / استئناف" : "❄️ Freeze / تجميد"}
             </button>
           </div>
         </div>
@@ -1571,7 +1571,7 @@ function openMemberModal(id = null) {
 
   syncPlanUI();
   wireDpSelectOutsideClose();
-  // Inline price editor (gear icon + ??? button both use this)
+  // Inline price editor (gear icon + 🏷️ button both use this)
   const refreshPlanOptions = () => {
     const sel = $('select[name="plan"]', mod.el);
     if (!sel) return;
@@ -1584,11 +1584,11 @@ function openMemberModal(id = null) {
       `<option value="${escapeHtml(legacyKey)}" data-legacy="1" ${current === legacyKey ? "selected" : ""}>${escapeHtml(legacyKey)}</option>`);
     // re-sync the custom plan dropdown (trigger label + price chip)
     syncPlanUI();
-    // also refresh the ??? price chip next to Freeze
+    // also refresh the 🏷️ price chip next to Freeze
     const chip = mod.el.querySelector("[data-edit-prices]");
     if (chip && m) {
       const v = fresh[current];
-      chip.innerHTML = `??? ${v != null ? "$" + v : "Prices"}`;
+      chip.innerHTML = `🏷️ ${v != null ? "$" + v : "Prices"}`;
     }
   };
   $("#editPricesBtn", mod.el).addEventListener("click", () => openPlanPrices(refreshPlanOptions));
@@ -1606,11 +1606,11 @@ function openMemberModal(id = null) {
         remainingDays: null,
         frozenAt: null,
       });
-      showToast(`? Resumed — ${rem} days restored / تم الاستئناف`);
+      showToast(`▶ Resumed — ${rem} days restored / تم الاستئناف`);
     } else {
       const rem = Math.max(0, Math.ceil((cur.expiresAt - Date.now()) / DAY));
       store.update("members", id, { status: "frozen", frozenAt: Date.now(), remainingDays: rem });
-      showToast(`?? Frozen — ${rem} days paused / تم التجميد وعدم احتساب الأيام`);
+      showToast(`❄️ Frozen — ${rem} days paused / تم التجميد وعدم احتساب الأيام`);
     }
     mod.close();
   };
@@ -1695,8 +1695,8 @@ function openMemberDetail(id) {
       <button data-renew class="btn-primary flex-1">${t.renew}</button>
     </div>
     <div class="flex gap-3 mt-3">
-      ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="btn-secondary flex-1 text-center">?? تذكير واتساب</a>` : ""}
-      <button data-card class="btn-secondary flex-1">??? طباعة كارت / Print card</button>
+      ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="btn-secondary flex-1 text-center">💬 تذكير واتساب</a>` : ""}
+      <button data-card class="btn-secondary flex-1">🖨️ طباعة كارت / Print card</button>
     </div>`);
 
   mod.el.querySelector("[data-edit]").onclick = () => { mod.close(); openMemberModal(id); };
@@ -1704,7 +1704,7 @@ function openMemberDetail(id) {
     mod.close();
     const ok = await confirmDialog({
       titleEn: "Delete this member?",
-      titleAr: "حذف هذا العضو؟ ?? حركاته المالية ستبقى محفوظة في السجل ولا تُحذف",
+      titleAr: "حذف هذا العضو؟ ⚠️ حركاته المالية ستبقى محفوظة في السجل ولا تُحذف",
       confirmText: "Delete",
       danger: true,
     });
@@ -1770,7 +1770,7 @@ function openGymNameModal() {
   const t = i18n.t;
   const cur = localStorage.getItem("dp_gym_name") || "";
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">??? Gym Name / اسم النادي</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🏷️ Gym Name / اسم النادي</h3>
     <p class="font-arabic text-muted text-sm mb-4" dir="rtl">بيظهر في القائمة الجانبية، رسائل الواتساب، والتقارير المطبوعة</p>
     <form id="gymNameForm" class="flex flex-col gap-3">
       <input name="gname" class="dp-field" value="${escapeHtml(cur)}" placeholder="اسم النادي…" maxlength="40" />
@@ -1795,7 +1795,7 @@ function openGymNameModal() {
 function downloadCSV(filename, headers, rows) {
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
   // BOM first so Excel reads the Arabic text as UTF-8 instead of mojibake.
-  const csv = "?" + [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\r\n");
+  const csv = "﻿" + [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -1828,7 +1828,7 @@ function openPlanPrices(onSaved) {
   const prices = planPrices();
   const mod = openModal(`
     <div class="modal-header mb-6">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Plan Prices / أسعار الباقات</h3>
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">💲 Plan Prices / أسعار الباقات</h3>
       <p class="font-arabic text-muted text-sm" dir="rtl">حدّد السعر الافتراضي لكل باقة — يُستخدم تلقائياً عند إضافة عضو</p>
     </div>
     <form id="pricesForm" class="flex flex-col gap-4">
@@ -1916,38 +1916,29 @@ function viewHardware() {
     <!-- slim counters -->
     <div class="grid grid-cols-3 gap-3">
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">?? In Repair</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">🔧 In Repair</p>
         <p class="font-display font-bold text-3xl text-alert tabular-nums mt-1">${pending.length}</p>
         <p class="arabic-sub text-[10px]" dir="rtl">قيد التصليح</p>
       </div>
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">? Repaired</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">✅ Repaired</p>
         <p class="font-display font-bold text-3xl text-primary tabular-nums mt-1">${done.length}</p>
         <p class="arabic-sub text-[10px]" dir="rtl">تم التصليح</p>
       </div>
       <div class="bg-surface cyber-border rounded-lg p-4 text-center">
-        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">?? Total Invoices</p>
+        <p class="text-[10px] uppercase tracking-widest text-muted font-headline">💵 Total Invoices</p>
         <p class="font-display font-bold text-3xl text-frost-fixed tabular-nums mt-1" dir="ltr">${fmt.money(invoiced)}</p>
       </div>
     </div>
 
-    <!-- page stats -->
-    <div class="grid grid-cols-2 gap-4">
-      <div class="bg-surface cyber-border rounded-lg p-4 fade-up">
-        <div class="text-[10px] uppercase tracking-widest text-muted mb-1">الأعضاء النشطون</div>
-        <h2 id="memberCount" class="font-headline font-bold"></h2>
-      </div>
-      <div class="bg-surface cyber-border rounded-lg p-4 fade-up">
-        <div class="text-[10px] uppercase tracking-widest text-muted mb-1">إجمالي الإيرادات</div>
-        <h2 id="revenueThisMonth" class="font-headline font-bold"></h2>
-      </div>
+    <div class="grid grid-cols-2 gap-3">
+      <button id="importBtn" class="btn-secondary flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[20px]">import_export</span> IMPORT / استيراد
+      </button>
+      <button id="exportBtn" class="btn-secondary flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[20px]">download</span> EXPORT / تصدير
+      </button>
     </div>
-    <button id="importBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
-      <span class="material-symbols-outlined text-[20px]">import_export</span> IMPORT
-    </button>
-    <button id="exportBtn" class="bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center gap-2">
-      <span class="material-symbols-outlined text-[20px]">download</span> EXPORT
-    </button>
 
     <!-- device list -->
     <div class="bg-surface cyber-border rounded-xl p-4 fade-up">
@@ -1964,7 +1955,7 @@ function viewHardware() {
                 <p class="text-xs text-muted font-mono" dir="ltr">${fmt.money(Number(d.cost) || 0)}</p>
               </div>
               ${d.maintenanceStatus === "completed"
-                ? `<span class="text-[10px] font-headline uppercase tracking-widest text-primary whitespace-nowrap">? Repaired / تم</span>`
+                ? `<span class="text-[10px] font-headline uppercase tracking-widest text-primary whitespace-nowrap">✓ Repaired / تم</span>`
                 : `<button data-done="${d.id}" class="px-3 py-1.5 rounded-lg bg-primary-fixed text-black font-headline font-bold uppercase text-[10px] tracking-widest neon-shadow pressable whitespace-nowrap">DONE / تم</button>`}
             </div>`).join("")}
         </div>` : `<p class="text-center text-muted py-6">No devices yet / لا توجد أجهزة</p>`}
@@ -2005,7 +1996,7 @@ function markRepaired(d) {
     repairedAt: Date.now(),
     ...(ledgerId ? { ledgerId } : {}),
   });
-  if (saved) showToast("? Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
+  if (saved) showToast("✅ Repaired — invoice added to Ledger / تم التصليح وأُضيفت الفاتورة للمالية");
 }
 
 /* ============================================================
@@ -2023,7 +2014,7 @@ function viewLedger() {
   const arDigits = (n) => String(n).replace(/\d/g, (d) => "0123456789"[d]);
 
   // Selected month (offset from current month)
-  const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + (ledgerOffset || 0));
+  const base = new Date(); base.setDate(1); base.setHours(0, 0, 0, 0); base.setMonth(base.getMonth() + (ledgerOffset || 0));
   const mStart = base.getTime();
   const nxt = new Date(base); nxt.setMonth(base.getMonth() + 1);
   const mEnd = nxt.getTime();
@@ -2065,10 +2056,10 @@ function viewLedger() {
   const dueBanner = due.length ? `
     <div class="bg-alert/10 border border-alert/40 rounded-lg p-4 flex flex-wrap items-center justify-between gap-3">
       <div class="min-w-0">
-        <p class="font-headline text-sm text-alert uppercase tracking-wide">? Salaries due this month / رواتب مستحقة</p>
+        <p class="font-headline text-sm text-alert uppercase tracking-wide">⏰ Salaries due this month / رواتب مستحقة</p>
         <p class="text-xs text-muted mt-1 truncate">${due.map((t) => `${escapeHtml(t.name)} ($${t.salary})`).join(" · ")} — الإجمالي: ${fmt.money(dueTotal)}</p>
       </div>
-      <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">?? Renew all / تجديد الكل</button>
+      <button id="payAllBtn" class="shrink-0 bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:bg-white active:scale-95 transition-all">🔁 Renew all / تجديد الكل</button>
     </div>` : "";
 
   screen.innerHTML = `
@@ -2163,7 +2154,7 @@ function viewLedger() {
       <div class="border-t border-outline-variant/50 px-4 py-2.5 flex flex-col items-center gap-2">
         <p class="text-[11px] text-muted font-label tracking-wide">${filtered.length} من ${ledger.length} حركة / ${filtered.length} of ${ledger.length} entries</p>
         ${filtered.length > ledgerShown ? `<button id="ledMore" class="w-full py-2.5 rounded-xl border border-outline-variant bg-surface-container-high text-muted hover:text-primary hover:border-primary text-xs font-headline font-bold uppercase tracking-widest transition-all active:scale-95">عرض المزيد (+15) / Show more</button>` : ""}
-      </div>` : `<p class="text-center text-muted py-8 text-sm">${ledger.length ? "ما في حركات مطابقة بهالشهر / No matching transactions this month" : "?? ما في حركات بهالشهر / No transactions this month"}</p>`}
+      </div>` : `<p class="text-center text-muted py-8 text-sm">${ledger.length ? "ما في حركات مطابقة بهالشهر / No matching transactions this month" : "📭 ما في حركات بهالشهر / No transactions this month"}</p>`}
     </div>
   </section>`;
 
@@ -2175,7 +2166,7 @@ function viewLedger() {
   $("#reportsBtn").onclick = () => show("reports");
   $("#payAllBtn")?.addEventListener("click", () => {
     due.forEach((t) => payTrainer(t, { silent: true }));
-    showToast(`? Paid ${due.length} salaries — ${fmt.money(dueTotal)} / تم دفع الرواتب`);
+    showToast(`✅ Paid ${due.length} salaries — ${fmt.money(dueTotal)} / تم دفع الرواتب`);
   });
 
   // Filter chips / search / show-more (Ledger v2 table)
@@ -2202,7 +2193,7 @@ function viewLedger() {
 // ---- Trainers: pay / CRUD / monthly reminders ----
 function payTrainer(t, { silent = false } = {}) {
   if (t.contractEnd && Date.now() > t.contractEnd) {
-    showToast("? Contract ended — extend it first via Edit / انتهى عقده، عدّل تاريخ النهاية أولاً", "err");
+    showToast("⛔ Contract ended — extend it first via Edit / انتهى عقده، عدّل تاريخ النهاية أولاً", "err");
     return;
   }
   const amount = Number(t.salary || 0);
@@ -2217,7 +2208,7 @@ function payTrainer(t, { silent = false } = {}) {
     });
   }
   store.update("trainers", t.id, { lastPaidAt: Date.now() });
-  if (!silent) showToast(`?? Renewed ${t.name} — ${fmt.money(amount)} deducted to Ledger / تم تجديد الراتب وخصمه بالمالية`);
+  if (!silent) showToast(`🔁 Renewed ${t.name} — ${fmt.money(amount)} deducted to Ledger / تم تجديد الراتب وخصمه بالمالية`);
 }
 
 
@@ -2248,7 +2239,7 @@ function openTrainerDetails(id) {
 
   const mod = openModal(`
     <div class="flex items-center justify-between mb-1">
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg">?? ${escapeHtml(t.name)}</h3>
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg">👤 ${escapeHtml(t.name)}</h3>
       <span class="text-primary font-headline font-bold" dir="ltr">${fmt.money(t.salary)}/mo</span>
     </div>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">الملف المالي الكامل — رواتب وسلف</p>
@@ -2257,13 +2248,13 @@ function openTrainerDetails(id) {
     <div class="rounded-xl p-4 mb-4 ${paidThisMonth ? "bg-primary/10 border border-primary/30" : "bg-alert/10 border border-alert/40"}">
       <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="font-headline font-bold text-sm ${paidThisMonth ? "text-primary" : "text-alert"}">${paidThisMonth ? "? اتدفع له هذا الشهر" : "? لسا ما اتدفع له هذا الشهر"}</p>
+          <p class="font-headline font-bold text-sm ${paidThisMonth ? "text-primary" : "text-alert"}">${paidThisMonth ? "✅ اتدفع له هذا الشهر" : "⏰ لسا ما اتدفع له هذا الشهر"}</p>
           <p class="text-xs text-muted mt-1">أخد هذا الشهر: <b class="text-on-surface" dir="ltr">${fmt.money(tookThisMonth)}</b> ${st.until ? ` • الدفعة الجاية: ${fmt.date(st.until, currentLang())}` : ""}</p>
           <p class="text-xs mt-1 ${remainingDue < 0 ? "text-accent" : "text-muted"}">${remainingDue < 0
-            ? `?? أخد زيادة عن راتبه بـ <b dir="ltr">${fmt.money(-remainingDue)}</b>`
+            ? `⚠️ أخد زيادة عن راتبه بـ <b dir="ltr">${fmt.money(-remainingDue)}</b>`
             : `ضايل له من راتب هذا الشهر: <b class="text-primary" dir="ltr">${fmt.money(remainingDue)}</b>`}</p>
         </div>
-        ${!paidThisMonth ? `<button id="payNowBtn" class="bg-primary text-black text-xs font-bold px-3 py-2 rounded-lg active:scale-95">ادفع الآن ??</button>` : ""}
+        ${!paidThisMonth ? `<button id="payNowBtn" class="bg-primary text-black text-xs font-bold px-3 py-2 rounded-lg active:scale-95">ادفع الآن 💵</button>` : ""}
       </div>
     </div>
 
@@ -2292,10 +2283,10 @@ function openTrainerDetails(id) {
         <input name="amount" type="number" min="1" step="0.5" required class="dp-field" placeholder=" " />
         <label>Advance amount / مبلغ السلفة ($)</label>
       </div>
-      <button type="submit" class="bg-accent text-black text-xs font-bold px-4 rounded-xl active:scale-95 shrink-0">? سلفة</button>
+      <button type="submit" class="bg-accent text-black text-xs font-bold px-4 rounded-xl active:scale-95 shrink-0">➕ سلفة</button>
     </form>
 
-    <h4 class="font-headline font-bold uppercase tracking-tight text-sm mb-2">?? History / سجل الحركات</h4>
+    <h4 class="font-headline font-bold uppercase tracking-tight text-sm mb-2">🧾 History / سجل الحركات</h4>
     <div class="glass-card rounded-lg flex flex-col divide-y divide-outline-variant/50 max-h-[220px] overflow-y-auto">
       ${money.length ? money.map((p) => `
         <div class="p-3 flex items-center justify-between text-sm">
@@ -2307,10 +2298,10 @@ function openTrainerDetails(id) {
             </div>
           </div>
           <p class="font-headline font-bold ${p.category === "advance" ? "text-accent" : "text-alert"} tabular-nums" dir="ltr">-${fmt.money(p.amount)}</p>
-        </div>`).join("") : `<p class="text-center text-muted py-5 text-sm">?? لا توجد حركات مسجلة بعد</p>`}
+        </div>`).join("") : `<p class="text-center text-muted py-5 text-sm">📭 لا توجد حركات مسجلة بعد</p>`}
     </div>
 
-    ${t.phone ? `<p class="text-xs text-muted mt-4" dir="ltr">?? ${escapeHtml(t.phone)}</p>` : ""}`);
+    ${t.phone ? `<p class="text-xs text-muted mt-4" dir="ltr">📞 ${escapeHtml(t.phone)}</p>` : ""}`);
 
   mod.el.querySelector("#payNowBtn")?.addEventListener("click", () => { payTrainer(t); mod.close(); });
   mod.el.querySelector("#advanceForm").addEventListener("submit", (e) => {
@@ -2325,7 +2316,7 @@ function openTrainerDetails(id) {
       trainerId: t.id,
       date: Date.now(),
     });
-    showToast(`? Advance recorded — ${fmt.money(amount)} / اتسجلت السلفة`);
+    showToast(`➕ Advance recorded — ${fmt.money(amount)} / اتسجلت السلفة`);
     mod.close();
     openTrainerDetails(id); // reopen with fresh numbers
   });
@@ -2336,7 +2327,7 @@ function openTrainerForm(id = null) {
   const cur = id ? store.get("trainers", id) : null;
   const iso = (ts) => ts ? new Date(ts).toLocaleDateString("en-CA") : new Date().toLocaleDateString("en-CA");
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${cur ? "?? Edit Trainer / تعديل مدرب" : "? Add Trainer / إضافة مدرب"}</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${cur ? "✏️ Edit Trainer / تعديل مدرب" : "➕ Add Trainer / إضافة مدرب"}</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${cur ? "تحديث بيانات المدرب" : "رح يذكّرك النظام كل شهر بدفع راتبه"}</p>
     <form id="trainerForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Name / الاسم</label>
@@ -2382,7 +2373,7 @@ function openTrainerForm(id = null) {
         lastPaidAt: null,
       });
       mod.close();
-      showToast("?? Trainer added — monthly reminder active / انضاف المدرب والتذكير مفعّل");
+      showToast("👥 Trainer added — monthly reminder active / انضاف المدرب والتذكير مفعّل");
     }
   });
 }
@@ -2391,7 +2382,7 @@ function openTrainerForm(id = null) {
 function openSalaryModal() {
   const t = i18n.t;
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Trainer Salary / راتب مدرب</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">💼 Trainer Salary / راتب مدرب</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تسجيل راتب كأحد المصروفات</p>
     <form id="salaryForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Trainer name / اسم المدرب</label>
@@ -2542,6 +2533,7 @@ let reportOffset = 0;
 function reportMonth(offset) {
   const d = new Date();
   d.setDate(1);
+  d.setHours(0, 0, 0, 0);
   d.setMonth(d.getMonth() + offset);
   return d;
 }
@@ -2595,7 +2587,7 @@ function viewReports() {
   screen.innerHTML = `
   <!-- Page Header -->
   <div class="space-y-1">
-    <h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">?? Monthly Reports</h2>
+    <h2 class="font-headline text-2xl font-bold uppercase tracking-tight text-on-surface">📊 Monthly Reports</h2>
     <p class="font-arabic text-sm text-muted">التقارير الشهرية</p>
   </div>
 
@@ -2618,7 +2610,7 @@ function viewReports() {
       </div>
       <div class="flex justify-between items-start mb-2">
         <div>
-          <p class="font-label text-[10px] uppercase tracking-widest text-muted">?? Total Revenue</p>
+          <p class="font-label text-[10px] uppercase tracking-widest text-muted">💰 Total Revenue</p>
           <p class="font-arabic text-[10px] text-muted leading-none">إجمالي الإيرادات</p>
         </div>
         <span class="material-symbols-outlined text-accent">trending_up</span>
@@ -2634,7 +2626,7 @@ function viewReports() {
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
       <div class="mb-2">
-        <p class="font-label text-[10px] uppercase tracking-widest text-muted">?? Net Growth</p>
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">📈 Net Growth</p>
         <p class="font-arabic text-[10px] text-muted leading-none">صافي النمو</p>
       </div>
       <div class="mt-4">
@@ -2644,7 +2636,7 @@ function viewReports() {
     </div>
     <div class="bg-surface cyber-border rounded-lg p-4 relative overflow-hidden active:scale-[0.98] transition-transform">
       <div class="mb-2">
-        <p class="font-label text-[10px] uppercase tracking-widest text-muted">?? Retention</p>
+        <p class="font-label text-[10px] uppercase tracking-widest text-muted">🔁 Retention</p>
         <p class="font-arabic text-[10px] text-muted leading-none">معدل الاحتفاظ</p>
       </div>
       <div class="mt-4">
@@ -2660,7 +2652,7 @@ function viewReports() {
   <div class="bg-surface cyber-border rounded-lg p-5">
     <div class="flex justify-between items-center mb-6">
       <div>
-        <p class="font-label text-xs uppercase tracking-widest text-on-surface">?? Revenue Trend</p>
+        <p class="font-label text-xs uppercase tracking-widest text-on-surface">📈 Revenue Trend</p>
         <p class="font-arabic text-[10px] text-muted">اتجاه الإيرادات</p>
       </div>
       <select class="bg-surface-container border-none text-xs text-muted rounded-md py-1 pl-2 pr-6 focus:ring-1 focus:ring-primary">
@@ -2680,7 +2672,7 @@ function viewReports() {
   <!-- Subscriber Breakdown -->
   <div class="bg-surface cyber-border rounded-lg p-5">
     <div class="mb-4">
-      <p class="font-label text-xs uppercase tracking-widest text-on-surface">?? Plan Distribution</p>
+      <p class="font-label text-xs uppercase tracking-widest text-on-surface">🥧 Plan Distribution</p>
       <p class="font-arabic text-[10px] text-muted">توزيع الخطط</p>
     </div>
     <div class="space-y-4">
@@ -2701,7 +2693,7 @@ function viewReports() {
   <button id="repExport" class="w-full bg-primary text-black font-headline font-bold py-4 rounded-lg flex items-center justify-center gap-2 uppercase tracking-wide hover:bg-white transition-colors active:scale-[0.98] neon-shadow mt-4">
     <span class="material-symbols-outlined">download</span>
     <div class="flex flex-col items-start leading-none text-left">
-      <span>?? Export PDF</span>
+      <span>📄 Export PDF</span>
       <span class="font-arabic text-[10px] mt-0.5 opacity-80 normal-case">تصدير PDF</span>
     </div>
   </button>`;
@@ -2726,7 +2718,7 @@ function viewProfile() {
     <!-- Mobile Header Profile -->
     <div class="md:hidden flex flex-col items-center justify-center mb-8 cyber-card p-6 rounded-lg">
       <div class="w-24 h-24 rounded-full overflow-hidden neon-border neon-shadow mb-4 relative group cursor-pointer transition-transform active:scale-95">
-        <img class="w-full h-full object-cover" src="assets/img/commander.jpg" alt="Commander"/>
+        <img class="w-full h-full object-cover" src="assets/icons/icon-192.png" alt="Digital Pulse"/>
         <div class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <span class="material-symbols-outlined text-primary">edit</span>
         </div>
@@ -2747,7 +2739,7 @@ function viewProfile() {
       <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
         <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
           <div>
-            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">?? Account Security</h3>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🔐 Account Security</h3>
             <p class="font-arabic text-muted text-sm">أمان الحساب</p>
           </div>
           <span class="material-symbols-outlined text-muted">security</span>
@@ -2779,7 +2771,7 @@ function viewProfile() {
           <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secCloudSync">
             <div>
-              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">?? Cloud Sync / <span class="font-arabic normal-case">مزامنة سحابية</span></p>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">☁️ Cloud Sync / <span class="font-arabic normal-case">مزامنة سحابية</span></p>
               <p id="syncStatusText" class="text-muted text-xs mt-1 font-headline">Backup &amp; sync now / رفع نسخة الآن</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Sync</button>
@@ -2787,7 +2779,7 @@ function viewProfile() {
           <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secDriveBackup">
             <div>
-              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">?? Google Drive Backup / <span class="font-arabic normal-case">نسخ Google Drive</span></p>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">☁️ Google Drive Backup /<span class="font-arabic normal-case">نسخ Google Drive</span></p>
               <p id="driveStatusText" class="text-muted text-xs mt-1 font-headline">Automatic backup to your Drive / نسخ تلقائي إلى درايفك</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Configure</button>
@@ -2795,7 +2787,7 @@ function viewProfile() {
           <div class="h-px bg-outline-variant w-full"></div>
           <div class="flex items-center justify-between group cursor-pointer" id="secCheckSync">
             <div>
-              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">?? Verify Sync / <span class="font-arabic normal-case">تأكد من المزامنة</span></p>
+              <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">🔍 Verify Sync / <span class="font-arabic normal-case">تأكد من المزامنة</span></p>
               <p class="text-muted text-xs mt-1 font-headline">قارن جهازك بآخر نسخة مرفوعة — عدد بعدد</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">Check</button>
@@ -2812,7 +2804,7 @@ function viewProfile() {
           <div class="flex items-center justify-between group cursor-pointer" id="secCsv">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Export CSV / <span class="font-arabic normal-case">تصدير جداول Excel</span></p>
-              <p class="text-muted text-xs mt-1 font-headline">Members + ledger spreadsheets (UTF?8) / ملفات الأعضاء والمالية</p>
+              <p class="text-muted text-xs mt-1 font-headline">Members + ledger spreadsheets (UTF‑8) / ملفات الأعضاء والمالية</p>
             </div>
             <button class="text-primary text-sm font-label uppercase tracking-widest group-hover:underline">CSV</button>
           </div>
@@ -2832,7 +2824,7 @@ function viewProfile() {
       <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
         <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
           <div>
-            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">??? App Preferences</h3>
+            <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🎛️ App Preferences</h3>
             <p class="font-arabic text-muted text-sm">تفضيلات التطبيق</p>
           </div>
           <span class="material-symbols-outlined text-muted">tune</span>
@@ -2894,7 +2886,7 @@ function viewProfile() {
         <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
           <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
             <div>
-              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">?? System License</h3>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">📜 System License</h3>
               <p class="font-arabic text-muted text-sm">ترخيص النظام</p>
             </div>
             <span class="material-symbols-outlined text-muted">verified_user</span>
@@ -2940,7 +2932,7 @@ function viewProfile() {
               <div>
                 <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
                 <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
-                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "?? دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "♾️ دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
               </div>
               <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             </div>
@@ -2951,7 +2943,7 @@ function viewProfile() {
         <section class="cyber-card p-6 hover:bg-[#1a1a1a] transition-colors duration-300 rounded-lg">
           <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
             <div>
-              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">?? Activation Code</h3>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">🔑 Activation Code</h3>
               <p class="font-arabic text-muted text-sm">كود التفعيل</p>
             </div>
             <span class="material-symbols-outlined text-muted">vpn_key</span>
@@ -2985,7 +2977,7 @@ function viewProfile() {
               <div>
                 <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Remaining Time</p>
                 <p class="font-arabic text-muted text-[10px] mt-0.5">المدة المتبقية</p>
-                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "?? دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
+                <p class="text-primary text-xs mt-1 font-bold tracking-wider uppercase font-headline">${licInfo.left === Infinity ? "♾️ دائم / LIFETIME" : licInfo.left + " Days / يومًا"}</p>
               </div>
               <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             </div>
@@ -2996,7 +2988,7 @@ function viewProfile() {
         <section class="cyber-card p-6">
           <div class="flex items-center justify-between mb-6 border-b border-outline-variant pb-4">
             <div>
-              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">?? Audit Log</h3>
+              <h3 class="font-headline text-lg font-bold uppercase tracking-tight text-white">📋 Audit Log</h3>
               <p class="font-arabic text-muted text-sm">سجل العمليات</p>
             </div>
             <span class="material-symbols-outlined text-muted">history</span>
@@ -3019,7 +3011,7 @@ function viewProfile() {
             <div class="mb-4 pb-4 border-b border-outline-variant">
               <div class="flex items-center justify-between mb-2">
                 <div>
-                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">??‍?? Team Identity</h3>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">👨‍💻 Team Identity</h3>
                   <p class="font-arabic text-muted text-[10px]">هوية الفريق</p>
                 </div>
                 <span class="material-symbols-outlined text-primary text-sm">hub</span>
@@ -3037,7 +3029,7 @@ function viewProfile() {
             <div class="mb-4 pb-4 border-b border-outline-variant">
               <div class="flex items-center justify-between mb-2">
                 <div>
-                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">?? Team Contact</h3>
+                  <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-primary">📞 Team Contact</h3>
                   <p class="font-arabic text-muted text-[10px]">جهة اتصال الفريق</p>
                 </div>
                 <span class="material-symbols-outlined text-primary text-sm">contact_support</span>
@@ -3054,7 +3046,7 @@ function viewProfile() {
             </div>
             <div class="flex items-center justify-between border-b border-outline-variant pb-2">
               <div>
-                <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-muted">??? System Build</h3>
+                <h3 class="font-headline text-sm font-bold uppercase tracking-tight text-muted">🛠️ System Build</h3>
               </div>
               <span class="material-symbols-outlined text-primary text-sm">memory</span>
             </div>
@@ -3124,7 +3116,7 @@ function viewProfile() {
     // bounces the user back to activation after they clean their data.
     // (store.resetAll tombstones every item first so the cloud copy is wiped
     // on the next push instead of resurrecting the deleted rows.)
-    store.resetAll(); // this account's collections only (tombstoned first ? cloud copy wiped too)
+    store.resetAll(); // this account's collections only (tombstoned first → cloud copy wiped too)
     // NEVER DELETE USER DATA AUTOMATICALLY: the old sweep removed every dp_* key it
     // failed to recognise — including OTHER accounts' namespaces (dp_<uid>_members)
     // with no tombstone, plus dp_lang / dp_plan_prices / dp_audit_log (its KEEP_PREFIX
@@ -3150,9 +3142,9 @@ function viewProfile() {
       container.innerHTML = `<p class="text-center text-muted text-sm py-4">No audit entries yet / لا يوجد سجل عمليات بعد</p>`;
       return;
     }
-    const actionIcons = { create: "?", update: "??", delete: "???" };
+    const actionIcons = { create: "➕", update: "✏️", delete: "🗑️" };
     const actionColors = { create: "text-primary", update: "text-frost", delete: "text-alert" };
-    const collectionLabels = { members: "?? Members", devices: "?? Devices", trainers: "?? Trainers", ledger: "?? Ledger", checkins: "?? Check-ins" };
+    const collectionLabels = { members: "👥 Members", devices: "🔧 Devices", trainers: "💪 Trainers", ledger: "💰 Ledger", checkins: "📍 Check-ins" };
     container.innerHTML = logs.map(l => `
       <div class="p-3 bg-surface-container rounded-lg border border-outline-variant flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2 flex-wrap">
@@ -3203,7 +3195,7 @@ function openChangePassword() {
   const lic = license.get();
   if (!lic || !lic.code) { showToast("No license found / لا يوجد ترخيص", "err"); return; }
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Change Website Password</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔑 Change Website Password</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تغيير كلمة سر حسابك — أكتب الحالية ثم الجديدة</p>
     <form id="chpwForm" class="flex flex-col gap-3">
       <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Current / الحالية</label>
@@ -3237,7 +3229,7 @@ function openChangePassword() {
         return;
       }
       mod.close();
-      showToast("?? Password changed / تم تغيير كلمة السر");
+      showToast("🔐 Password changed / تم تغيير كلمة السر");
     } catch {
       msgEl.textContent = "Connection error / خطأ بالاتصال";
     }
@@ -3250,7 +3242,7 @@ function openChangeCode() {
   const lic = license.get();
   if (!lic || !lic.code) { showToast("No license found / لا يوجد ترخيص", "err"); return; }
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Change Activation Code</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">🔑 Change Activation Code</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">تغيير كود التفعيل — أدخل الكود الجديد للتجديد أو الترقية</p>
     <form id="chcodeForm" class="flex flex-col gap-3">
       <div>
@@ -3296,7 +3288,7 @@ function openChangeCode() {
         sessionStorage.setItem("dp_code", res.record.code);
       }
       mod.close();
-      showToast(res.idempotent ? "Already active / مفعّل مسبقاً" : "? Activation code updated / تم تحديث كود التفعيل");
+      showToast(res.idempotent ? "Already active / مفعّل مسبقاً" : "✅ Activation code updated / تم تحديث كود التفعيل");
       setTimeout(() => location.reload(), 500);
     } catch {
       msgEl.textContent = "Connection error / خطأ بالاتصال";
@@ -3315,7 +3307,7 @@ async function codesDbChange(code, cur, next) {
   return codesDb.changeClientPassword(code, cur, next);
 }
 
-// ---------- Live sync-status badge (Settings ? Cloud Sync row) ----------
+// ---------- Live sync-status badge (Settings → Cloud Sync row) ----------
 // store.js flips state (ok/syncing/error) and raises "dp:syncstatus"; the
 // pending flag itself (dp_pending_sync) survives reloads, so unsynced data
 // is visible even after closing the app.
@@ -3325,17 +3317,17 @@ function renderSyncBadge() {
   const st = store.syncStatus();
   let txt, cls;
   if (st.state === "off") {
-    txt = "?? Cloud sync off for this code / السحابة معطّلة لهذا الكود"; cls = "text-muted";
+    txt = "☁️ Cloud sync off for this code / السحابة معطّلة لهذا الكود"; cls = "text-muted";
   } else if (st.state === "syncing") {
-    txt = "?? Syncing… / جارٍ المزامنة…"; cls = "text-primary";
+    txt = "🔄 Syncing… / جارٍ المزامنة…"; cls = "text-primary";
   } else if (!navigator.onLine) {
-    txt = "?? Offline — will sync when back / بلا اتصال — ستُزامَن عند عودة الشبكة"; cls = "text-alert";
+    txt = "📡 Offline — will sync when back / بلا اتصال — ستُزامَن عند عودة الشبكة"; cls = "text-alert";
   } else if (st.state === "error") {
-    txt = "?? Last sync failed — auto-retrying / فشلت آخر مزامنة — تُعاد تلقائياً"; cls = "text-alert";
+    txt = "🔴 Last sync failed — auto-retrying / فشلت آخر مزامنة — تُعاد تلقائياً"; cls = "text-alert";
   } else if (st.pending) {
-    txt = "?? Unsynced changes — uploading shortly / بيانات لم تُزامَن بعد — سترفع تلقائياً"; cls = "text-alert";
+    txt = "⚠️ Unsynced changes — uploading shortly / بيانات لم تُزامَن بعد — سترفع تلقائياً"; cls = "text-alert";
   } else {
-    txt = "? All data synced / كل البيانات مُزامَنة"; cls = "text-primary";
+    txt = "✅ All data synced / كل البيانات مُزامَنة"; cls = "text-primary";
   }
   el.textContent = txt;
   el.className = `text-xs mt-1 font-headline ${cls}`;
@@ -3352,7 +3344,7 @@ async function cloudSyncNow() {
   // syncNow swallows network errors internally — report from the resulting
   // status instead of assuming success.
   try { await store.syncNow(); } catch { /* state handled below */ }
-  if (store.syncStatus().state === "ok") showToast("?? Synced / تمت المزامنة");
+  if (store.syncStatus().state === "ok") showToast("☁️ Synced / تمت المزامنة");
   else showToast("Sync failed / فشلت المزامنة", "err");
 }
 
@@ -3378,15 +3370,15 @@ async function checkSyncNow() {
       return { c, localN, cloudN, ok };
     });
     const allOk = rows.every((r) => r.ok);
-    const label = { members: "?? أعضاء", trainers: "?? مدربين", devices: "?? أجهزة", ledger: "?? حركات مالية" };
+    const label = { members: "👥 أعضاء", trainers: "💪 مدربين", devices: "🔧 أجهزة", ledger: "💰 حركات مالية" };
     openModal(`
-      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${allOk ? "? الجهاز مزامَن بالكامل" : "?? فيه فرق — تم السحب الآن"}</h3>
+      <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${allOk ? "✅ الجهاز مزامَن بالكامل" : "⚠️ فيه فرق — تم السحب الآن"}</h3>
       <p class="font-arabic text-muted text-sm mb-5" dir="rtl">${allOk ? "جهازك مطابق لآخر نسخة مرفوعة على السحابة" : "سحبنا آخر نسخة — الأرقام الجديدة ظاهرة تحت"}</p>
       <div class="glass-card rounded-lg divide-y divide-outline-variant/50">
         ${rows.map((r) => `
         <div class="p-3 flex items-center justify-between text-sm">
           <span>${label[r.c]}</span>
-          <span class="font-mono ${r.ok ? "text-primary" : "text-alert"}" dir="ltr">${r.ok ? "?" : "?"} ${r.localN} / ${r.cloudN}</span>
+          <span class="font-mono ${r.ok ? "text-primary" : "text-alert"}" dir="ltr">${r.ok ? "✓" : "≠"} ${r.localN} / ${r.cloudN}</span>
         </div>`).join("")}
       </div>
       <p class="text-xs text-muted mt-4 text-center" dir="rtl">آخر رفع للسحابة: ${cloud?.savedAt ? fmt.date(cloud.savedAt, currentLang()) + " " + new Date(cloud.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "لم يتم الرفع بعد"}</p>
@@ -3419,14 +3411,14 @@ async function configureDriveBackup() {
   const isConnected = status?.connected === true;
 
   const mod = openModal(`
-    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Google Drive Backup</h3>
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">☁️ Google Drive Backup</h3>
     <p class="font-arabic text-muted text-sm mb-5" dir="rtl">نسخ احتياطي تلقائي لبيانات جيمك إلى Google Drive الخاص بك</p>
     
     <div class="space-y-4">
       <div class="p-4 rounded-xl ${isConnected ? "bg-primary/10 border border-primary/30" : "bg-alert/10 border border-alert/40"}">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <p class="font-headline text-sm ${isConnected ? "text-primary" : "text-alert"}">${isConnected ? "? Connected / متصل" : "?? Not connected / غير متصل"}</p>
+            <p class="font-headline text-sm ${isConnected ? "text-primary" : "text-alert"}">${isConnected ? "✅ Connected / متصل" : "⚠️ Not connected / غير متصل"}</p>
             <p class="text-xs text-muted mt-1">${isConnected ? `Last linked: ${status.linkedAt ? new Date(status.linkedAt).toLocaleString("ar-EG", { day: "numeric", month: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}` : "Connect your Google account to enable automatic backups"}</p>
           </div>
           <span class="material-symbols-outlined ${isConnected ? "text-primary" : "text-alert"} text-2xl">cloud</span>
@@ -3489,7 +3481,7 @@ async function configureDriveBackup() {
         });
         const data = await res.json();
         if (res.ok) {
-          showToast(`? Backup uploaded: ${data.file} / تم رفع النسخة`);
+          showToast(`✅ Backup uploaded: ${data.file} / تم رفع النسخة`);
         } else {
           showToast(data.error || "Backup failed", "err");
         }
@@ -3506,7 +3498,7 @@ async function configureDriveBackup() {
       const ok = await confirmDialog({
         titleEn: "Disconnect Google Drive?", titleAr: "قطع اتصال Google Drive؟",
         message: "Automatic backups will stop. Existing backup files in Drive will NOT be deleted.",
-        icon: "??", iconColor: "#ff9800",
+        icon: "⚠️", iconColor: "#ff9800",
         okText: "Disconnect", okClass: "btn-warning", cancelText: "Cancel"
       });
       if (!ok) return;
@@ -3533,7 +3525,7 @@ async function configureDriveBackup() {
         const data = await res.json();
         const files = data.files || [];
         openModal(`
-          <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">?? Drive Backups</h3>
+          <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">💾 Drive Backups</h3>
           <p class="font-arabic text-muted text-sm mb-5" dir="rtl">ملفات النسخ الاحتياطي في Google Drive</p>
           <div class="max-h-[300px] overflow-y-auto space-y-2">
             ${files.length ? files.map(f => `

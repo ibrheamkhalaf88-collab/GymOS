@@ -25,6 +25,21 @@ function between(src, startMarker, endMarker) {
 
 const COLLECTION_RE = /removeItem\([^)]*(members|devices|trainers|ledger|checkins|notifications|audit_log|tombstones)/;
 
+// ---------- Month windows start at midnight ----------
+// Without setHours the window starts at the current time of day on the 1st, so
+// that day's earlier rows land in the previous month.
+test("ledger and reports month windows start at midnight on the 1st", () => {
+  assert.match(between(appJs, "function viewLedger()", "const mStart"), /setDate\(1\); base\.setHours\(0, 0, 0, 0\)/);
+  assert.match(between(appJs, "function reportMonth(offset)", "return d;"), /d\.setHours\(0, 0, 0, 0\)/);
+});
+
+// ---------- Text encoding ----------
+// A save through Windows-1256 once turned every emoji in app.js into "?".
+test("app.js has no emoji lost to question marks in UI strings", () => {
+  const lost = appJs.split("\n").filter((l) => />\?+[ <]|["`]\?\?+ /.test(l));
+  assert.deepEqual(lost, []);
+});
+
 // ---------- Rule 5: single session writer ----------
 test("INV5 dp_current_user is written by js/session.js and nowhere else", () => {
   const targets = [
