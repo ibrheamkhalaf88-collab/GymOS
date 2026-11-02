@@ -91,13 +91,16 @@ export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
   if (!browser || typeof browser.open !== 'function') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
-  // Include return URL in deep link so callback page knows where to redirect after auth
-  const deepLinkWithReturn = `${DEEPLINK_CALLBACK}?return=${encodeURIComponent(returnUrl)}`;
+  // NOTE: keep redirectTo WITHOUT query params. Supabase's redirect allowlist is
+  // matched against the full URL on some setups, and a custom scheme with
+  // ?return=... can fail to match (observed in the field: login succeeds in the
+  // browser but the app never opens — "تمام" then stays on the web page).
+  // callback.html already defaults to app.html when ?return is absent.
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: deepLinkWithReturn,
+      redirectTo: DEEPLINK_CALLBACK,
       skipBrowserRedirect: true,
     },
   });
