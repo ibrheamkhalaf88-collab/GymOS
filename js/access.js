@@ -213,13 +213,13 @@ function gateContent(a) {
     <!-- Inline activation form -->
     <form id="activationFormInline" class="space-y-4" autocomplete="off">
       <div class="flex justify-center gap-2 sm:gap-3" dir="ltr" style="margin-bottom: 8px;">
-        <input aria-label="Digit 1" autofocus class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
-        <input aria-label="Digit 2" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
-        <input aria-label="Digit 3" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 1" autofocus class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 2" class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 3" class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
         <span class="text-3xl font-light self-center" style="color:#444933;">-</span>
-        <input aria-label="Digit 4" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
-        <input aria-label="Digit 5" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
-        <input aria-label="Digit 6" class="digit-input" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]*" style="width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 4" class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 5" class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
+        <input aria-label="Digit 6" class="digit-input" maxlength="1" type="text" autocapitalize="characters" style="flex: 1 1 0; min-width: 0; max-width: 3rem; height: 4rem; text-align: center; font-family: 'Space Grotesk', sans-serif; font-size: 2rem; font-weight: 700; background-color: #000000; border: 1px solid #333333; color: #ccff00; border-radius: 1rem; transition: all 0.2s ease;" />
       </div>
       <div id="manualBlockInline" class="flex flex-col gap-2 mb-2" style="display: none;">
         <label class="text-xs uppercase tracking-widest opacity-60 px-1" style="color:#c4c9ac;">Manual Activation / التنشيط اليدوي</label>
@@ -249,13 +249,16 @@ function gateContent(a) {
       : `<p style="text-align:center;font-size:11.5px;color:#6b6f5a;margin:14px 0 0;line-height:1.6">
       Need a code? Contact us on WhatsApp
       <span dir="rtl" style="display:block">تحتاج كود؟ تواصل معنا على واتساب</span>
-    </p>`}`;
+    </p>`}
+    ${!isLocked ? `<button type="button" id="gateReadOnlyBtn" style="display:block;width:100%;margin-top:14px;min-height:48px;background:transparent;color:${INK};font-weight:700;border-radius:12px;border:1px solid #333527;font-size:13.5px;cursor:pointer">
+      متابعة للعرض فقط / Continue read-only
+    </button>` : ""}`;
 }
 
 // Modal shell with semi-transparent backdrop
 function shell(inner) {
-  return `<div id="dpGate" style="position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);color:#fff;font-family:Inter,Tajawal,system-ui,sans-serif;overflow-y:auto">
-  <div style="width:100%;max-width:440px;background:#000;border:1px solid #444933;border-radius:16px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.9);position:relative;overflow:hidden">
+  return `<div id="dpGate" style="position:fixed;inset:0;z-index:100000;display:flex;justify-content:center;padding:20px;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);color:#fff;font-family:Inter,Tajawal,system-ui,sans-serif;overflow-y:auto">
+  <div style="width:100%;max-width:440px;margin:auto;background:#000;border:1px solid #444933;border-radius:16px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.9);position:relative;overflow:hidden">
     <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:${BRAND}"></div>
     ${inner}
   </div>
@@ -274,6 +277,8 @@ export function showGate(access = getAccess()) {
   document.body.style.overflow = "hidden";
   document.body.insertAdjacentHTML("beforeend", shell(gateContent(access)));
   
+  document.getElementById("gateReadOnlyBtn")?.addEventListener("click", hideGate);
+
   // Wire up the inline activation form
   const form = document.getElementById("activationFormInline");
   const msgEl = document.getElementById("actMsgInline");
@@ -405,6 +410,7 @@ const SUSPENDED_BANNER_ID = "dpSuspendedBar";
 function removeBannerStrip() {
   document.getElementById(BANNER_ID)?.remove();
   document.body.style.paddingBottom = "";
+  document.body.classList.remove("dp-readonly");
 }
 
 export function showBanner(access = getAccess()) {
@@ -415,10 +421,11 @@ export function showBanner(access = getAccess()) {
   const el = document.createElement("div");
   el.id = BANNER_ID;
   el.setAttribute("role", "status");
-  el.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#1a1408;border-top:1px solid #4a3d12;padding:11px 14px;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;font-family:Inter,Tajawal,system-ui,sans-serif;box-shadow:0 -8px 24px rgba(0,0,0,.5)";
+  el.style.cssText = "position:fixed;left:0;right:0;bottom:var(--dp-banner-bottom,0);z-index:99990;background:#1a1408;border-top:1px solid #4a3d12;padding:11px 14px;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;font-family:Inter,Tajawal,system-ui,sans-serif;box-shadow:0 -8px 24px rgba(0,0,0,.5)";
   el.innerHTML = `<span style="font-size:12.5px;color:#e8d9a0">⏳ Free trial ended — read only &nbsp;<span dir="rtl" style="color:#a99a6b">انتهت الفترة المجانية — عرض فقط</span></span>
     <a href="activate.html" style="background:${BRAND};color:#000;font-weight:800;font-size:12px;padding:8px 16px;border-radius:9px;text-decoration:none;white-space:nowrap">Enter code</a>`;
   document.body.appendChild(el);
+  document.body.classList.add("dp-readonly");
   document.body.style.paddingBottom = "64px";
 }
 

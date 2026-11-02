@@ -40,6 +40,24 @@ test("app.js has no emoji lost to question marks in UI strings", () => {
   assert.deepEqual(lost, []);
 });
 
+// ---------- UX guards ----------
+test("devices can be added and check-ins recorded from the app", () => {
+  assert.match(appJs, /store\.insert\("devices"/);
+  assert.match(appJs, /currentTab === "hardware"\) openDeviceModal\(\)/);
+  assert.match(appJs, /store\.recordCheckin\(id\)/);
+  assert.match(storeJs, /recordCheckin\(memberId\)/);
+});
+
+test("dashboard shows no invented numbers", () => {
+  assert.doesNotMatch(appJs, /Capacity Alert|Floor utilization/);
+});
+
+test("expired gate lets the owner read, and accepts letters in codes", () => {
+  const accessJs = read("js/access.js");
+  assert.match(accessJs, /gateReadOnlyBtn/);
+  assert.doesNotMatch(accessJs, /class="digit-input"[^>]*inputmode="numeric"/);
+});
+
 // ---------- Rule 5: single session writer ----------
 test("INV5 dp_current_user is written by js/session.js and nowhere else", () => {
   const targets = [

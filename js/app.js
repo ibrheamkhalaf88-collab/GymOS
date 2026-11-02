@@ -10,7 +10,7 @@ import { i18n, currentLang } from "./i18n.js";
 import { showToast, openModal, confirmDialog, fmt, initials, escapeHtml } from "./ui.js";
 import { sanitizeName, sanitizeAmount, sanitizePhone, validatePassword } from "./validate.js";
 import { appConfig } from "./config.js";
-import { install as installAccess } from "./access.js";
+import { install as installAccess, requireWrite } from "./access.js";
 import { isNativeApp } from "./native-oauth.js";
 import { isNewer, pickApkAsset, normalizeTag } from "./version.js";
 import "./sync-status-ui.js";
@@ -593,7 +593,7 @@ function effectiveLicense() {
       if (u.subEnd) end = Number(u.subEnd);
     }
   } catch {}
-  const left = Math.max(1, Math.ceil((end - Date.now()) / 86400000));
+  const left = Math.max(0, Math.ceil((end - Date.now()) / 86400000));
   return { lic: { code, tier: "trial", expiresAt: end, owner }, left };
 }
 const nf = new Intl.NumberFormat("en-US");
@@ -658,6 +658,7 @@ function show(tab, keepScroll = false) {
     reports: ["MONTHLY REPORTS", "التقارير الشهرية"],
     profile: ["PROFILE", "حسابي"],
   };
+  $("#fab").classList.toggle("!hidden", tab === "profile" || tab === "reports");
   $("#pageTitleEn").textContent = titles[tab][0];
   $("#pageTitleAr").textContent = titles[tab][1];
 
@@ -699,7 +700,9 @@ document.querySelectorAll(".nav-tab").forEach((b) => b.addEventListener("click",
   const items = [
     ["dashboard", "dashboard", "Dashboard", "الرئيسية"],
     ["roster", "group", "Roster", "الأعضاء"],
+    ["hardware", "settings_input_component", "Hardware", "الأجهزة"],
     ["ledger", "account_balance_wallet", "Ledger", "المالية"],
+    ["reports", "insights", "Reports", "التقارير"],
     ["profile", "account_circle", "Profile", "حسابي"],
   ];
   $("#sideNav").innerHTML = items.map(([tab, icon, en, ar]) => `
@@ -721,6 +724,7 @@ $("#mNotifBtn").addEventListener("click", () => {
   const sevStyle = (sev) => sev === "alert" ? "#ff3366" : sev === "info" ? "#ccff00" : "#d1e5f3";
   openModal(`
     <h3 class="font-headline font-bold uppercase tracking-tight mb-4">${t.systemFeed}</h3>
+    ${list.length ? "" : `<p class="text-center text-muted py-8 text-sm" dir="rtl">ما في تنبيهات حالياً / No notifications</p>`}
     <div class="flex flex-col gap-2">
       ${list.map((n) => `
         <div class="rounded-2xl bg-surface-container p-3 flex justify-between items-center gap-2"
@@ -768,7 +772,9 @@ async function deactivateLicense() {
 
 // ---------- FAB ----------
 document.getElementById("fab").addEventListener("click", () => {
+  if (!requireWrite("add")) return; // don't let them fill a form that can't save
   if (currentTab === "roster") openMemberModal();
+  else if (currentTab === "hardware") openDeviceModal();
   else if (currentTab === "ledger") openTxModal();
   else openMemberModal();
 });
@@ -785,13 +791,9 @@ function viewDashboard() {
   const feed = [];
   store.all("devices").filter((d) => d.maintenanceStatus === "in-repair").slice(0, 1).forEach((d) =>
     feed.push({ sev: "alert",
-      en: `${d.code} Offline`, ar: `${d.name} متوقف`,
-      subEn: d.issue || "Maintenance required", subAr: "يتطلب صيانة",
+      en: `${d.name} — in repair`, ar: `${d.name} قيد التصليح`,
+      subEn: d.issue || "Maintenance required", subAr: d.issue || "يتطلب صيانة",
       time: d.updatedAt || Date.now() }));
-  feed.push({ sev: "info", en: "Capacity Alert", ar: "تنبيه السعة",
-    subEn: `Floor utilization at ${Math.min(95, 40 + s.activeMembers * 5)}%`,
-    subAr: `استخدام الصالة بنسبة ٪${Math.min(95, 40 + s.activeMembers * 5)}`,
-    time: Date.now() - 3600000 });
   store.all("notifications").slice(0, 1).forEach((n) =>
     feed.push({ sev: n.severity, en: n.titleEn, ar: n.titleAr, subEn: n.subEn, subAr: n.subAr, time: n.time }));
 
@@ -810,7 +812,16 @@ function viewDashboard() {
     .slice(0, 6);
   syncExpiryNotifications();
 
+  const noMembers = !store.all("members").length;
   screen.innerHTML = `
+  ${noMembers ? `
+  <div class="rounded-lg bg-primary/10 border border-primary/40 p-5 flex flex-col gap-3" dir="rtl">
+    <div>
+      <h2 class="font-headline font-bold text-lg">أهلاً بك في ${escapeHtml(gymName())} 👋</h2>
+      <p class="text-sm text-muted mt-1">ابدأ بإضافة أول عضو، وبعدها رح تظهر هون الاشتراكات والتجديدات والأرباح.</p>
+    </div>
+    <button id="firstMemberBtn" class="btn-primary w-full">إضافة أول عضو / Add first member</button>
+  </div>` : ""}
   <!-- Sync Status Bar -->
   <div id="syncStatusBar" class="mb-4 p-3 bg-surface border border-outline-variant rounded-lg flex items-center justify-between gap-4">
     <div class="flex items-center gap-3">
@@ -831,7 +842,7 @@ function viewDashboard() {
   <!-- Metrics Grid -->
   <div class="grid grid-cols-2 gap-4">
     <!-- Active Members -->
-    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
+    <div data-goto="roster:active" class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
         <span>👥 Active Members</span><span dir="rtl" class="font-arabic">الأعضاء النشطين</span>
       </p>
@@ -841,15 +852,15 @@ function viewDashboard() {
       </div>
     </div>
     <!-- Ended Today -->
-    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
+    <div data-goto="roster:expired" class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-surface-hover transition-colors">
       <div class="flex items-start justify-between">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
           <span>⏳ Ended Today</span><span dir="rtl" class="font-arabic">انتهت اليوم</span>
         </p>
-        <div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>
+        ${s.endedToday ? `<div class="w-2 h-2 rounded-full bg-alert shadow-neon-alert animate-pulse-fast mt-1"></div>` : ""}
       </div>
       <div class="flex items-end justify-between">
-        <p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">${s.endedToday}</p>
+        <p class="font-display font-bold text-5xl tabular-nums ${s.endedToday ? "text-alert" : "text-white"} mt-2">${s.endedToday}</p>
         <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">event_busy</span>
       </div>
     </div>
@@ -859,7 +870,6 @@ function viewDashboard() {
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
           <span>⌛ Expiring ≤ 7D</span><span dir="rtl" class="font-arabic">أوشك على الانتهاء</span>
         </p>
-        <span class="material-symbols-outlined text-frost opacity-60">hourglass_top</span>
       </div>
       <div class="flex items-end justify-between">
         <p class="font-display font-bold text-5xl tabular-nums text-frost mt-2">${expiringAll.length}</p>
@@ -867,44 +877,42 @@ function viewDashboard() {
       </div>
     </div>
     <!-- Expired & not renewed — the ALL-TIME win-back pool (not just this week) -->
-    <div class="stat-card cursor-pointer bg-alert/10 border border-alert/40 p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group hover:bg-alert/15 transition-colors" id="expiredPoolCard" onclick="document.getElementById('expiringSoon').scrollIntoView({behavior:'smooth'})">
+    <div data-goto="roster:expired" class="stat-card cursor-pointer ${s.totalExpired ? "bg-alert/10 border-alert/40 hover:bg-alert/15" : "bg-surface border-outline-variant hover:bg-surface-hover"} border p-4 h-[130px] flex flex-col justify-between relative overflow-hidden group transition-colors" id="expiredPoolCard">
       <div class="flex items-start justify-between">
-        <p class="font-body font-semibold text-xs text-alert uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <p class="font-body font-semibold text-xs ${s.totalExpired ? "text-alert" : "text-muted"} uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
           <span>🔴 Expired Total</span><span dir="rtl" class="font-arabic">انتهى وما جددش</span>
         </p>
-        <span class="material-symbols-outlined text-alert opacity-60">heart_broken</span>
       </div>
       <div class="flex items-end justify-between">
-        <p class="font-display font-bold text-5xl tabular-nums text-alert mt-2">${nf.format(s.totalExpired)}</p>
+        <p class="font-display font-bold text-5xl tabular-nums ${s.totalExpired ? "text-alert" : "text-white"} mt-2">${nf.format(s.totalExpired)}</p>
         <span class="material-symbols-outlined text-alert opacity-20 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-40 transition-opacity">person_off</span>
       </div>
     </div>
     <!-- Total Profit -->
-    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
+    <div data-goto="ledger" class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors">
       <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
         <span>💰 Total Profit</span><span dir="rtl" class="font-arabic">اجمالي الارباح</span>
       </p>
-      <p class="font-display font-bold text-3xl tabular-nums text-muted mt-1" dir="ltr">${fmt.money(Math.max(0, s.totalRevenue - s.totalExpenses))}</p>
+      <p class="font-display font-bold text-3xl tabular-nums ${s.totalRevenue - s.totalExpenses < 0 ? "text-alert" : "text-white"} mt-1" dir="ltr">${fmt.money(s.totalRevenue - s.totalExpenses)}</p>
     </div>
     <!-- Maintenance Alert -->
-    <div class="stat-card cursor-pointer bg-alert border border-alert p-4 h-[100px] flex flex-col justify-between shadow-neon-alert">
-      <p class="font-body font-semibold text-xs text-black uppercase tracking-[1px] flex items-start gap-1 leading-tight">
-        <span class="material-symbols-outlined text-[14px] mt-0.5">build</span>
-        <span class="flex flex-col gap-0.5"><span>🔧 Maint. Alert</span><span>تنبيه صيانة</span></span>
+    <div data-goto="hardware" class="stat-card cursor-pointer ${s.maintAlerts ? "bg-alert border-alert shadow-neon-alert" : "bg-surface border-outline-variant hover:bg-surface-hover"} border p-4 h-[100px] flex flex-col justify-between">
+      <p class="font-body font-semibold text-xs ${s.maintAlerts ? "text-black" : "text-muted"} uppercase tracking-[1px] leading-tight flex flex-col gap-0.5">
+        <span>🔧 Maint. Alert</span><span>تنبيه صيانة</span>
       </p>
-      <p class="font-display font-bold text-3xl tabular-nums text-black mt-1">${s.maintAlerts}</p>
+      <p class="font-display font-bold text-3xl tabular-nums ${s.maintAlerts ? "text-black" : "text-white"} mt-1">${s.maintAlerts}</p>
     </div>
     <!-- License Status -->
-    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors relative overflow-hidden group col-span-2" onclick="location.hash='#/profile'">
+    <div class="stat-card cursor-pointer bg-surface border border-outline-variant p-4 h-[100px] flex flex-col justify-between hover:bg-surface-hover transition-colors relative overflow-hidden group col-span-2" data-goto="profile">
       <div class="flex flex-col gap-0.5">
         <p class="font-body font-semibold text-xs text-muted uppercase tracking-[1px] leading-tight flex flex-col">
           <span>🔑 License Status</span><span class="text-[10px] opacity-70">حالة الترخيص</span>
         </p>
       </div>
       <div class="flex flex-col">
-        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">CODE: ${escapeHtml(lic.code)} ${lic.tier ? `<span class="text-primary">· ${tierLabel(lic.tier)}</span>` : ""}</p>
-        <p class="font-display font-bold text-xs text-white mt-1 uppercase">
-          <span>${licInfo.left === Infinity ? "♾️ LIFETIME" : licInfo.left + " Days Left"}</span><span class="ml-1 opacity-70">${licInfo.left === Infinity ? "دائم" : "يوم متبقي"}</span>
+        <p class="font-mono text-white text-sm tracking-wider" dir="ltr">${license.get() ? `CODE: ${escapeHtml(lic.code)} ` : ""}${lic.tier ? `<span class="text-primary">${license.get() ? "· " : ""}${tierLabel(lic.tier)}</span>` : ""}</p>
+        <p class="font-display font-bold text-xs text-white mt-1 uppercase flex gap-2 flex-wrap">
+          <span dir="ltr">${licInfo.left === Infinity ? "♾️ LIFETIME" : licInfo.left === 0 ? "Expired" : licInfo.left + " Days Left"}</span><span dir="rtl" class="opacity-70">${licInfo.left === Infinity ? "دائم" : licInfo.left === 0 ? "منتهي" : `${licInfo.left} يوم متبقي`}</span>
         </p>
       </div>
       <span class="material-symbols-outlined text-white opacity-10 text-4xl absolute -bottom-2 -right-2 group-hover:opacity-20 transition-opacity">key</span>
@@ -928,7 +936,7 @@ function viewDashboard() {
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="badge ${days <= 2 ? "badge-alert" : "badge-frost"}">${days === 0 ? "ينتهي اليوم" : `${days} ${days <= 2 ? "يوم" : "أيام"}`}</span>
-              ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="تذكير واتساب">💬 واتساب</a>` : ""}
+              ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="px-3 py-2.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[11px] tracking-wide active:scale-95 transition-transform" title="تذكير واتساب">💬 واتساب</a>` : ""}
             </div>
           </div>`;
         }).join("")}
@@ -946,7 +954,7 @@ function viewDashboard() {
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span class="badge badge-alert">${daysAgo === 1 ? "انتهى أمس" : `منتهي منذ ${daysAgo} أيام`}</span>
-              ${waDigits(m.phone) ? `<a href="${waWinbackLink(m)}" target="_blank" rel="noopener" class="px-3 py-1.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[10px] tracking-widest active:scale-95 transition-transform" title="رسالة استرجاع واتساب">💬 رجّعه</a>` : ""}
+              ${waDigits(m.phone) ? `<a href="${waWinbackLink(m)}" target="_blank" rel="noopener" class="px-3 py-2.5 rounded-lg bg-[#25D366] text-black font-headline font-bold uppercase text-[11px] tracking-wide active:scale-95 transition-transform" title="رسالة استرجاع واتساب">💬 رجّعه</a>` : ""}
             </div>
           </div>`;
         }).join("")}
@@ -959,19 +967,20 @@ function viewDashboard() {
   <div class="mt-4 flex-1 flex flex-col">
     <div class="flex items-start justify-between mb-2">
       <h2 class="font-display font-bold text-lg tracking-[-0.05em] uppercase leading-tight flex flex-col">
-        <span>Check-ins (7D)</span>
-        <span class="text-sm opacity-70">تسجيلات الدخول (7 أيام)</span>
+        <span id="checkinsTitleEn">Check-ins (7D)</span>
+        <span id="checkinsTitleAr" class="text-sm opacity-70">تسجيلات الدخول (7 أيام)</span>
       </h2>
       <div class="flex gap-2" id="rangeBtns">
-        <button data-range="7" class="chart-range rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 bg-surface-hover border border-outline-variant text-white flex flex-col items-center">
-          <span>7D</span><span>7أ</span>
+        <button data-range="7" class="chart-range rounded-2xl font-arabic font-bold text-xs px-3 min-h-[40px] bg-surface-hover border border-outline-variant text-white">
+          7 أيام
         </button>
-        <button data-range="30" class="chart-range rounded-2xl font-display font-bold text-[10px] uppercase px-2 py-1 border border-outline-variant text-muted flex flex-col items-center">
-          <span>30D</span><span>30أ</span>
+        <button data-range="30" class="chart-range rounded-2xl font-arabic font-bold text-xs px-3 min-h-[40px] border border-outline-variant text-muted">
+          30 يوم
         </button>
       </div>
     </div>
     <div class="rounded-lg overflow-hidden bg-surface border border-outline-variant p-4 flex-1 min-h-[220px] relative">
+      <p id="checkinsEmpty" class="hidden absolute inset-0 z-10 flex items-center justify-center text-center text-muted text-sm px-6" dir="rtl">لسا ما في زيارات. افتح ملف العضو واضغط "تسجيل دخول".</p>
       <canvas id="growthChart" class="absolute inset-0 p-4"></canvas>
       <div class="absolute inset-x-4 bottom-4 top-4 pointer-events-none flex items-end">
         <div class="w-full h-full bg-gradient-to-t from-[rgba(204,255,0,0.1)] to-transparent border-b border-primary relative">
@@ -987,7 +996,7 @@ function viewDashboard() {
   </div>
 
   <!-- Recent Alerts Feed -->
-  <div class="mt-4 flex flex-col gap-2">
+  <div class="mt-4 flex flex-col gap-2 ${feed.length ? "" : "hidden"}">
     <h2 class="font-display font-bold text-sm tracking-[-0.05em] uppercase text-muted mb-1 flex gap-1 items-center">
       <span>🗂️ System Feed</span><span>/</span><span>سجل النظام</span>
     </h2>
@@ -1007,6 +1016,12 @@ function viewDashboard() {
       </div>`).join("")}
   </div>`;
 
+  $("#firstMemberBtn")?.addEventListener("click", () => openMemberModal());
+  screen.querySelectorAll("[data-goto]").forEach((card) => card.addEventListener("click", () => {
+    const [tab, filter] = card.dataset.goto.split(":");
+    if (filter) rosterFilter = filter;
+    show(tab);
+  }));
   drawCheckinsChart(7);
   document.querySelectorAll(".chart-range").forEach((b) =>
     b.addEventListener("click", () => drawCheckinsChart(Number(b.dataset.range))));
@@ -1018,6 +1033,9 @@ async function drawCheckinsChart(days) {
   await ensureChart();
   if (!window.Chart) return;
   const data = days === 7 ? store.stats().checkins7 : store.stats().checkins30;
+  $("#checkinsTitleEn").textContent = `Check-ins (${days}D)`;
+  $("#checkinsTitleAr").textContent = days === 7 ? "تسجيلات الدخول (7 أيام)" : "تسجيلات الدخول (30 يوم)";
+  $("#checkinsEmpty").classList.toggle("hidden", data.some(Boolean));
 
   document.querySelectorAll(".chart-range").forEach((b) => {
     const active = Number(b.dataset.range) === days;
@@ -1089,7 +1107,7 @@ function viewRoster() {
     <div class="flex flex-col gap-4">
       <div class="relative">
         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted">search</span>
-        <input id="rosterSearch" placeholder="SEARCH ID OR NAME..." class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label uppercase tracking-wider focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
+        <input id="rosterSearch" placeholder="ابحث بالاسم أو الرقم / Search" class="w-full bg-surface-container border border-outline-variant rounded-full pl-10 pr-4 py-3 text-sm font-label focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all placeholder:text-muted/50"/>
       </div>
       <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
         ${["all", "active", "expired", "trainers", "trial", "frozen"].map((f) => `
@@ -1106,11 +1124,11 @@ function viewRoster() {
     ${rosterFilter === "trainers" ? `
     <!-- Trainer actions live ONLY on the trainers tab -->
     <div class="flex flex-wrap gap-2">
-      <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-2.5 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]">badge</span> 💪 SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
+      <button id="addSalaryBtn" class="flex-1 min-w-[150px] bg-surface-container-high border border-outline-variant text-on-surface font-headline font-bold uppercase tracking-widest text-xs px-4 py-3 rounded-xl hover:border-primary hover:text-primary active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">badge</span> SALARY / <span class="font-arabic normal-case">تسجيل راتب يدوي</span>
       </button>
       <button id="addTrainerBtn" class="flex-1 min-w-[150px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-xs px-4 py-3 rounded-xl shadow-neon hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ➕ ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">person_add</span> ADD TRAINER / <span class="font-arabic normal-case">إضافة مدرب</span>
       </button>
     </div>` : ""}
 
@@ -1168,7 +1186,8 @@ function viewRoster() {
     if (q) members = members.filter((m) => m.name.toLowerCase().includes(q) || String(m.phone).includes(q));
 
     grid.innerHTML = members.length ? members.map((m, i) => memberCard(m, i)).join("")
-      : `<div class="empty-state col-span-full"><div class="icon material-symbols-outlined">group_off</div><h3>لا يوجد أعضاء</h3><p>ابدأ بإضافة أول عضو للنادي</p></div>`;
+      : `<div class="empty-state col-span-full"><div class="icon material-symbols-outlined">group_off</div><h3>لا يوجد أعضاء</h3><p>ابدأ بإضافة أول عضو للنادي</p><button type="button" data-empty-add class="btn-primary mt-4">إضافة عضو / Add member</button></div>`;
+    $("[data-empty-add]")?.addEventListener("click", () => openMemberModal());
 
     grid.querySelectorAll("[data-member]").forEach((card) =>
       card.addEventListener("click", () => openMemberDetail(card.dataset.member)));
@@ -1220,8 +1239,8 @@ function trainerCard(t) {
       <div class="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-surface ${(paid && !contractOver) ? "bg-primary shadow-neon" : "bg-alert"}"></div>
     </div>
     <div class="flex-1 min-w-0">
-      <div class="flex justify-between items-start gap-2">
-        <h3 class="font-headline font-bold text-on-surface uppercase truncate">${escapeHtml(t.name)}</h3>
+      <div class="flex flex-wrap justify-between items-start gap-2">
+        <h3 class="font-headline font-bold text-on-surface uppercase">${escapeHtml(t.name)}</h3>
         <span class="font-label text-xs tracking-widest shrink-0 px-2 py-0.5 rounded border font-bold ${(paid && !contractOver) ? "bg-primary/10 text-primary border-primary/30" : "bg-alert/10 text-alert border-alert/30"}">${(paid && !contractOver) ? "🟢 فعّال ACTIVE" : contractOver ? "⚫ انتهى العقد ENDED" : "⏰ موعد الراتب DUE"}</span>
       </div>
       <p class="font-body text-xs mt-1 ${(paid && !contractOver) ? "text-primary" : "text-alert"}">
@@ -1239,10 +1258,10 @@ function trainerCard(t) {
       </div>
     </div>
     <div class="shrink-0 flex flex-col gap-1">
-      <button data-info-btn title="File / الملف" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
-      <button data-edit-t="${t.id}" title="Edit / تعديل" class="text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
-      <button data-del-t="${t.id}" title="Delete / حذف" class="text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
-      <button data-pay="${t.id}" title="Renew / تجديد" class="${paid ? "hidden" : ""} bg-primary text-black rounded-xl p-1.5 hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>
+      <button data-info-btn title="File / الملف" aria-label="File / الملف" class="w-10 h-10 flex items-center justify-center text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">receipt_long</span></button>
+      <button data-edit-t="${t.id}" title="Edit / تعديل" aria-label="Edit / تعديل" class="w-10 h-10 flex items-center justify-center text-muted hover:text-primary transition-colors"><span class="material-symbols-outlined text-lg">edit</span></button>
+      <button data-del-t="${t.id}" title="Delete / حذف" aria-label="Delete / حذف" class="w-10 h-10 flex items-center justify-center text-muted hover:text-alert transition-colors"><span class="material-symbols-outlined text-lg">delete</span></button>
+      <button data-pay="${t.id}" title="Renew / تجديد" aria-label="Renew / تجديد" class="${paid ? "hidden" : "flex"} w-10 h-10 items-center justify-center bg-primary text-black rounded-xl hover:bg-white active:scale-90 transition-all"><span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">autorenew</span></button>
     </div>
   </div>`;
 }
@@ -1690,13 +1709,16 @@ function openMemberDetail(id) {
       ${m.tag ? `<div class="mt-3"><span class="badge badge-muted">${escapeHtml(m.tag)}</span></div>` : ""}
     </div>
     <div class="flex gap-3">
-      <button data-del class="btn-alert flex-1">${t.delete}</button>
-      <button data-edit class="btn-secondary flex-1">${t.edit}</button>
       <button data-renew class="btn-primary flex-1">${t.renew}</button>
+      <button data-checkin class="btn-secondary flex-1">تسجيل دخول</button>
     </div>
     <div class="flex gap-3 mt-3">
-      ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="btn-secondary flex-1 text-center">💬 تذكير واتساب</a>` : ""}
-      <button data-card class="btn-secondary flex-1">🖨️ طباعة كارت / Print card</button>
+      ${waDigits(m.phone) ? `<a href="${waReminderLink(m)}" target="_blank" rel="noopener" class="btn-secondary flex-1 text-center">💬 واتساب</a>` : ""}
+      <button data-card class="btn-secondary flex-1">🖨️ طباعة كارت</button>
+    </div>
+    <div class="flex gap-3 mt-3">
+      <button data-edit class="btn-secondary flex-1">${t.edit}</button>
+      <button data-del class="btn-alert flex-1">${t.delete}</button>
     </div>`);
 
   mod.el.querySelector("[data-edit]").onclick = () => { mod.close(); openMemberModal(id); };
@@ -1709,6 +1731,11 @@ function openMemberDetail(id) {
       danger: true,
     });
     if (ok) { store.remove("members", id); showToast("Member deleted — finance kept / انحذف العضو وحُفظت أمواله بالسجل"); }
+  };
+  mod.el.querySelector("[data-checkin]").onclick = () => {
+    if (!store.recordCheckin(id)) return; // access gate opened
+    mod.close();
+    showToast(st === "expired" ? `${m.name}: تم تسجيل الدخول — الاشتراك منتهي` : `${m.name}: تم تسجيل الدخول / Checked in`, st === "expired" ? "err" : "ok");
   };
   mod.el.querySelector("[data-renew]").onclick = () => { mod.close(); openRenewModal(id); };
   mod.el.querySelector("[data-card]").onclick = () => printMemberCard(m);
@@ -1865,12 +1892,12 @@ function openRenewModal(id) {  const m = store.get("members", id);
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">Days / أيام</label>
           <input name="days" type="number" min="1" max="1095" value="30" class="dp-field mt-1" /></div>
         <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">${t.amount} ($)</label>
-          <input name="amount" type="number" min="0" step="0.5" value="0" class="dp-field mt-1" /></div>
+          <input name="amount" type="number" min="0" step="0.5" value="${planPrices()[m.plan] ?? m.paidAmount ?? 0}" class="dp-field mt-1" /></div>
       </div>
       <p class="text-[11px] text-muted font-headline uppercase tracking-widest">${t.renew} — Basis / أساس التجديد</p>
       <div class="flex flex-col gap-2">
-        <button type="button" data-base="expiry" class="py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew} — من تاريخ الانتهاء (From expiry)</button>
-        <button type="button" data-base="today" class="py-3 rounded-xl border border-primary-fixed text-primary-fixed font-headline font-bold uppercase text-sm pressable">${t.renew} — من اليوم (From today)</button>
+        ${m.expiresAt > Date.now() ? `<button type="button" data-base="expiry" class="py-3 rounded-xl bg-primary-fixed text-black font-headline font-bold uppercase text-sm pressable">${t.renew} — من تاريخ الانتهاء (From expiry)</button>` : ""}
+        <button type="button" data-base="today" class="py-3 rounded-xl ${m.expiresAt > Date.now() ? "border border-primary-fixed text-primary-fixed" : "bg-primary-fixed text-black"} font-headline font-bold uppercase text-sm pressable">${t.renew} — من اليوم (From today)</button>
       </div>
       <div class="flex gap-3 pt-1">
         <button type="button" data-close class="flex-1 py-3 rounded-xl border border-outline-variant text-muted font-bold uppercase text-sm pressable">${t.cancel}</button>
@@ -1931,14 +1958,9 @@ function viewHardware() {
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
-      <button id="importBtn" class="btn-secondary flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[20px]">import_export</span> IMPORT / استيراد
-      </button>
-      <button id="exportBtn" class="btn-secondary flex items-center justify-center gap-2">
-        <span class="material-symbols-outlined text-[20px]">download</span> EXPORT / تصدير
-      </button>
-    </div>
+    <button id="addDeviceBtn" class="btn-primary w-full">
+      <span class="material-symbols-outlined text-[20px]">add</span> إضافة جهاز للتصليح / Add device
+    </button>
 
     <!-- device list -->
     <div class="bg-surface cyber-border rounded-xl p-4 fade-up">
@@ -1950,18 +1972,22 @@ function viewHardware() {
         <div class="flex flex-col gap-2">
           ${devices.map((d) => `
             <div class="flex items-center justify-between gap-3 border border-outline-variant rounded-lg px-4 py-3">
-              <div class="min-w-0">
+              <div class="min-w-0 flex-1">
                 <p class="font-headline font-bold truncate">${escapeHtml(d.name)}</p>
+                ${d.issue ? `<p class="text-xs text-muted truncate">${escapeHtml(d.issue)}</p>` : ""}
                 <p class="text-xs text-muted font-mono" dir="ltr">${fmt.money(Number(d.cost) || 0)}</p>
               </div>
+              <button data-dev-edit="${d.id}" aria-label="تعديل / Edit" title="تعديل / Edit" class="w-10 h-10 shrink-0 flex items-center justify-center text-muted hover:text-primary"><span class="material-symbols-outlined text-lg">edit</span></button>
               ${d.maintenanceStatus === "completed"
                 ? `<span class="text-[10px] font-headline uppercase tracking-widest text-primary whitespace-nowrap">✓ Repaired / تم</span>`
-                : `<button data-done="${d.id}" class="px-3 py-1.5 rounded-lg bg-primary-fixed text-black font-headline font-bold uppercase text-[10px] tracking-widest neon-shadow pressable whitespace-nowrap">DONE / تم</button>`}
+                : `<button data-done="${d.id}" class="px-3 py-2.5 rounded-lg bg-primary-fixed text-black font-headline font-bold uppercase text-[11px] tracking-wide neon-shadow pressable whitespace-nowrap">DONE / تم</button>`}
             </div>`).join("")}
-        </div>` : `<p class="text-center text-muted py-6">No devices yet / لا توجد أجهزة</p>`}
+        </div>` : `<p class="text-center text-muted py-6" dir="rtl">ما في أجهزة قيد التصليح. لما يتعطل جهاز، ضيفه هون وسجل تكلفة تصليحه.</p>`}
     </div>`;
-  $("#importBtn").onclick = importData;
-  $("#exportBtn").onclick = exportData;
+  $("#addDeviceBtn").onclick = () => openDeviceModal();
+  screen.querySelectorAll("[data-dev-edit]").forEach((btn) => {
+    btn.onclick = () => openDeviceModal(btn.dataset.devEdit);
+  });
   screen.querySelectorAll("[data-done]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const d = store.get("devices", btn.dataset.done);
@@ -1973,6 +1999,41 @@ function viewHardware() {
       });
       if (ok) markRepaired(d);
     });
+  });
+}
+
+function openDeviceModal(id = null) {
+  const d = id ? store.get("devices", id) : null;
+  const t = i18n.t;
+  const mod = openModal(`
+    <h3 class="font-headline font-bold uppercase tracking-tight text-lg mb-1">${d ? "تعديل جهاز / Edit device" : "إضافة جهاز / Add device"}</h3>
+    <p class="font-arabic text-muted text-sm mb-5" dir="rtl">لما تخلص التصليح، اضغط "تم" وبتنخصم التكلفة من المالية تلقائياً.</p>
+    <form id="deviceForm" class="flex flex-col gap-3">
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">اسم الجهاز / Device</label>
+        <input name="name" required maxlength="80" value="${escapeHtml(d?.name || "")}" class="dp-field mt-1" placeholder="جهاز مشي 2" /></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">العطل / Issue</label>
+        <input name="issue" maxlength="160" value="${escapeHtml(d?.issue || "")}" class="dp-field mt-1" placeholder="السير بده تغيير" /></div>
+      <div><label class="text-[10px] uppercase tracking-widest text-muted font-headline">تكلفة التصليح ($) / Repair cost</label>
+        <input name="cost" type="number" min="0" step="0.5" value="${d ? Number(d.cost) || 0 : ""}" class="dp-field mt-1" placeholder="0" /></div>
+      <div class="flex gap-3 pt-1">
+        ${d ? `<button type="button" data-del class="btn-alert flex-1">${t.delete}</button>` : ""}
+        <button type="submit" class="btn-primary flex-1">${t.save}</button>
+      </div>
+    </form>`);
+  $("#deviceForm", mod.el).addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const data = { name: sanitizeName(String(fd.get("name") || "")), issue: String(fd.get("issue") || "").trim(), cost: Number(fd.get("cost")) || 0 };
+    if (!data.name) { showToast("اكتب اسم الجهاز / Enter a device name", "err"); return; }
+    const saved = d ? store.update("devices", id, data) : store.insert("devices", { ...data, maintenanceStatus: "in-repair" });
+    if (!saved) return; // access gate opened
+    mod.close();
+    showToast("تم الحفظ / Saved");
+  });
+  mod.el.querySelector("[data-del]")?.addEventListener("click", async () => {
+    mod.close();
+    const ok = await confirmDialog({ titleEn: "Delete this device?", titleAr: "حذف هذا الجهاز؟", confirmText: "Delete", danger: true });
+    if (ok) { store.remove("devices", id); showToast("تم الحذف / Deleted"); }
   });
 }
 
@@ -2109,11 +2170,11 @@ function viewLedger() {
     <button id="addTxBtn" class="flex-1 min-w-[140px] bg-primary text-black font-headline font-bold uppercase tracking-widest text-sm px-5 py-3 rounded-xl hover:bg-white active:scale-95 transition-all flex items-center justify-center gap-2">
       <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">add_card</span> NEW / <span class="font-arabic normal-case">حركة جديدة</span>
     </button>
-    <button id="pricesBtn" title="Plan prices / أسعار الباقات" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
-      <span class="material-symbols-outlined">sell</span>
+    <button id="pricesBtn" title="Plan prices / أسعار الباقات" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 min-h-[44px] rounded-xl transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold">
+      <span class="material-symbols-outlined">sell</span> الأسعار
     </button>
-    <button id="reportsBtn" title="Monthly reports" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 rounded-xl transition-all active:scale-95">
-      <span class="material-symbols-outlined">insights</span>
+    <button id="reportsBtn" title="Monthly reports" class="bg-surface-container-high border border-outline-variant text-muted hover:text-primary hover:border-primary px-4 min-h-[44px] rounded-xl transition-all active:scale-95 flex items-center gap-1.5 text-xs font-bold">
+      <span class="material-symbols-outlined">insights</span> التقارير
     </button>
   </div>
 
@@ -2139,7 +2200,7 @@ function viewLedger() {
               <th>البيان / Description</th>
               <th class="dp-hide-sm">التصنيف / Category</th>
               <th class="dp-hide-sm">التاريخ / Date</th>
-              <th>النوع / Type</th>
+              <th class="dp-hide-sm">النوع / Type</th>
               <th class="num">المبلغ / Amount</th>
             </tr>
           </thead>
@@ -2474,13 +2535,14 @@ function txRowTable(l) {
   <tr>
     <td>
       <p class="font-headline text-sm text-on-surface uppercase tracking-wide truncate max-w-[220px]" title="${escapeHtml(l.description)}">${escapeHtml(l.description)}</p>
+      <p class="sm:hidden text-[11px] text-muted mt-0.5" dir="ltr" style="text-align:start">${fmt.date(l.date, currentLang())}</p>
     </td>
     <td class="dp-hide-sm"><span class="badge ${badgeCls}">${cat ? `${cat[0]} / ${cat[1]}` : escapeHtml(l.category || "—")}</span></td>
     <td class="dp-hide-sm whitespace-nowrap">
       <p class="text-xs text-on-surface/80">${fmt.date(l.date, currentLang())}</p>
       <p class="text-[10px] text-muted mt-0.5">${fmt.timeAgo(l.date, currentLang())}</p>
     </td>
-    <td class="whitespace-nowrap">
+    <td class="dp-hide-sm whitespace-nowrap">
       <span class="inline-flex items-center gap-1.5 text-[11px] font-headline uppercase tracking-wider ${txtCls}"><span class="w-1.5 h-1.5 rounded-full shrink-0 ${pipCls}"></span>${typeLabel}</span>
     </td>
     <td class="num ${isIn ? "text-primary" : "text-alert"}" dir="ltr">${isIn ? "+" : "-"}$${nf.format(Math.abs(Number(l.amount || 0)))}</td>
@@ -2616,8 +2678,7 @@ function viewReports() {
         <span class="material-symbols-outlined text-accent">trending_up</span>
       </div>
       <div class="mt-4 flex items-baseline gap-2">
-        <span class="font-display text-4xl font-bold text-on-surface tabular-nums">${nf.format(Math.round(rev))}</span>
-        <span class="font-headline text-sm text-primary font-bold">ILS</span>
+        <span class="font-display text-4xl font-bold text-on-surface tabular-nums" dir="ltr">${fmt.money(Math.round(rev))}</span>
       </div>
       <div class="mt-2 flex items-center gap-1 text-xs text-accent">
         <span class="material-symbols-outlined text-[14px]">${growth >= 0 ? "arrow_upward" : "arrow_downward"}</span>
@@ -2730,7 +2791,7 @@ function viewProfile() {
       </div>
       <div class="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm border ${isOnline ? "bg-primary/10 border-primary/30" : "bg-alert/10 border-alert/30"}">
         <span class="w-2 h-2 rounded-full ${isOnline ? "bg-primary animate-pulse" : "bg-alert"}"></span>
-        <span class="text-[10px] font-label tracking-widest uppercase ${isOnline ? "text-primary" : "text-alert"}">${isOnline ? "SYSTEM ACTIVE" : "DEMO MODE"}</span>
+        <span class="text-[10px] font-label tracking-widest uppercase ${isOnline ? "text-primary" : "text-alert"}">${isOnline ? "SYSTEM ACTIVE" : "OFFLINE / بدون اتصال"}</span>
       </div>
     </div>
 
@@ -2849,11 +2910,11 @@ function viewProfile() {
           <div class="flex items-center justify-between">
             <div>
               <p class="font-body text-sm font-medium text-on-surface uppercase tracking-wider">Language / اللغة</p>
-              <p class="text-muted text-xs mt-1 font-headline">English (Default)</p>
+              <p class="text-muted text-xs mt-1 font-headline">${currentLang() === "ar" ? "العربية" : "English"}</p>
             </div>
             <div class="bg-surface-container-highest rounded-full p-1 flex">
-              <button data-lang="en" class="lang-btn px-4 py-1.5 rounded-full font-label text-[10px] tracking-widest uppercase transition-colors">ENG</button>
-              <button data-lang="ar" class="lang-btn px-4 py-1.5 rounded-full font-arabic text-sm hover:text-white transition-colors">عربي</button>
+              <button data-lang="en" class="lang-btn px-4 py-2.5 rounded-full font-label text-[11px] tracking-widest uppercase transition-colors">ENG</button>
+              <button data-lang="ar" class="lang-btn px-4 py-2.5 rounded-full font-arabic text-sm hover:text-white transition-colors">عربي</button>
             </div>
           </div>
           <div class="h-px bg-outline-variant w-full"></div>

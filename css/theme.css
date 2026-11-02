@@ -20,7 +20,7 @@
   --frost-dim: rgba(155, 175, 188, 0.1);
   --text-primary: #fafafa;
   --text-secondary: #b3b3b3;
-  --text-muted: #737373;
+  --text-muted: #9a9a9a;
   --focus-ring: rgba(204, 255, 0, 0.5);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
@@ -573,6 +573,19 @@ select.dp-field option { background: var(--bg); color: var(--volt); }
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* These classes are often used without .btn, so they carry the shape themselves. */
+.btn-primary, .btn-secondary, .btn-alert, .btn-frost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
 .btn-primary {
   background: var(--volt);
   color: #000;
@@ -631,6 +644,27 @@ select.dp-field option { background: var(--bg); color: var(--volt); }
   background: var(--surface);
 }
 .dp-field::placeholder { color: var(--text-muted); }
+input.dp-field { border-radius: 1rem; }
+.modal-panel { position: relative; }
+/* Read-only strip sits above the phone's bottom nav instead of covering it. */
+@media (max-width: 767px) {
+  body.dp-readonly { --dp-banner-bottom: 85px; padding-bottom: 170px !important; }
+  body.dp-readonly #fab { bottom: 175px; }
+}
+.modal-x {
+  position: absolute;
+  top: 0.6rem;
+  inset-inline-end: 0.6rem;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--text-muted);
+}
+.modal-x:hover { color: var(--text-primary); background: var(--surface-hover); }
 
 /* Custom select styling */
 select.dp-field {

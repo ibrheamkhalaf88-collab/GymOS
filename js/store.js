@@ -492,6 +492,20 @@ function ensureXLSX() {
   return xlsxLoading;
 }
 
+// One value per calendar day, oldest first; days with no visits count as 0.
+function checkinSeries(rows, days) {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const totals = new Map();
+  rows.forEach((c) => {
+    const d = new Date(Number(c.date) || 0); d.setHours(0, 0, 0, 0);
+    totals.set(d.getTime(), (totals.get(d.getTime()) || 0) + (Number(c.count) || 0));
+  });
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(start); d.setDate(start.getDate() - (days - 1 - i));
+    return totals.get(d.getTime()) || 0;
+  });
+}
+
 export const store = {
   sortMembers,
   all(col) {
@@ -583,6 +597,20 @@ export const store = {
       });
     }
     return item;
+  },
+
+  // Counts one visit: on the member and in today's row of the check-ins chart.
+  recordCheckin(memberId) {
+    if (!requireWrite("check-in")) return null;
+    const member = this.get("members", memberId);
+    if (!member) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const list = this.all("checkins");
+    const row = list.find((c) => { const d = new Date(Number(c.date) || 0); d.setHours(0, 0, 0, 0); return d.getTime() === today.getTime(); });
+    if (row) { row.count = (Number(row.count) || 0) + 1; row.updatedAt = Date.now(); }
+    else list.push({ id: uid("c"), date: Date.now(), count: 1, createdAt: Date.now(), updatedAt: Date.now() });
+    write("checkins", list);
+    return this.update("members", memberId, { checkins: (Number(member.checkins) || 0) + 1, lastCheckinAt: Date.now() });
   },
 
   update(col, id, patch) {
@@ -821,8 +849,8 @@ export const store = {
       revenueGrowthPct: Math.round(growth * 10) / 10,
       totalRevenue: ledger.filter((l) => l.type === "revenue").reduce((s, l) => s + Number(l.amount || 0), 0),
       totalExpenses: ledger.filter((l) => l.type === "expense").reduce((s, l) => s + Number(l.amount || 0), 0),
-      checkins7: checkins.slice(-7).map((c) => c.count),
-      checkins30: checkins.slice(-30).map((c) => c.count),
+      checkins7: checkinSeries(checkins, 7),
+      checkins30: checkinSeries(checkins, 30),
     };
   },
 };

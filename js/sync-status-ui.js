@@ -23,7 +23,7 @@ function updateSyncStatusUI() {
     syncing: { icon: "sync", text: "🔄 Syncing...", detail: "Uploading changes", color: "text-primary", iconColor: "text-primary animate-spin" },
     error: { icon: "cloud_off", text: "❌ Sync Error", detail: "Failed - will retry", color: "text-alert", iconColor: "text-alert" },
     auth: { icon: "lock", text: "🔐 Login expired", detail: "Session ended — re-activate", color: "text-alert", iconColor: "text-alert" },
-    off: { icon: "cloud_off", text: "☁️ Cloud Off", detail: "Cloud sync disabled", color: "text-muted", iconColor: "text-muted" },
+    off: { icon: "cloud_off", text: "☁️ Cloud Off", detail: "بياناتك محفوظة على هذا الجهاز / Saved on this device", color: "text-muted", iconColor: "text-muted" },
   };
   
   const s = states[detailed.state] || states.ok;
@@ -38,7 +38,7 @@ function updateSyncStatusUI() {
   const banner = detailed.state === "auth" ? ensureAuthBanner() : authBanner;
   if (banner) banner.style.display = detailed.state === "auth" ? "flex" : "none";
   
-  if (detailed.totalPending > 0) {
+  if (detailed.totalPending > 0 && detailed.state !== "off") {
     pendingCount.textContent = `${detailed.totalPending} pending`;
     pendingCount.classList.remove("hidden");
     syncBtn.style.display = "flex";

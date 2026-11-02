@@ -43,8 +43,8 @@
 
   <!-- Mobile TopAppBar -->
   <header class="md:hidden sticky top-0 w-full z-50 bg-black border-b border-outline-variant flex justify-between items-center h-16 px-4">
-    <button id="mProfileBtn" aria-label="Menu" class="text-on-surface-variant hover:text-primary transition-colors active:scale-95 transition-transform p-2 rounded-full">
-      <span class="material-symbols-outlined">menu</span>
+    <button id="mProfileBtn" aria-label="الإعدادات / Settings" class="text-on-surface-variant hover:text-primary transition-colors active:scale-95 transition-transform p-2 rounded-full">
+      <span class="material-symbols-outlined">settings</span>
     </button>
     <span class="font-headline font-black tracking-tighter text-primary-fixed uppercase text-sm">DIGITAL PULSE</span>
     <button id="mNotifBtn" aria-label="Notifications" class="relative text-primary-fixed active:scale-95 transition-transform p-2 rounded-full">
@@ -84,7 +84,7 @@
       </div>
       <div id="pageActions" class="flex items-center gap-3"></div>
     </div>
-    <div id="screen" class="p-4 md:p-8 flex-1 flex flex-col gap-5"></div>
+    <div id="screen" class="p-4 pb-28 md:p-8 flex-1 flex flex-col gap-5"></div>
   </main>
 
   <!-- Bottom nav (mobile) -->
@@ -112,7 +112,7 @@
   </nav>
 
   <!-- Floating action button -->
-  <button id="fab" class="fixed z-40 bottom-[100px] right-4 md:right-auto md:left-[calc(100%-4.5rem)] md:hidden w-14 h-14 rounded-full bg-primary text-black shadow-neon-lg flex items-center justify-center active:scale-90 transition-transform">
+  <button id="fab" aria-label="إضافة / Add" class="fixed z-40 bottom-[100px] right-4 md:right-auto md:left-[calc(100%-4.5rem)] md:hidden w-14 h-14 rounded-full bg-primary text-black shadow-neon-lg flex items-center justify-center active:scale-90 transition-transform">
     <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">add</span>
   </button>
 

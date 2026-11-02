@@ -27,9 +27,11 @@ export function showToast(message, type = "ok", ms = 2600) {
 export function openModal(html, { onClose } = {}) {
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
-  backdrop.innerHTML = `<div class="modal-panel p-6">${html}</div>`;
-  const close = () => { backdrop.remove(); onClose && onClose(); };
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  backdrop.innerHTML = `<div class="modal-panel p-6"><button type="button" class="modal-x" data-modal-x aria-label="إغلاق / Close"><span class="material-symbols-outlined">close</span></button>${html}</div>`;
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const close = () => { document.removeEventListener("keydown", onKey); backdrop.remove(); onClose && onClose(); };
+  document.addEventListener("keydown", onKey);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop || e.target.closest("[data-modal-x]")) close(); });
   document.body.appendChild(backdrop);
   return { close, el: backdrop };
 }
@@ -63,7 +65,7 @@ export const fmt = {
   },
   date(ts, lang = "en") {
     try {
-      return new Date(ts).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "numeric", year: "numeric" });
+      return new Date(ts).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
     } catch { return "—"; }
   },
   timeAgo(ts, lang = "en") {
