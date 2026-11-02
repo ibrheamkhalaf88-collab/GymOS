@@ -91,16 +91,19 @@ export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
   if (!browser || typeof browser.open !== 'function') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
-  // NOTE: keep redirectTo WITHOUT query params. Supabase's redirect allowlist is
-  // matched against the full URL on some setups, and a custom scheme with
-  // ?return=... can fail to match (observed in the field: login succeeds in the
-  // browser but the app never opens — "تمام" then stays on the web page).
-  // callback.html already defaults to app.html when ?return is absent.
+  // redirectTo must be an https URL on Supabase's allowlist (custom schemes are
+  // not reliably honored by Supabase's redirect validation, which caused login
+  // to "succeed" in the browser but never reopen the app). We use the web
+  // callback page as an intermediate: it runs in the browser, then deep-links
+  // back to the app via JS (com.digitalpulse.gym://...) which Chrome allows.
+  // Always use the published GitHub Pages callback (https, on Supabase's allowlist)
+  // — the APK's WebView origin (https://localhost) is not a valid redirect target.
+  const webCallback = 'https://ibrheamkhalaf88-collab.github.io/GymOS/auth/callback.html?return=app.html';
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: DEEPLINK_CALLBACK,
+      redirectTo: webCallback,
       skipBrowserRedirect: true,
     },
   });

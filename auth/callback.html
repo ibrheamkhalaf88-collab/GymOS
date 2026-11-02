@@ -125,6 +125,29 @@
       } catch (err) {
         console.error('Callback login failed:', err);
         const detail = (err && (err.message || err.code)) ? String(err.message || err.code) : 'unknown';
+        const isNative = !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+
+        // APK intermediate case: this page ran in the system browser, where the
+        // PKCE verifier does not exist (it lives in the app's WebView). Deep-link
+        // back to the app with the code so the app can complete the exchange.
+        if (!isNative) {
+          const code = new URLSearchParams(location.search).get('code');
+          if (code) {
+            setStatus('Returning to app', 'Completing sign in in the app… / إكمال تسجيل الدخول في التطبيق…');
+            const deep = 'com.digitalpulse.gym://auth/callback.html' + location.search + location.hash;
+            try { window.location.href = deep; } catch {}
+            // Fallback button in case Chrome blocks auto-navigation.
+            try {
+              const btn = document.createElement('button');
+              btn.textContent = 'Open app / فتح التطبيق';
+              btn.style.cssText = 'margin-top:16px;padding:10px 16px;border-radius:8px;border:1px solid #CCFF00;background:#111;color:#CCFF00;cursor:pointer;font-size:13px;';
+              btn.onclick = () => { window.location.href = deep; };
+              document.querySelector('.w-full.max-w-md').appendChild(btn);
+            } catch {}
+            return;
+          }
+        }
+
         setStatus('Login failed', 'Could not complete sign in. (' + detail + ') Please try again.');
         // Offer a manual way back to login instead of trapping the user.
         try {
