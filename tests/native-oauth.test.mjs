@@ -52,12 +52,14 @@ test("callback page still completes PKCE exchange (deep link lands there)", () =
 // Regression: "Google login from the APK finishes on the WEBSITE" (2026-11).
 // The browser callback page used to finish the login itself as soon as it saw
 // a session, so the user ended logged-in in Chrome while the APK stayed logged
-// out ("تمام" → website home page). The APK now marks its redirect with
-// native=1 and the browser side must always hand the result back to the app —
-// it must never complete a login locally for a native-originated flow.
+// out ("تمام" → website home page). The APK now redirects straight to its own
+// scheme. Older installed APKs still send native=1, and for those the browser
+// side must always hand the result back to the app instead of finishing there.
 // ---------------------------------------------------------------------------
-test("native-oauth: APK redirect is marked with native=1", () => {
-  assert.match(native, /auth\/callback\.html\?native=1/);
+test("native-oauth: APK redirects straight to the app, never through the website", () => {
+  assert.match(native, /const deepLink = DEEPLINK_CALLBACK \+ '\?return='/);
+  assert.match(native, /redirectTo: deepLink/);
+  assert.doesNotMatch(native, /github\.io/);
 });
 
 test("callback page: native-originated flow hands off to the app BEFORE completing", () => {

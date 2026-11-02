@@ -91,20 +91,16 @@ export async function startNativeGoogleOAuth(returnUrl = 'app.html') {
   if (!browser || typeof browser.open !== 'function') {
     return 'System browser unavailable — please update the app / متصفح النظام غير متاح';
   }
-  // redirectTo must be an https URL on Supabase's allowlist (custom schemes are
-  // not reliably honored by Supabase's redirect validation). We use the web
-  // callback page as an intermediate that runs in the browser and then bounces
-  // the result back into the installed app.
-  // `native=1` is the marker that tells callback.html "this login started in
-  // the APK — do NOT finish here, send it back to the app". A normal web login
-  // never sends it, so the website keeps working exactly as before.
-  const webCallback = 'https://ibrheamkhalaf88-collab.github.io/GymOS/auth/callback.html?native=1' +
-    '&return=' + encodeURIComponent(returnUrl);
+  // Supabase redirects straight to the app's own scheme (it is on the allowlist,
+  // with or without ?return=). No web page runs in between, so the browser can
+  // neither finish the login itself nor get stuck waiting to reopen the app.
+  // auth/callback.html keeps its native=1 hand-off for older installed APKs.
+  const deepLink = DEEPLINK_CALLBACK + '?return=' + encodeURIComponent(returnUrl);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       prompt: 'select_account',
-      redirectTo: webCallback,
+      redirectTo: deepLink,
       skipBrowserRedirect: true,
     },
   });
