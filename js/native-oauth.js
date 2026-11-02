@@ -57,16 +57,28 @@ export function armNativeOAuthReturn() {
       sessionStorage.setItem(GUARD_KEY, url);
     } catch { /* storage unavailable — still forward */ }
     try { plugins().browser?.close?.().catch?.(() => {}); } catch { /* ignore */ }
+    console.log('[native-oauth] forwarding deep link:', url);
     forwardToCallback(url);
   };
 
+  // Register the runtime listener FIRST (covers warm returns + some cold starts).
   Promise.resolve(AppPlugin.addListener('appUrlOpen', (event) => handleUrl(event?.url)))
     .catch(() => { armed = false; });
 
+  // Cold-start path: getLaunchUrl can resolve null if the bridge isn't ready yet,
+  // so retry a few times before giving up. (Observed in the field: Google login
+  // on APK "does nothing" — the deep link was never forwarded.)
   if (typeof AppPlugin.getLaunchUrl === 'function') {
-    Promise.resolve(AppPlugin.getLaunchUrl())
-      .then((res) => { if (res?.url) handleUrl(res.url); })
-      .catch(() => {});
+    const tryLaunch = (attempt) => {
+      Promise.resolve(AppPlugin.getLaunchUrl())
+        .then((res) => {
+          if (res?.url) { handleUrl(res.url); return; }
+          if (attempt < 4) setTimeout(() => tryLaunch(attempt + 1), 400 * attempt);
+          else console.warn('[native-oauth] getLaunchUrl returned no url after retries');
+        })
+        .catch(() => { if (attempt < 4) setTimeout(() => tryLaunch(attempt + 1), 400 * attempt); });
+    };
+    tryLaunch(1);
   }
 }
 

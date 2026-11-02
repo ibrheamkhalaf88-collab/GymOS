@@ -124,7 +124,16 @@
         await completeWithUser(user);
       } catch (err) {
         console.error('Callback login failed:', err);
-        setStatus('Login failed', 'Could not complete sign in. Please try again.');
+        const detail = (err && (err.message || err.code)) ? String(err.message || err.code) : 'unknown';
+        setStatus('Login failed', 'Could not complete sign in. (' + detail + ') Please try again.');
+        // Offer a manual way back to login instead of trapping the user.
+        try {
+          const btn = document.createElement('button');
+          btn.textContent = 'Back to login / العودة لتسجيل الدخول';
+          btn.style.cssText = 'margin-top:16px;padding:10px 16px;border-radius:8px;border:1px solid #CCFF00;background:#111;color:#CCFF00;cursor:pointer;font-size:13px;';
+          btn.onclick = () => { window.location.replace(resolveReturnUrl().replace(/[^/]*$/, 'login.html')); };
+          document.querySelector('.w-full.max-w-md').appendChild(btn);
+        } catch {}
         // Don't redirect on error — let user retry
       }
     }
