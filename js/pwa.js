@@ -6,6 +6,15 @@
 // their home screen from there never had a service worker registered at all —
 // no offline shell, and the install was not a real PWA. Registering here means
 // whichever page they land on wires it up.
+// Native APK: arm the deep-link return path for Google OAuth on EVERY page,
+// not just login/signup. On a cold start (Android killed the process while
+// the system browser was open) the app relaunches on index.html, and without
+// this the deep link (com.digitalpulse.gym://auth/callback.html?code=...) is
+// never forwarded to auth/callback.html - the user finishes Google login and
+// nothing happens. isNativeApp() is false on the web, so this is a no-op there.
+import { armNativeOAuthReturn } from './native-oauth.js';
+try { armNativeOAuthReturn(); } catch { /* never break page bootstrap */ }
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js").catch(() => {
