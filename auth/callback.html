@@ -134,14 +134,29 @@
           const code = new URLSearchParams(location.search).get('code');
           if (code) {
             setStatus('Returning to app', 'Completing sign in in the app… / إكمال تسجيل الدخول في التطبيق…');
-            const deep = 'com.digitalpulse.gym://auth/callback.html' + location.search + location.hash;
-            try { window.location.href = deep; } catch {}
-            // Fallback button in case Chrome blocks auto-navigation.
+            // Chrome (and Custom Tabs) often block JS navigation to a custom
+            // scheme without a user gesture. Use an Android intent URL, which
+            // Chrome handles specially and reliably opens the installed app.
+            const qs = location.search + location.hash;
+            const intentUrl = 'intent://auth/callback.html' + qs +
+              '#Intent;scheme=com.digitalpulse.gym;package=com.digitalpulse.gym;end';
+            const customUrl = 'com.digitalpulse.gym://auth/callback.html' + qs;
+            // Attempt auto-open via a hidden link click (user-gesture-ish) + intent URL.
+            try {
+              const a = document.createElement('a');
+              a.href = intentUrl;
+              a.style.display = 'none';
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+            } catch {}
+            setTimeout(() => { try { window.location.href = intentUrl; } catch {} }, 300);
+            // Fallback button (guaranteed user gesture).
             try {
               const btn = document.createElement('button');
               btn.textContent = 'Open app / فتح التطبيق';
-              btn.style.cssText = 'margin-top:16px;padding:10px 16px;border-radius:8px;border:1px solid #CCFF00;background:#111;color:#CCFF00;cursor:pointer;font-size:13px;';
-              btn.onclick = () => { window.location.href = deep; };
+              btn.style.cssText = 'margin-top:16px;padding:10px 16px;border-radius:8px;border:1px solid #CCFF00;background:#CCFF00;color:#000;cursor:pointer;font-size:13px;font-weight:bold;';
+              btn.onclick = () => { window.location.href = intentUrl; };
               document.querySelector('.w-full.max-w-md').appendChild(btn);
             } catch {}
             return;
