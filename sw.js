@@ -1,6 +1,6 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v31";
+const CACHE = "dp-cache-v32";
 const ASSETS = [
   "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
@@ -24,6 +24,11 @@ const ASSETS = [
   // miss on any of them falls back to index.html and kills that page offline.
   "js/sync-status-ui.js", "js/native-oauth.js", "js/onboarding.js",
   "js/admin-panel.js", "js/contact.js",
+  // login/activate/signup hard-import session.js, and login/app pull in
+  // cloud-link.js. Missing these killed login.html offline — and every
+  // home-screen launch passes through it (onboarding -> login -> app), so
+  // an iOS user who signed in once could not reopen the app without network.
+  "js/session.js", "js/cloud-link.js",
   "vendor/supabase-js.js",
   "vendor/tailwind.js", "vendor/chart.umd.min.js", "vendor/xlsx.full.min.js",
   "vendor/material-symbols.css",
@@ -80,8 +85,10 @@ self.addEventListener("fetch", (e) => {
           caches.open(CACHE).then((c) => put(c, e.request, copy));
           return res;
         })
+        // ignoreSearch: login.html?reason=… or app.html?x=… must still hit the
+        // cached page offline instead of dropping to the marketing shell.
         .catch(() =>
-          caches.match(e.request).then((hit) => hit || caches.match(SHELL))
+          caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || caches.match(SHELL))
         )
     );
     return;

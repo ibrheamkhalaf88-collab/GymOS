@@ -47,17 +47,20 @@ test("every browser-shipped JS file parses (app.js once shipped with a missing b
   );
 });
 
-test("sw.js precaches every module app.js hard-imports", () => {
+test("sw.js precaches every module the boot pages hard-import", () => {
   // A module missing from the precache list returns index.html on a cold
-  // offline start where JS was expected — the whole app dies (see the sw.js
-  // comments). app.js's import lines are the source of truth for first-level
-  // hard imports.
+  // offline start where JS was expected — the whole page dies (see the sw.js
+  // comments). login.js is on every home-screen launch path, and once shipped
+  // without js/session.js precached, so iOS users could not reopen offline.
   const sw = readSw();
-  for (const mod of hardImports(readApp())) {
-    assert.match(
-      sw,
-      new RegExp(`"js/${mod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
-      `js/${mod} is imported by app.js but missing from the service-worker precache`
-    );
+  for (const entry of ["app.js", "login.js", "activate.js", "signup.js", "onboarding.js"]) {
+    const src = readFileSync(path.join(jsDir, entry), "utf8");
+    for (const mod of hardImports(src)) {
+      assert.match(
+        sw,
+        new RegExp(`"js/${mod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`),
+        `js/${mod} is imported by ${entry} but missing from the service-worker precache`
+      );
+    }
   }
 });

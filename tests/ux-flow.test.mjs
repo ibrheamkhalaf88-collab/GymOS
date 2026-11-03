@@ -10,7 +10,7 @@ const onboarding = readFileSync(new URL("../js/onboarding.js", import.meta.url),
 const login = readFileSync(new URL("../js/login.js", import.meta.url), "utf8");
 
 test("onboarding: unlicensed finish goes to login, not the activation-code page", () => {
-  assert.match(onboarding, /location\.replace\(isActive \? "app\.html" : "login\.html"\)/);
+  assert.match(onboarding, /location\.replace\(hasActiveSession\(\) \? "app\.html" : "login\.html"\)/);
   assert.doesNotMatch(onboarding, /"activate\.html"/);
 });
 

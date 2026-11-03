@@ -151,26 +151,29 @@ function render() {
   );
 }
 
-function finish() {
-  localStorage.setItem(KEY_SEEN, "1");
-  // A user who already signed in (valid session inside the last 30 days)
-  // skips the form and goes straight to the app. Everyone else lands on
-  // LOGIN (sign in / create account / Google) — they have no activation
-  // code, so the activation page is the wrong first stop after onboarding.
-  let isActive = false;
+// A user who already signed in (valid session inside the last 30 days)
+// skips the form and goes straight to the app. Everyone else lands on
+// LOGIN (sign in / create account / Google) — they have no activation
+// code, so the activation page is the wrong first stop after onboarding.
+function hasActiveSession() {
   try {
     const u = JSON.parse(localStorage.getItem("dp_current_user") || "null");
-    isActive = !!(u && u.loginAt && Date.now() - u.loginAt < 30 * 24 * 60 * 60 * 1000);
-  } catch { /* malformed session → treat as inactive */ }
-  location.replace(isActive ? "app.html" : "login.html");
+    return !!(u && u.loginAt && Date.now() - u.loginAt < 30 * 24 * 60 * 60 * 1000);
+  } catch { return false; /* malformed session → treat as inactive */ }
 }
 
-// Routing: returning users skip onboarding, go straight to login
+function finish() {
+  localStorage.setItem(KEY_SEEN, "1");
+  location.replace(hasActiveSession() ? "app.html" : "login.html");
+}
+
+// Routing: returning users skip onboarding. onboarding.html is the manifest's
+// start_url, so every home-screen launch starts here: a signed-in user goes
+// straight to the app (works offline) instead of detouring through login.
 (function route() {
   const seen = localStorage.getItem(KEY_SEEN) === "1";
   if (seen) {
-    // Returning user — send to login page
-    location.replace("login.html");
+    location.replace(hasActiveSession() ? "app.html" : "login.html");
     return;
   }
   render();
