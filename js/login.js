@@ -622,11 +622,12 @@ if (emailInput) {
     if (!email || !email.includes('@')) return;
     try {
       const { appConfig } = await import('./config.js');
-      await fetch(`${appConfig.apiUrl}/api/auth/send-otp`, {
+      const res = await fetch(`${appConfig.apiUrl}/api/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setMsg('✓ Code sent / تم إرسال الرمز', '#CCFF00');
     } catch (e) {
       setMsg('Failed to send code / فشل الإرسال');

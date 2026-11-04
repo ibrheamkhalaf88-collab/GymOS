@@ -247,7 +247,7 @@
             <span class="text-xs opacity-75 -mt-0.5" dir="rtl">تسجيل المدير</span>
           </span>
           <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 111.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>`;
     }
 
@@ -271,18 +271,21 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || 'Failed');
-        // Show modal
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.message || 'HTTP ' + res.status);
+        // Show modal (there is no step 1 element — the email is typed on the page)
         resetModal.classList.remove('hidden');
         resetOverlay.classList.remove('hidden');
-        document.getElementById('resetStep1').classList.add('hidden');
         document.getElementById('resetStep2').classList.remove('hidden');
         document.getElementById('resetStep3').classList.add('hidden');
+        document.querySelectorAll('#resetOtpBoxes .otp-box').forEach((b) => { b.value = ''; });
         setMsg('✅ Reset code sent to your email / تم إرسال رمز الاستعادة إلى بريدك', '#CCFF00');
       } catch (err) {
         console.error('[admin-login] forgotPwd:', err);
-        setMsg('Could not send reset email — try again / تعذر إرسال إيميل الاستعادة');
+        const why = { RATE_LIMITED: 'Too many requests — wait a minute / طلبات كثيرة — انتظر دقيقة',
+          EMAIL_NOT_CONFIGURED: 'Email service is not configured on the server / خدمة الإيميل غير مضبوطة على السيرفر',
+          EMAIL_FAILED: 'The email could not be sent — try again / تعذر إرسال الإيميل — حاول مرة ثانية' }[err.message];
+        setMsg(why || 'Could not send reset email — try again / تعذر إرسال إيميل الاستعادة');
       }
     });
 
@@ -311,7 +314,8 @@
         document.getElementById('resetVerifiedCode').value = code;
         document.getElementById('resetStep2').classList.add('hidden');
         document.getElementById('resetStep3').classList.remove('hidden');
-        setMsg('✓ Code verified — set new password / تم التحقق — أدخل كلمة السر الجديدة', '#CCFF00');
+        // The server checks the code together with the new password (one call)
+        setMsg('Now set the new password / الآن أدخل كلمة السر الجديدة — سيتم التحقق من الرمز عند الحفظ', '#CCFF00');
       } catch (err) {
         setMsg('Invalid code / رمز خاطئ');
       }
@@ -330,13 +334,23 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, newPassword: newPw }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || data.error || 'Reset failed');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.message || 'HTTP ' + res.status);
         setMsg('✅ Password updated — sign in with new password / تم تغيير كلمة السر', '#CCFF00');
         closeResetModal();
       } catch (err) {
         console.error('[admin-login] resetPwd:', err);
-        setMsg('Could not reset password — try again / تعذر تغيير كلمة السر');
+        if (err.message === 'INVALID_CODE') {
+          // Wrong/expired code → back to the code step for another try
+          document.getElementById('resetStep3').classList.add('hidden');
+          document.getElementById('resetStep2').classList.remove('hidden');
+          document.querySelectorAll('#resetOtpBoxes .otp-box').forEach((b) => { b.value = ''; });
+          setMsg('Wrong or expired code / الرمز خاطئ أو منتهي الصلاحية');
+        } else if (err.message === 'RATE_LIMITED') {
+          setMsg('Too many attempts — wait 5 minutes / محاولات كثيرة — انتظر 5 دقائق');
+        } else {
+          setMsg('Could not reset password — try again / تعذر تغيير كلمة السر');
+        }
       }
     });
 
@@ -385,6 +399,11 @@
           totpInput?.select();
           return;
         }
+        if (res.status === 429 || data.error === 'RATE_LIMITED') {
+          setMsg(`Too many attempts — wait ${Math.ceil((data.secs || 60) / 60)} min / محاولات كثيرة — انتظر قليلاً`, '#ff3366');
+          setLoading(false);
+          return;
+        }
         if (!res.ok || !data.token) throw new Error(data.error || 'HTTP ' + res.status);
 
         sessionStorage.setItem('dp_admin_token', data.token);
@@ -393,7 +412,11 @@
         setLoading(false);
         setTimeout(() => { window.location.href = 'admin.html'; }, 800);
       } catch (err) {
-        setMsg('Invalid admin email or password / البريد أو كلمة السر غير صحيحة', '#ff3366');
+        // Only WRONG_CREDENTIALS means a bad password; anything else (offline,
+        // server error) must not tell the admin their password is wrong.
+        setMsg(err && err.message === 'WRONG_CREDENTIALS'
+          ? 'Invalid admin email or password / البريد أو كلمة السر غير صحيحة'
+          : 'Connection or server error — try again / خطأ بالاتصال أو السيرفر — حاول مرة ثانية', '#ff3366');
         setLoading(false);
       }
     });

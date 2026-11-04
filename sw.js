@@ -1,8 +1,8 @@
 // Digital Pulse — minimal service worker
 // Network-first for pages and code; cache-first for other static assets.
-const CACHE = "dp-cache-v32";
+const CACHE = "dp-cache-v33";
 const ASSETS = [
-  "index.html", "onboarding.html", "activate.html", "app.html", "ibrheam.html",
+  "index.html", "onboarding.html", "activate.html", "app.html",
   "login.html", "signup.html", "reset-password.html", "auth/callback.html",
   "privacy-policy.html", "admin.html", "admin-login.html",
   "css/theme.css",
@@ -15,7 +15,6 @@ const ASSETS = [
   "js/version.js",
   "js/i18n.js", "js/ui.js", "js/validate.js", "js/config.js",
   "js/supabase-client.js", "js/login.js", "js/activate.js", "js/signup.js",
-  "js/admin.js", "js/admin-auth.js",
   "js/tailwind-config.js", "js/pwa.js",
   // Same failure mode, reached differently: these are pulled in by `import`
   // (app.js -> sync-status-ui.js, login/signup -> native-oauth.js) or by an

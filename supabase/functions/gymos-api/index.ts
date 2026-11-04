@@ -288,6 +288,37 @@ const randChars = (n: number) => {
   return out.join("");
 };
 const randomCode = () => randChars(6);
+// 6-digit email OTP. Rejection sampling keeps the draw uniform over 000000–999999.
+const otpDigits = () => {
+  const buf = new Uint32Array(1);
+  do { crypto.getRandomValues(buf); } while (buf[0] >= 4294000000); // 4294000000 % 1e6 === 0
+  return String(buf[0] % 1000000).padStart(6, "0");
+};
+
+// Every code row, paged past PostgREST's 1000-row response cap.
+async function fetchAllCodes(): Promise<any[]> {
+  const out: any[] = [];
+  const PAGE = 1000;
+  for (let from = 0; from < 100000; from += PAGE) {
+    const { data, error } = await sb.from("codes").select("*").range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
+// Every GoTrue user (listUsers is page-based; 200 per page, 50 pages max).
+async function fetchAllUsers(): Promise<any[]> {
+  const users: any[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw error;
+    users.push(...(data?.users || []));
+    if ((data?.users || []).length < 200) break;
+  }
+  return users;
+}
 
 // Build a subscription block for user_metadata from a desired tier + days.
 // subEnd is computed from NOW so "stays open N days" always holds.
@@ -982,19 +1013,25 @@ async function handler(req: Request): Promise<Response> {
       const ip = clientIp(req);
       if (tooManyOtpIp(ip)) return json({ error: "RATE_LIMITED", message: "Too many requests — try again later" }, 429, origin);
       const email = String(body?.email || "").trim().toLowerCase();
-      if (!email || !/^[^\\s@]+@[^\\s@]+\.[^\\s@]+$/.test(email)) return json({ error: "BAD_REQUEST", message: "Invalid email format" }, 400, origin);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "BAD_REQUEST", message: "Invalid email format" }, 400, origin);
       if (tooManyOtpEmail(email)) return json({ error: "RATE_LIMITED", message: "Too many codes sent to this email — try again later" }, 429, origin);
       failOtpIp(ip);
       failOtpEmail(email);
       // cleanup expired OTP codes (>24h) on each send
       await sb.from("otp_codes").delete().lt("expires_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = otpDigits();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
       const { error: insertErr } = await sb.from("otp_codes").insert({ email, code, expires_at: expiresAt });
       if (insertErr) return json({ error: "INTERNAL_ERROR", message: insertErr.message }, 500, origin);
       const smtpUser = "digitalpulse.ps@gmail.com";
       const smtpPass = Deno.env.get("SMTP_PASS") || Deno.env.get("smtp_pass") || "";
-      if (smtpPass) {
+      // Never report "sent" when nothing went out — the user would wait for
+      // an email that can never arrive.
+      if (!smtpPass) {
+        console.error("[send-otp] SMTP_PASS is not set — cannot send email");
+        return json({ error: "EMAIL_NOT_CONFIGURED", message: "Email service is not configured" }, 503, origin);
+      }
+      {
         try {
           const nodemailer = await import("npm:nodemailer@6.10.0");
           const transport = nodemailer.default.createTransport({
@@ -1008,6 +1045,7 @@ async function handler(req: Request): Promise<Response> {
           });
         } catch (e) {
           console.error("[send-otp] email failed:", e);
+          return json({ error: "EMAIL_FAILED", message: "Could not send the email — try again" }, 502, origin);
         }
       }
       return json({ ok: true }, 200, origin);
@@ -1047,12 +1085,19 @@ async function handler(req: Request): Promise<Response> {
       const ip = clientIp(req);
       if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED" }, 429, origin);
       failAdminIp(ip);
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const code = otpDigits();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      // Only the newest admin code is ever valid — otherwise repeated requests
+      // would stack up live codes and multiply the odds of a guess.
+      await sb.from("otp_codes").update({ used: true }).eq("email", ADMIN_EMAIL).eq("used", false);
       await sb.from("otp_codes").insert({ email: ADMIN_EMAIL, code, expires_at: expiresAt });
       await logAdminAction(ADMIN_EMAIL, "admin_password_reset_requested", "system", null, { method: "otp" }, req);
       const smtpPass = Deno.env.get("SMTP_PASS") || Deno.env.get("smtp_pass") || "";
-      if (smtpPass) {
+      if (!smtpPass) {
+        console.error("[admin send-reset-otp] SMTP_PASS is not set — cannot send email");
+        return json({ error: "EMAIL_NOT_CONFIGURED" }, 503, origin);
+      }
+      {
         try {
           const nodemailer = await import("npm:nodemailer@6.10.0");
           const transport = nodemailer.default.createTransport({
@@ -1064,7 +1109,10 @@ async function handler(req: Request): Promise<Response> {
             subject: "رمز تغيير كلمة سر الأدمن / Admin password reset code",
             html: `<div style="background:#0a0a0a;padding:36px 12px;text-align:center;"><div style="max-width:480px;margin:0 auto;background:#000;border:1px solid #444933;border-radius:14px;padding:34px 24px;"><p style="color:#C3F400;font-family:Arial,sans-serif;font-size:22px;font-weight:bold;margin:12px 0;">DIGITAL PULSE — ADMIN</p><h2 style="color:#fff;font-size:19px;margin:12px 0;" dir="rtl">رمز تغيير كلمة السر</h2><p style="color:#CCFF00;font-size:36px;font-weight:bold;letter-spacing:8px;margin:20px 0;">${code}</p><p style="color:#5a5e4a;font-size:12px;margin:0;" dir="rtl">إذا لم تطلب هذا، تجاهل هذا البريد.</p></div></div>`,
           });
-        } catch (e) { console.error("[admin send-reset-otp] email failed:", e); }
+        } catch (e) {
+          console.error("[admin send-reset-otp] email failed:", e);
+          return json({ error: "EMAIL_FAILED" }, 502, origin);
+        }
       }
       return json({ ok: true }, 200, origin);
     }
@@ -1903,17 +1951,17 @@ async function handler(req: Request): Promise<Response> {
       const search = url.searchParams.get("q")?.trim().toLowerCase() || "";
       const statusFilter = url.searchParams.get("status") || "";
 
-      const all: any[] = [];
       let nextCursor: string | null = null;
       let hasMore = false;
 
-      // Use Supabase's built-in pagination with cursor-based approach
-      // Since listUsers doesn't support cursor directly, we use page-based but with proper cursor
-      const page = cursor ? Math.floor(Date.parse(cursor) / 1000 / 86400 / 30) + 1 : 1; // rough estimate
-      const { data, error } = await sb.auth.admin.listUsers({ page, perPage: perPage + 1 });
-      if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
+      // listUsers is page-based, so filters and the cursor apply to the FULL
+      // user list (newest first); cursor = created_at of the last row served.
+      let everyone: any[];
+      try { everyone = await fetchAllUsers(); } catch { return json({ error: "INTERNAL_ERROR" }, 500, origin); }
+      everyone.sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      if (cursor) everyone = everyone.filter((u) => String(u.created_at || "") < cursor);
 
-      let batch = (data?.users || []).filter((u) => {
+      let batch = everyone.filter((u) => {
         if (search) {
           const email = (u.email || "").toLowerCase();
           const name = (u.user_metadata?.full_name || "").toLowerCase();
@@ -1941,7 +1989,8 @@ async function handler(req: Request): Promise<Response> {
 
       // Pull every code once so the composer (§2) can resolve each user's
       // license without an N+1 query. Group by both owner formats.
-      const { data: allCodes } = await sb.from("codes").select("*");
+      let allCodes: any[];
+      try { allCodes = await fetchAllCodes(); } catch { return json({ error: "INTERNAL_ERROR" }, 500, origin); }
       const codeByOwner = new Map<string, any[]>();
       for (const c of allCodes || []) {
         const k = String(c.owner || "").toLowerCase();
@@ -2092,12 +2141,24 @@ async function handler(req: Request): Promise<Response> {
         return json({ ok: true, id: userId, ...sm }, 200, origin);
       }
 
-      const { suspend } = body || {};
-      const meta = { ...existing.app_metadata, suspended: !!suspend };
-      const { error } = await sb.auth.admin.updateUserById(userId, { app_metadata: meta });
-      if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
-      await logAdminAction(ADMIN_EMAIL, suspend ? "suspend_user" : "activate_user", "user", userId, { suspended: !!suspend }, req);
-      return json({ ok: true, suspended: !!suspend }, 200, origin);
+      // Gym name only (drawer "Edit gym name"). Without this branch the body
+      // fell through to the suspend fallback below and UN-suspended the user.
+      if (body?.gym_name !== undefined || body?.name !== undefined) {
+        const meta = { ...(existing.user_metadata || {}) };
+        if (body.gym_name !== undefined) meta.gym_name = String(body.gym_name).trim().slice(0, 100);
+        if (body.name !== undefined) meta.full_name = String(body.name).trim().slice(0, 100);
+        const { error } = await sb.auth.admin.updateUserById(userId, { user_metadata: meta });
+        if (error) return json({ error: error.message || "INTERNAL_ERROR" }, 500, origin);
+        await logAdminAction(ADMIN_EMAIL, "update_user_profile", "user", userId, { gym_name: meta.gym_name, full_name: meta.full_name }, req);
+        return json({ ok: true, id: userId, gym_name: meta.gym_name || "", full_name: meta.full_name || "" }, 200, origin);
+      }
+
+      // Legacy {suspend: bool} — routed through runUserOp so the suspension is
+      // mirrored onto every owned code (a code login must not bypass it).
+      if (typeof body?.suspend === "boolean") {
+        return await runUserOp(userId, { ...body, op: body.suspend ? "suspend" : "reactivate" }, req, origin);
+      }
+      return json({ error: "BAD_REQUEST", message: "Nothing to update" }, 400, origin);
     }
 
     /* admin: delete user — v1.4.9 (QA A8): permanent GoTrue deletion now
@@ -2163,54 +2224,9 @@ async function handler(req: Request): Promise<Response> {
       return json({ ok: true, email }, 200, origin);
     }
 
-    /* admin: reset password — verify token and set new password */
-    if (req.method === "POST" && path === "/api/admin/reset-password") {
-      const ip = clientIp(req);
-      if (tooManyAdmin(ip)) return json({ error: "RATE_LIMITED", secs: ADMIN_WINDOW_MS / 1000 }, 429, origin);
-      failAdminIp(ip);
-      const token = String(body?.token || "");
-      const newPassword = String(body?.password || "");
-      if (!token || newPassword.length < 12 || newPassword.length > 72) {
-        return json({ error: "INVALID_REQUEST" }, 400, origin);
-      }
-      // Verify stored token
-      const { data: resetRecord } = await sb.from("codes").select("*").eq("code", "ADMIN_RESET_TOKEN").maybeSingle();
-      if (!resetRecord || !resetRecord.note) {
-        return json({ error: "INVALID_OR_EXPIRED_TOKEN" }, 400, origin);
-      }
-      // Parse stored hash and expiry
-      const note = resetRecord.note;
-      const hashMatch = note.match(/Reset token hash: ([^,]+)/);
-      const expiresMatch = note.match(/expires: (\d+)/);
-      if (!hashMatch || !expiresMatch) {
-        return json({ error: "INVALID_TOKEN_FORMAT" }, 400, origin);
-      }
-      const storedHash = hashMatch[1];
-      const expiresAt = parseInt(expiresMatch[1], 10);
-      if (Date.now() > expiresAt) {
-        // Clean up expired token
-        await sb.from("codes").delete().eq("code", "ADMIN_RESET_TOKEN");
-        return json({ error: "TOKEN_EXPIRED" }, 400, origin);
-      }
-      const valid = await bcrypt.compare(token, storedHash);
-      if (!valid) {
-        return json({ error: "INVALID_OR_EXPIRED_TOKEN" }, 400, origin);
-      }
-      // Update admin password in Function Secret
-      // NOTE: This requires the Function to have permission to update its own secrets
-      // which it doesn't by default. The password must be updated manually in Supabase Dashboard
-      // or via the Supabase Management API with a service token.
-      // For now, we return instructions.
-      
-      // Clean up used token
-      await sb.from("codes").delete().eq("code", "ADMIN_RESET_TOKEN");
-      
-      return json({ 
-        ok: true, 
-        message: "Password reset token verified. The admin password must be updated manually in Supabase Dashboard → Edge Functions → Secrets → ADMIN_PASSWORD. Then redeploy the function.",
-        requiresManualSecretUpdate: true
-      }, 200, origin);
-    }
+    /* /api/admin/reset-password (ADMIN_RESET_TOKEN) was removed: nothing ever minted
+       that token, so the flow could never succeed. The admin password is reset
+       with /api/admin/send-reset-otp + /api/admin/verify-reset-otp. */
 
     /* admin: audit log — paginated, newest first */
     if (req.method === "GET" && path === "/api/admin/audit-log") {
@@ -2295,15 +2311,10 @@ async function handler(req: Request): Promise<Response> {
       const now = Date.now();
       const horizon = now + days * DAY_MS;
       // All users, all pages (same pagination shape as /api/users).
-      const users: any[] = [];
-      for (let page = 1; page <= 50; page++) {
-        const { data, error } = await sb.auth.admin.listUsers({ page, perPage: 200 });
-        if (error) return json({ error: "INTERNAL_ERROR" }, 500, origin);
-        users.push(...(data?.users || []));
-        if ((data?.users || []).length < 200) break;
-      }
-      // One codes fetch, grouped by both owner formats (same as /api/users).
-      const { data: allCodes } = await sb.from("codes").select("*");
+      let users: any[], allCodes: any[];
+      try { [users, allCodes] = await Promise.all([fetchAllUsers(), fetchAllCodes()]); }
+      catch { return json({ error: "INTERNAL_ERROR" }, 500, origin); }
+      // Codes grouped by both owner formats (same as /api/users).
       const codeByOwner = new Map<string, any[]>();
       for (const c of allCodes || []) {
         const k = String(c.owner || "").toLowerCase();

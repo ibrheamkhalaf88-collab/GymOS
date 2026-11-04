@@ -139,7 +139,7 @@ test("version consistency: package.json, config.js, build.gradle, build.js and s
   assert.match(gradle, /versionCode 30/);
   // Cache name must move with the release or the service worker keeps serving
   // the previous (possibly broken) js/app.js forever.
-  assert.match(sw, /dp-cache-v32/);
+  assert.match(sw, /dp-cache-v33/);
 });
 
 test("index.html: APK download button uses correct GitHub releases download URL", () => {

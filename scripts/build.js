@@ -26,8 +26,8 @@ const FILES_TO_PROCESS = [
 
 const FILES_TO_COPY = [
   "index.html", "onboarding.html", "login.html", "signup.html", "reset-password.html",
-  "activate.html", "contact.html", "app.html", "ibrheam.html", "privacy-policy.html",
-  "admin.html", "admin-login.html", "admin-reset-password.html",
+  "activate.html", "contact.html", "app.html", "privacy-policy.html",
+  "admin.html", "admin-login.html",
   "manifest.webmanifest", "sw.js",
   ...FILES_TO_PROCESS,
 ];

@@ -19,7 +19,7 @@ const store = read("../js/store.js");
 const server = read("../supabase/functions/gymos-api/index.ts");
 const ui = read("../js/sync-status-ui.js");
 const app = read("../js/app.js");
-const admin = read("../js/admin.js");
+const adminPanel = read("../js/admin-panel.js");
 
 const saveGym = db.slice(db.indexOf("async saveGym("));
 const loadGym = db.slice(db.indexOf("async loadGym("), db.indexOf("async saveGym("));
@@ -116,10 +116,10 @@ test("sync-status-ui.js: the auth state shows a persistent re-activate banner", 
   assert.match(ui, /window\.open\("activate\.html", "_blank"\)/);
 });
 
-test("app.js + admin.js: no raw dp_jwt reads; admin 401/403 routes to admin-login.html", () => {
+test("app.js: no raw dp_jwt reads; admin panel 401/403 routes to admin-login.html", () => {
   assert.doesNotMatch(app, /localStorage\.getItem\("dp_jwt"\)/, "drive-backup calls must use getJwt()");
   assert.match(app, /import \{ clearJwt, getJwt \} from "\.\/db\.js"/);
-  // same behaviour as admin-panel.js: stale/dead admin token → back to login
-  assert.match(admin, /if \(res\.status === 401 \|\| res\.status === 403\) \{/);
-  assert.match(admin, /window\.location\.href = 'admin-login\.html'/);
+  // stale/dead admin token → drop it and go back to the admin login screen
+  assert.match(adminPanel, /\/\(401\|403\|FORBIDDEN\|UNAUTHORIZED\)\/i/);
+  assert.match(adminPanel, /sessionStorage\.removeItem\('dp_admin_token'\);\s*window\.location\.href = 'admin-login\.html'/);
 });

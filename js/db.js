@@ -1,6 +1,6 @@
 ﻿// ============================================================
-// Codes database client â€” MongoDB REST API backend
-// Online mode : GymOS API (see server/) â€” JWT per gym + admin token
+// Codes database client — MongoDB REST API backend
+// Online mode : GymOS API (see server/) — JWT per gym + admin token
 // Demo mode   : localStorage fallback (no API configured)
 //
 // Same public API as before, so screens don't change:
@@ -19,7 +19,7 @@ export const onlineMode = () => !!API();
 /* ---------------- Client JWT storage ----------------
    Persisted in localStorage, not sessionStorage. The gym's members, phones and
    ledger already live in localStorage in plaintext, so keeping the token there
-   does not change the threat model â€” but sessionStorage did: closing the tab
+   does not change the threat model — but sessionStorage did: closing the tab
    dropped the token while dp_cloud stayed "1", so every later sync quietly
    failed with 401 and the customer's local edits were never backed up again. */
 const JWT_KEY = "dp_jwt";
@@ -583,7 +583,7 @@ function startCodesSync() {
   window.addEventListener("online", syncCodesCache);
 }
 if (typeof window !== "undefined") {
-  // ط§ط¨ط¯ط£ ط§ظ„طھط²ط§ظ…ظ† ط¹ظ†ط¯ ط§ظ„طھط­ظ…ظٹظ„ ط¥ط°ط§ ظƒط§ظ† ط§ظ„ط£ط¯ظ…ظ† ظ…ط³ط¬ظ„ط§ظ‹
+  // ابدأ التزامن عند التحميل إذا كان الأدمن مسجلاً
   if (sessionStorage.getItem("dp_admin_token") || sessionStorage.getItem("dp_demo_admin")) startCodesSync();
   window.addEventListener("storage", (e) => { if (e.key === "dp_admin_token" || e.key === "dp_demo_admin") startCodesSync(); });
 }

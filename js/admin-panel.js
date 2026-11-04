@@ -143,7 +143,6 @@ const elements = {
   addUserBtn: $('#addUserBtn'),
   exportUsersXlsxBtn: $('#exportUsersXlsxBtn'),
   exportUsersCsvBtn: $('#exportUsersCsvBtn'),
-  importUsersBtn: $('#importUsersBtn'),
 
   // Admin info
   adminEmailDisplay: $('#adminEmailDisplay'),
@@ -266,15 +265,11 @@ const modeBorder = IS_DEMO ? '#ff980055' : '#CCFF0055';
 elements.modeBadge.textContent = modeText;
 elements.modeBadge.style.color = modeColor;
 elements.modeBadge.style.borderColor = modeBorder;
+// The admin JWT carries no email, and dp_current_user is the GYM user signed
+// in on this browser — not the admin. Show the configured admin address.
 elements.adminEmailDisplay.textContent = IS_DEMO
   ? 'admin@gym.local (Demo)'
-  : (((() => {
-      try {
-        return JSON.parse(localStorage.getItem('dp_current_user') || 'null');
-      } catch {
-        return null;
-      }
-    })() || {}).email || 'Admin');
+  : (appConfig.adminEmail || 'Admin');
 
 // Logout handler
 elements.adminLogoutBtn.addEventListener('click', () => {
@@ -291,6 +286,9 @@ elements.addUserBtn.addEventListener('click', openCreateUser);
 const API_BASE = appConfig.apiUrl || 'https://mwfbgucayjgbbvcyelbo.functions.supabase.co/gymos-api';
 
 async function api(path, opts = {}) {
+  // Demo mode never talks to the live API (drawer actions, messages and the
+  // health probes used to fire real requests with the fake demo token).
+  if (IS_DEMO) throw new Error('Demo mode — online only / وضع التجربة — يتطلب الاتصال');
   const res = await fetch(API_BASE + path, {
     ...opts,
     headers: {
@@ -312,7 +310,10 @@ const ts = (v) => {
 };
 
 function normalizeUser(u) {
-  const st = (u && u.status && typeof u.status === 'object') ? u.status : null;
+  // /api/users sends the composer object as `accountStatus` (and `status` as
+  // the plain 'active'/'suspended' string); older shapes used `status`.
+  const st = (u && u.accountStatus && typeof u.accountStatus === 'object') ? u.accountStatus
+    : (u && u.status && typeof u.status === 'object') ? u.status : null;
   const accountStatus = st ? (st.accountStatus || 'allowed') : (u.status === 'suspended' ? 'suspended' : 'allowed');
   // Source of truth is the server composer object (u.status). Never merge subTier||subscription.
   const plan = st ? (st.plan || 'none') : (u.subTier ? u.subTier : (u.subscription || 'none'));
@@ -451,9 +452,9 @@ async function loadUsers(append = false) {
     params.set('perPage', '200');
     const search = elements.searchInput.value.trim();
     if (search) params.set('q', search);
-    const status = elements.statusFilter.value;
-    if (status !== 'all') params.set('status', status);
-    
+    // Status is filtered client-side in renderUsers() from the composer status
+    // (code row = licence truth); the server's status filter reads metadata only.
+
     const [apiRes, stats] = await Promise.all([
       api(`/api/users?${params.toString()}`),
       api('/api/admin/backup?scope=stats').catch(() => null),
@@ -737,7 +738,9 @@ function editUser(id) {
   elements.userName.value = u.name || '';
   elements.userEmail.value = u.email || '';
   elements.userEmail.disabled = true;
-  const tier = ['trial', 'monthly', 'yearly', 'lifetime', 'none'].includes(u.subscription) ? u.subscription : 'none';
+  // An expired account still has a plan — preselect it instead of "none"
+  const cur = u.subscription === 'expired' ? u.plan : u.subscription;
+  const tier = ['trial', 'monthly', 'yearly', 'lifetime', 'none'].includes(cur) ? cur : 'none';
   elements.userSubType.value = tier;
   elements.userDays.value = u.days || (tier === 'yearly' ? 365 : tier === 'trial' ? 14 : tier === 'lifetime' ? 0 : 30);
   elements.submitUserBtn.textContent = 'Save Changes / حفظ';
@@ -861,10 +864,18 @@ elements.userForm.addEventListener('submit', async (e) => {
           subEnd, subTier: tier, days: subscription.days, status: 'active',
         });
       } else {
-        await api('/api/users/' + editId, {
-          method: 'PATCH',
-          body: JSON.stringify({ name, subscription }),
+        // Licence changes go through the audited /actions ops: they update the
+        // code row (the licence truth) as well as the metadata mirror.
+        const act = (op, extra) => api('/api/admin/users/' + encodeURIComponent(editId) + '/actions', {
+          method: 'POST', body: JSON.stringify({ op, ...(extra || {}) }),
         });
+        if (tier === 'lifetime') await act('set_unlimited');
+        else if (tier === 'none') await act('terminate');
+        else { await act('set_plan', { tier }); await act('set_remaining', { days }); }
+        const before = allUsers.find(x => x.id === editId);
+        if (!before || (before.name || '') !== name) {
+          await api('/api/users/' + encodeURIComponent(editId), { method: 'PATCH', body: JSON.stringify({ name }) });
+        }
       }
     }
     elements.userModal.classList.add('hidden');
@@ -883,44 +894,35 @@ elements.userForm.addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- Users Import / Export (Excel / CSV) ----------
-async function exportUsersXLSX() {
-  try {
-    const { store } = await import('./store.js');
-    const blob = await store.exportToXLSX();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gymos-users-${fileStamp()}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    showToast('Users exported to Excel / تم تصدير المستخدمين إلى Excel', 'success');
-  } catch (err) {
-    console.error('[export xlsx]', err);
-    showToast('Export failed: ' + err.message, 'error');
-  }
+// ---------- Users Export (Excel / CSV) ----------
+// Exports the accounts loaded in the panel (the admin's users). The old
+// Import/Export ran on THIS browser's local gym store (members…), not accounts.
+function userExportRows(users) {
+  const headers = ['name', 'email', 'gym_name', 'id', 'plan', 'status', 'account', 'sub_end', 'remaining_days', 'created', 'last_sign_in', 'code'];
+  const iso = (ms) => (ms ? new Date(ms).toISOString() : '');
+  const rows = (users || []).map(u => [
+    u.name || '', u.email || '', u.gym_name || '', u.id || '',
+    u.plan || '', u.subStatus || '', u.status || '',
+    u.unlimited ? 'unlimited' : iso(u.subEnd),
+    u.remainingDays != null ? u.remainingDays : '',
+    iso(u.created), iso(u.lastSignIn), u.codeUsed || '',
+  ]);
+  return { headers, rows };
 }
 
-async function exportUsersCSV() {
+async function exportUsers(ext) {
   try {
-    const { store } = await import('./store.js');
-    const blob = store.exportToCSV();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gymos-users-${fileStamp()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-    showToast('Users exported to CSV / تم تصدير المستخدمين إلى CSV', 'success');
+    if (!allUsers.length) { showToast('No accounts loaded / لا توجد حسابات محمّلة', 'error'); return; }
+    const { headers, rows } = userExportRows(allUsers);
+    await exportTableRows('gymos-users', headers, rows, ext);
+    showToast(`Users exported (${rows.length}) / تم تصدير المستخدمين`, 'success');
   } catch (err) {
-    console.error('[export csv]', err);
+    console.error('[users export]', err);
     showToast('Export failed: ' + err.message, 'error');
   }
 }
+const exportUsersXLSX = () => exportUsers('xlsx');
+const exportUsersCSV = () => exportUsers('csv');
 
 // ---------- Generic table export (CSV / XLSX) — shared by Users & Codes ----------
 // Lazy-loads SheetJS from vendor/xlsx.full.min.js (same pattern as js/store.js)
@@ -1013,59 +1015,9 @@ async function exportCodesCSV() {
   }
 }
 
-async function importUsers() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.xlsx,.xls,.csv';
-  input.addEventListener('change', async () => {
-    const file = input.files && input.files[0];
-    input.remove();
-    if (!file) return;
-
-    const confirmed = await showConfirm({
-      title: 'Import Users / استيراد المستخدمين',
-      message: `This will import users from "${file.name}". Existing users (by email) will be updated, new users added. A backup of current users will be downloaded first. / سيستورد المستخدمين من "${file.name}". المستخدمون الحاليون (بالبريد) سيتم تحديثهم، والجدد سيضافون. نسخة احتياطية ستُنزل أولاً.`,
-      icon: '📥',
-      iconColor: '#CCFF00',
-      okText: 'Import / استيراد',
-      okClass: 'btn-primary',
-      cancelText: 'Cancel / إلغاء',
-    });
-    if (!confirmed) return;
-
-    // Backup current users first
-    try {
-      const { store } = await import('./store.js');
-      const backup = store.exportAll();
-      downloadJson(`gymos-pre-import-${fileStamp()}.json`, backup);
-    } catch (e) {
-      console.warn('pre-import backup failed', e);
-    }
-
-    loading = true;
-    try {
-      const { store } = await import('./store.js');
-      const result = await store.importFromFile(file, { skipDuplicates: false });
-      showToast(`Import done: ${result.added} added, ${result.updated} updated${result.errors.length ? `, ${result.errors.length} errors` : ''}`, result.errors.length ? 'warning' : 'success');
-      if (result.errors.length) {
-        console.warn('Import errors:', result.errors);
-      }
-      await loadUsers();
-    } catch (err) {
-      console.error('[import]', err);
-      showToast('Import failed: ' + err.message, 'error');
-    } finally {
-      loading = false;
-    }
-  });
-  document.body.appendChild(input);
-  input.click();
-}
-
-// Wire up import/export buttons
+// Wire up export buttons
 elements.exportUsersXlsxBtn?.addEventListener('click', exportUsersXLSX);
 elements.exportUsersCsvBtn?.addEventListener('click', exportUsersCSV);
-elements.importUsersBtn?.addEventListener('click', importUsers);
 document.getElementById('exportCodesXlsxBtn')?.addEventListener('click', exportCodesXLSX);
 document.getElementById('exportCodesCsvBtn')?.addEventListener('click', exportCodesCSV);
 
@@ -1371,9 +1323,11 @@ elements.usersTableBody.addEventListener('click', async (e) => {
       await demoUpdateUser(id, { status: isSuspend ? 'suspended' : 'active' });
       updated = true;
     } else {
-      await api('/api/users/' + id, {
-        method: 'PATCH',
-        body: JSON.stringify({ suspend: isSuspend }),
+      // The /actions op also mirrors the suspension onto every owned code,
+      // so the user cannot keep signing in with an activation code.
+      await api('/api/admin/users/' + encodeURIComponent(id) + '/actions', {
+        method: 'POST',
+        body: JSON.stringify({ op: isSuspend ? 'suspend' : 'reactivate' }),
       });
       updated = true;
     }
@@ -1430,18 +1384,37 @@ window.addEventListener('scroll', () => {
 // ============================================================
 
 const CODE_PAGE_SIZE = 50;
+let codeShown = CODE_PAGE_SIZE;
 
-// Load activation codes
-async function loadCodes() {
+// Every code, following the server's cursor (100 per page). A single
+// ?limit=200 request used to cap the panel at the newest 100–200 codes.
+async function fetchAllCodePages() {
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < 100; page++) {
+    const qs = new URLSearchParams({ limit: '100' });
+    if (cursor) qs.set('cursor', cursor);
+    const r = await api('/api/codes?' + qs.toString());
+    if (Array.isArray(r)) return r;
+    const batch = (r && r.data) || [];
+    out.push(...batch);
+    cursor = r && r.nextCursor;
+    if (!r || !r.hasMore || !cursor || !batch.length) break;
+  }
+  return out;
+}
+
+// Load activation codes (keepPage: "Load more" grows the visible slice)
+async function loadCodes(keepPage) {
+  if (keepPage !== true) codeShown = CODE_PAGE_SIZE;
   if (elements.codeCountBadge) elements.codeCountBadge.textContent = '…';
-  if (elements.codeListBody) elements.codeListBody.innerHTML = `<tr><td colspan="7"><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div></td></tr>`;
+  if (keepPage !== true && elements.codeListBody) elements.codeListBody.innerHTML = `<tr><td colspan="7"><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div><div class="skeleton" style="height:1.2rem;margin:.5rem 0;"></div></td></tr>`;
   let rows = [];
   try {
     if (IS_DEMO) {
       rows = demoCodesAll();
     } else {
-      const data = await api('/api/codes?limit=200');
-      rows = Array.isArray(data) ? data : (data.data || []);
+      rows = [...await v2FetchCodes(keepPage !== true)];
     }
   } catch (err) {
     elements.codeListBody.innerHTML = `<tr><td colspan="7" style="color: var(--danger);">${esc(err.message || 'Could not load codes')}</td></tr>`;
@@ -1464,7 +1437,7 @@ async function loadCodes() {
 
   // Pagination
   const start = 0;
-  const end = CODE_PAGE_SIZE;
+  const end = codeShown;
   const pageRows = rows.slice(start, end);
   const hasMore = rows.length > end;
 
@@ -1589,9 +1562,17 @@ elements.toggleCodesBtn.addEventListener('click', async () => {
   if (show) await loadCodes();
 });
 
-// Filters for codes
-elements.codeSearchInput.addEventListener('input', loadCodes);
-elements.codeStatusFilter.addEventListener('change', loadCodes);
+// Filters for codes (search is debounced and filters the cached list)
+let codeSearchDebounce = null;
+elements.codeSearchInput.addEventListener('input', () => {
+  clearTimeout(codeSearchDebounce);
+  codeSearchDebounce = setTimeout(() => loadCodes(true), 250);
+});
+elements.codeStatusFilter.addEventListener('change', () => loadCodes(true));
+elements.codeLoadMoreBtn?.addEventListener('click', () => {
+  codeShown += CODE_PAGE_SIZE;
+  loadCodes(true);
+});
 
 // Create code modal
 elements.addCodeBtn.addEventListener('click', () => {
@@ -2053,8 +2034,7 @@ async function v2FetchAudit(force) {
 async function v2FetchCodes(force) {
   if (IS_DEMO) return [];
   if (!force && V2_CACHE.codes && Date.now() - V2_CACHE.codesAt < 60000) return V2_CACHE.codes;
-  const r = await api('/api/codes?limit=200');
-  V2_CACHE.codes = Array.isArray(r) ? r : ((r && r.data) || []); V2_CACHE.codesAt = Date.now();
+  V2_CACHE.codes = await fetchAllCodePages(); V2_CACHE.codesAt = Date.now();
   return V2_CACHE.codes;
 }
 async function v2FetchStats(force) {
@@ -2369,7 +2349,7 @@ function weeklyBuckets(field) {
   for (const u of allUsers) {
     const t = Number(u[field] || 0);
     if (!t) continue;
-    const b = weeks.find(w => t >= w.start && t < w.end + 7 * 86400000);
+    const b = weeks.find(w => t >= w.start && t < w.end);
     if (b) b.value++;
   }
   return weeks;
@@ -2571,7 +2551,9 @@ async function refreshSecurityView() {
   const note = document.getElementById('seSessionNote');
   if (sess) {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1] || '{}'));
+      // JWT segments are base64url — atob() needs standard base64 + padding
+      const seg = (token.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(seg + '='.repeat((4 - seg.length % 4) % 4)) || '{}');
       const exp = payload.exp ? payload.exp * 1000 : 0;
       sess.textContent = payload.admin ? 'HS256 admin JWT' : 'session token';
       if (note) note.textContent = exp ? 'Expires ' + fmtDay(exp) + ' · sessionStorage (per tab)' : 'sessionStorage (per tab)';
@@ -2840,8 +2822,7 @@ function drRenderOverview(u) {
 async function drRenderLicense(u) {
   const panel = document.getElementById('drt-license');
   if (!panel || !u) return;
-  let _adminEmail = '';
-  try { _adminEmail = (JSON.parse(localStorage.getItem('dp_current_user') || 'null') || {}).email || ''; } catch {}
+  const _adminEmail = appConfig.adminEmail || '';
   const isSelf = !!_adminEmail && String(_adminEmail).toLowerCase() === String(u.email || '').toLowerCase();
   panel.innerHTML = '<div class="empty-state"><span class="icon">⏳</span></div>';
   const codes = await v2FetchCodes().catch(() => null);
@@ -2953,7 +2934,8 @@ async function drRenderLicense(u) {
     if (plan === 'lifetime') {
       drRunAction('set_unlimited', { plan: 'lifetime', unlimited: true }, `Set plan to lifetime (unlimited)? / تعيين الخطة إلى دائم (غير محدود)؟`);
     } else {
-      drRunAction('set_plan', { plan, unlimited: false }, `Set plan to ${plan}? / تعيين الخطة إلى ${plan}؟`);
+      // The server reads `tier` (a `plan` key silently fell back to monthly).
+      drRunAction('set_plan', { tier: plan }, `Set plan to ${plan}? / تعيين الخطة إلى ${plan}؟`);
     }
   }));
 
@@ -2989,6 +2971,8 @@ async function drRenderLicense(u) {
     if (!ok) return;
     gymBtn.disabled = true;
     try {
+      // Server PATCH now has a dedicated gym_name branch (it used to fall
+      // through to the suspend fallback and un-suspend the account).
       await api('/api/users/' + encodeURIComponent(u.id), { method: 'PATCH', body: JSON.stringify({ gym_name: name }) });
       showToast('Gym name updated / تم تحديث اسم النادي', 'success');
       await loadUsers();
@@ -3009,7 +2993,8 @@ async function drRenderLicense(u) {
   panel.querySelectorAll('[data-dr-act="suspend"]').forEach(b => {
     b.addEventListener('click', async (e) => {
       e.stopImmediatePropagation();
-      const reason = window.prompt('Suspension reason / سبب التعليق:', '') || '';
+      const reason = window.prompt('Suspension reason / سبب التعليق:', '');
+      if (reason === null) return; // Cancel means "don't suspend"
       await drRunAction('suspend', { reason }, null);
     }, true);
   });
@@ -3025,7 +3010,7 @@ async function drRenderLicense(u) {
     const ok = await showConfirm({ title: 'Revoke code', message: 'Revoking ' + code + ' blocks its cloud access immediately. Customer data is never deleted.', icon: '🚫', iconColor: '#fb5b74', okText: 'Revoke', okClass: 'btn-danger' });
     if (!ok) return;
     b.disabled = true;
-    try { await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: true }) }); showToast('Code revoked', 'success'); drRenderLicense(u); }
+    try { await api('/api/codes/' + encodeURIComponent(code) + '/revoke', { method: 'PATCH', body: JSON.stringify({ revoked: true }) }); showToast('Code revoked', 'success'); V2_CACHE.codes = null; drRenderLicense(u); }
     catch (e) { showToast('Revoke failed: ' + e.message, 'error'); }
     finally { b.disabled = false; }
   }));
@@ -3035,15 +3020,17 @@ async function drRenderLicense(u) {
     const add = parseInt(inp && inp.value, 10) || 0;
     if (add < 1 || add > 3650) { showToast('Enter 1-3650 days / أدخل من 1 إلى 3650 يوم', 'error'); return; }
     const now = Date.now();
-    const endMs = u.subEnd ? Date.parse(u.subEnd) : 0;
+    // subEnd is already epoch ms (normalizeUser → ts()); Date.parse(number) is NaN
+    const endMs = Number(ts(u.subEnd)) || 0;
     const remaining = endMs > now ? Math.ceil((endMs - now) / 86400000) : 0;
     const total = remaining + add;
-    const tier = ['trial', 'monthly', 'yearly'].includes(u.subscription) ? u.subscription : 'monthly';
     const ok = await showConfirm({ title: 'Extend subscription', message: `+${add} days on top of ${remaining} remaining → total ${total} days / تمديد ${add} يوم فوق ${remaining} يوم متبقية — الإجمالي ${total} يوم`, icon: '⏳', okText: 'Extend / تمديد' });
     if (!ok) return;
     extendBtn.disabled = true;
     try {
-      await api('/api/users/' + u.id, { method: 'PATCH', body: JSON.stringify({ subscription: { tier, days: total } }) });
+      // adjust_days adds on top of the remaining window (server clock) on the
+      // licence code row AND the metadata mirror — the code row is the truth.
+      await api('/api/admin/users/' + encodeURIComponent(u.id) + '/actions', { method: 'POST', body: JSON.stringify({ op: 'adjust_days', days: add }) });
       showToast('Subscription extended / تم تمديد الاشتراك', 'success');
       await loadUsers();
       const fresh = allUsers.find(x => x.id === u.id);
@@ -3055,10 +3042,14 @@ async function drRenderLicense(u) {
   });
   const assignBtn = panel.querySelector('[data-dr-assign]');
   if (assignBtn) assignBtn.addEventListener('click', async () => {
-    if (!mine.length) { showToast('Create a code first (New code button)', 'error'); return; }
-    const unlinked = mine;
-    const code = unlinked.length === 1 ? unlinked[0].code : (window.prompt('Code to link (' + unlinked.map(c => c.code).join(', ') + '):', unlinked[0].code) || '');
-    if (!code) return;
+    // Offer codes nobody owns yet (the old list only held codes this account
+    // already owned, so a new code could never be linked from here).
+    const unlinked = (codes || []).filter(c => !c.owner && !c.revoked);
+    if (!unlinked.length) { showToast('No free code — create one first (New code) / لا يوجد كود متاح — أنشئ كوداً أولاً', 'error'); return; }
+    const picked = (window.prompt('Code to link / الكود المراد ربطه (' + unlinked.slice(0, 10).map(c => c.code).join(', ') + (unlinked.length > 10 ? ', …' : '') + '):', unlinked[0].code) || '').trim().toUpperCase();
+    if (!picked) return;
+    const code = picked;
+    if (!(codes || []).some(c => c.code === code)) { showToast('Unknown code / كود غير موجود', 'error'); return; }
     const owner = (window.prompt('Owner email for ' + code + ':', u.email || '') || '').trim().toLowerCase();
     if (!owner) return;
     const ok = await showConfirm({ title: 'Link code to account', message: code + ' will be owned by ' + owner, icon: '🔗', iconColor: '#38bdf8', okText: 'Link', okClass: 'btn-primary' });
@@ -3305,7 +3296,7 @@ async function toggleMessageResolved(id, resolve) {
     renderMessages();
     updateMsgBadge();
   } catch (err) {
-    showToast(v2t('ms.failed') + ' — ' + (err.message || ''), 'error');
+    showToast(v2t('ms.failedToast') + ' — ' + (err.message || ''), 'error');
   } finally {
     if (btn) btn.disabled = false;
   }

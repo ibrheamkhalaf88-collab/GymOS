@@ -1,5 +1,5 @@
 ﻿// ============================================================
-// Supabase Auth Client â€” single instance used everywhere
+// Supabase Auth Client — single instance used everywhere
 // Supports: email/password sign-in, Google OAuth, sign-up,
 // forgot password, session persistence.
 // ============================================================
@@ -40,10 +40,10 @@ try {
       },
     });
   } else {
-    console.warn('[supabase-client] Supabase not configured â€” running in demo mode.');
+    console.warn('[supabase-client] Supabase not configured — running in demo mode.');
   }
 } catch (err) {
-  console.warn('[supabase-client] init failed â€” running in demo mode:', err?.message || err);
+  console.warn('[supabase-client] init failed — running in demo mode:', err?.message || err);
 }
 
 export { supabase };

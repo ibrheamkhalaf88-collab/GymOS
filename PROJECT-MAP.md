@@ -29,7 +29,7 @@
 │     onboarding.html         نفس ملفات الويب داخل Capacitor       │
 │     activate.html            (مجلّد www/ → android/)              │
 │     app.html                                                      │
-│     ibrheam.html  ← لوحة الأدمين (سرية)                           │
+│     admin.html    ← لوحة الأدمين (الدخول من admin-login.html)     │
 │                                                                   │
 │  كلاهما يستخدم نفس ملفات js/ بالضبط                            │
 └──────────────────────────┬────────────────────────────────────────┘
@@ -59,7 +59,7 @@
 | `onboarding.html` | شاشات الترحيب (4 شرائح تعريفية) — مدخل التطبيق الفعلي |
 | `activate.html` | شاشة تفعيل الكود XXX-XXX + تسجيل دخول العميل القديم |
 | `app.html` | التطبيق الرئيسي SPA (الأعضاء، الأجهزة، المالية، التحليلات) |
-| `ibrheam.html` | 🔐 **لوحة الأدمين** — توليد وإدارة الأكواد (اسم سرّي، كان admin.html) |
+| `admin.html` + `admin-login.html` | 🔐 **لوحة الأدمين** — الحسابات، الاشتراكات، الأكواد، الكوبونات، النسخ الاحتياطي (ibrheam.html القديمة انحذفت) |
 | `manifest.webmanifest` | إعدادات PWA (الأيقونات والاسم ليُثبّت كتطبيق) |
 | `sw.js` | Service Worker — عمل التطبيق أوفلاين + كاش |
 
@@ -160,7 +160,7 @@
    `https://ibrheamkhalaf88-collab.github.io/GymOS/`
 2. **تطبيق الأندرويد (APK)** → يحمَّل من:
    GitHub → تبويب **Actions** → آخر بناء ناجح **Build Android APK** → قسم **Artifacts** → `DigitalPulse-debug-apk`
-3. **لوحة الأدمين (سرّية)** → نفس رابط الموقع + `/ibrheam.html`
+3. **لوحة الأدمين** → نفس رابط الموقع + `/admin-login.html`
    - في وضع ONLINE تدخل بـ `ADMIN_EMAIL` + `ADMIN_PASSWORD` المحددين في Render
 
 ---

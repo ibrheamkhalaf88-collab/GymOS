@@ -694,6 +694,10 @@
       .v2-burger { display: inline-flex; }
       .v2-content { padding: 1rem 0.9rem 2.5rem; }
     }
+    /* Phones: the wrapped action bar is ~160px tall — don't pin it over the content */
+    @media (max-width: 560px) {
+      .v2-topbar { position: static; padding: 0.55rem 0.75rem; gap: 0.45rem; }
+    }
     .sidebar-scrim { position: fixed; inset: 0; z-index: 39; background: rgba(4,8,18,.5); opacity: 0; visibility: hidden; transition: opacity .3s; }
     body.sidebar-open .sidebar-scrim { opacity: 1; visibility: visible; }
   </style>
@@ -871,18 +875,14 @@
                 Users / المستخدمين
                 <span id="usersCount" class="section-count">0</span>
               </h2>
-              <div class="flex items-center gap-2">
-                <button id="exportUsersXlsxBtn" class="btn btn-secondary btn-sm" title="Export all users to Excel (.xlsx)">
+              <div class="flex items-center gap-2 flex-wrap">
+                <button id="exportUsersXlsxBtn" class="btn btn-secondary btn-sm" title="Export the loaded accounts to Excel (.xlsx)">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <span>Export XLSX</span>
                 </button>
-                <button id="exportUsersCsvBtn" class="btn btn-secondary btn-sm" title="Export all users to CSV">
+                <button id="exportUsersCsvBtn" class="btn btn-secondary btn-sm" title="Export the loaded accounts to CSV">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <span>Export CSV</span>
-                </button>
-                <button id="importUsersBtn" class="btn btn-primary btn-sm" title="Import users from Excel/CSV">
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span>Import</span>
                 </button>
               </div>
             </div>
